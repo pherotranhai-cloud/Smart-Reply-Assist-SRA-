@@ -1,0 +1,16 @@
+[
+  {
+    "term": "QCO",
+    "meaningVi": "Thay đổi khuôn nhanh",
+    "targetEn": "Quick Changeover",
+    "targetZh": "快速换线",
+    "enabled": true
+  },
+  {
+    "term": "WIP",
+    "meaningVi": "Hàng đang sản xuất",
+    "targetEn": "Work in Progress",
+    "targetZh": "在制品",
+    "enabled": true
+  }
+]

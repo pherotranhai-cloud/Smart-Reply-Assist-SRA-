@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Smart Reply Assist",
+  "version": "1.0.0",
+  "description": "Cyberpunk-themed AI assistant for translation and message composition.",
+  "permissions": [
+    "storage",
+    "clipboardRead",
+    "clipboardWrite",
+    "system.display"
+  ],
+  "action": {
+    "default_title": "Smart Reply Assist",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
