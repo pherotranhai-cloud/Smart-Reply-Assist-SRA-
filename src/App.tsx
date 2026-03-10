@@ -1315,7 +1315,37 @@ export default function App() {
               exit={{ opacity: 0, x: 10 }}
               transition={{ duration: 0.2 }}
             >
-              <FileAnalyzer settings={state.settings} />
+              <FileAnalyzer 
+                settings={state.settings} 
+                onAnalyzeComplete={async (summary) => {
+                  // Save summary to context and switch to compose tab
+                  const newContext: ConversationContext = {
+                    sourceText: summary,
+                    translatedText: summary,
+                    summaryText: summary,
+                    targetTranslationLanguage: 'Auto',
+                    lastUpdatedIso: new Date().toISOString(),
+                    contextSource: 'original'
+                  };
+                  
+                  setContext(newContext);
+                  await storage.setContext(newContext);
+                  
+                  const newOutputs = { 
+                    ...state.lastOutputs, 
+                    summary, 
+                    contextSource: 'original' as const 
+                  };
+                  setState(prev => ({ ...prev, lastOutputs: newOutputs }));
+                  await storage.setLastOutputs(newOutputs);
+                  
+                  // Trigger EPE Extraction silently
+                  handleExtract(summary, 'Auto', 'original');
+                  
+                  setActiveTab('compose');
+                  showToast('Context loaded. Ready to compose.', 'success');
+                }}
+              />
             </motion.div>
           )}
         </AnimatePresence>

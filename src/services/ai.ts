@@ -235,13 +235,13 @@ Output as plain text with clear headings. No JSON.`;
   }
 
   async analyzeFileContent(text: string) {
-    const systemPrompt = `You are an expert document analyst. Analyze the provided document content and provide a comprehensive summary.
-Structure your response in Markdown format with the following sections:
-1. **Executive Summary**: A brief overview of the document's purpose and key points.
-2. **Key Findings/Details**: Bullet points of the most important information.
-3. **Action Items/Next Steps**: If applicable, list any tasks or follow-ups mentioned.
-4. **Sentiment/Tone**: (Optional) Describe the tone of the document.
-5. **Additional Notes**: Any other relevant observations.`;
+    const systemPrompt = `Bạn là hệ thống trích xuất ngữ cảnh chuyên nghiệp. Hãy đọc tài liệu sau và trả về một bản "Context Summary" (Tóm tắt ngữ cảnh) ngắn gọn, súc tích.
+Bản tóm tắt phải gồm 3 phần rõ ràng:
+1. **Thông tin cốt lõi**: Ý chính của tài liệu là gì?
+2. **Yêu cầu của người gửi**: Người gửi muốn gì?
+3. **Các hành động cần phản hồi**: Các điểm cần phản hồi lại là gì?
+
+Tuyệt đối KHÔNG sinh ra câu trả lời cuối cùng. KHÔNG phân tích dài dòng thừa thãi. Trình bày bằng Markdown.`;
 
     const result = await this.generate({
       system: systemPrompt,

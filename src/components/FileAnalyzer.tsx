@@ -8,12 +8,13 @@ import { AISettings } from '../types';
 
 interface FileAnalyzerProps {
   settings: AISettings;
+  onAnalyzeComplete: (summary: string) => void;
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_EXTENSIONS = ['pdf', 'xlsx', 'xls', 'csv'];
 
-export const FileAnalyzer: React.FC<FileAnalyzerProps> = ({ settings }) => {
+export const FileAnalyzer: React.FC<FileAnalyzerProps> = ({ settings, onAnalyzeComplete }) => {
   const [file, setFile] = useState<File | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -175,17 +176,28 @@ export const FileAnalyzer: React.FC<FileAnalyzerProps> = ({ settings }) => {
         >
           <div className="flex justify-between items-center mb-4 border-b border-cyber-border pb-4">
             <h3 className="text-xl font-bold neon-text-cyan flex items-center gap-2">
-              <FileText size={24} /> Analysis Result
+              <FileText size={24} /> Context Summary
             </h3>
             <button 
               onClick={() => navigator.clipboard.writeText(result)}
               className="text-xs text-[var(--muted)] hover:text-neon-cyan uppercase tracking-wider"
             >
-              Copy Markdown
+              Copy
             </button>
           </div>
           <div className="markdown-body prose prose-invert max-w-none prose-headings:text-neon-cyan prose-a:text-neon-magenta">
             <Markdown>{result}</Markdown>
+          </div>
+          
+          <div className="mt-6 pt-4 border-t border-cyber-border flex justify-end">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onAnalyzeComplete(result)}
+              className="cyber-button px-6 py-3 bg-neon-magenta text-[var(--btn-text)] font-bold rounded-lg flex items-center gap-2 hover:shadow-[0_0_15px_var(--glow)] transition-all"
+            >
+              Draft Reply with Compose
+            </motion.button>
           </div>
         </motion.div>
       )}
