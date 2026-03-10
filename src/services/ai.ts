@@ -233,4 +233,24 @@ Output as plain text with clear headings. No JSON.`;
 
     return result.text;
   }
+
+  async analyzeFileContent(text: string) {
+    const systemPrompt = `You are an expert document analyst. Analyze the provided document content and provide a comprehensive summary.
+Structure your response in Markdown format with the following sections:
+1. **Executive Summary**: A brief overview of the document's purpose and key points.
+2. **Key Findings/Details**: Bullet points of the most important information.
+3. **Action Items/Next Steps**: If applicable, list any tasks or follow-ups mentioned.
+4. **Sentiment/Tone**: (Optional) Describe the tone of the document.
+5. **Additional Notes**: Any other relevant observations.`;
+
+    const result = await this.generate({
+      system: systemPrompt,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: text }
+      ]
+    });
+
+    return result.text;
+  }
 }

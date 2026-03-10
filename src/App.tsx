@@ -36,6 +36,7 @@ import { applyTheme, resolveTheme, watchSystemThemeChanges, ThemeMode } from './
 import { RUNTIME, IS_EXTENSION, IS_PWA } from './runtime/env';
 import { aiTransport } from './runtime/aiTransport';
 import { windowAdapter } from './runtime/window';
+import { FileAnalyzer } from './components/FileAnalyzer';
 import { 
   VocabItem, 
   AISettings, 
@@ -409,7 +410,7 @@ const SettingsPanel = ({ settings, onSave, onTest }: { settings: AISettings; onS
 // --- Main App ---
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'translate' | 'compose' | 'review'>('translate');
+  const [activeTab, setActiveTab] = useState<'translate' | 'compose' | 'review' | 'analyze'>('translate');
   const [state, setState] = useState<AppState>(DEFAULT_STATE);
   const [vocab, setVocab] = useState<VocabItem[]>([]);
   const [isVocabOpen, setIsVocabOpen] = useState(false);
@@ -824,7 +825,7 @@ export default function App() {
 
       {/* Navigation */}
       <nav className="flex gap-2 p-1 glass-panel neon-border self-center">
-        {(['translate', 'compose', 'review'] as const).map(tab => (
+        {(['translate', 'compose', 'review', 'analyze'] as const).map(tab => (
           <motion.button
             key={tab}
             whileHover={{ scale: 1.05 }}
@@ -1303,6 +1304,18 @@ export default function App() {
                   </div>
                 )}
               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'analyze' && (
+            <motion.div
+              key="analyze"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              transition={{ duration: 0.2 }}
+            >
+              <FileAnalyzer settings={state.settings} />
             </motion.div>
           )}
         </AnimatePresence>

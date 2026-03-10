@@ -48,4 +48,3 @@ GEMINI_API_KEY=your_key_here
 ```
 
 For production builds, ensure these are set in your CI/CD environment.
-"# Smart-Reply-Assist-SRA-" 
