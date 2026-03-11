@@ -1,3 +1,110 @@
 Term,Meaning (VI),Target EN,Target ZH,Enabled
-ASAP,C√†ng s·ªõm c√†ng t·ªët,As soon as possible,Â∞ΩÂø´,true
-FYI,Cho b·∫°n bi·∫øt,For your information,‰æõÂèÇËÄÉ,true
+production,Chuy?n s?n xu?t,Production line,•Õ≤£Ωu,TRUE
+production,C?ng ?o?n,Operation,§uß«,TRUE
+production,Quy tr?nh chu?n,Standard Operating Procedure,º–∑«ß@∑~µ{ß«,TRUE
+production,H??ng d?n c?ng vi?c,Work Instruction,ß@∑~´¸æ…Æ—,TRUE
+LEAN,Th?i gian takt,Takt time,∏`©ÁÆ…∂°,TRUE
+LEAN,Th?i gian chu k?,Cycle time,∂g¥¡Æ…∂°,TRUE
+LEAN,?i?m ngh?n,Bottleneck,≤~¿V,TRUE
+production,N?ng l?c s?n xu?t,Capacity,≤£Ø‡,TRUE
+production,S?n l??ng,Output,≤£∂q,TRUE
+LEAN,C?n b?ng chuy?n,Line balancing,•≠ø≈•Õ≤£Ωu,TRUE
+production,Gi? c?ng,Working hours,§uÆ…,TRUE
+production,B? tr? nh?n l?c,Manpower allocation,§H§O∞t∏m,TRUE
+production,S?n xu?t th?,Trial production,∏’≤£,TRUE
+production,S?n xu?t h?ng lo?t,Mass production,∂q≤£,TRUE
+production,Chuy?n m?,Model changeover,¬‡≥Ê,TRUE
+LEAN,chuy?n m? nhanh,Quick changeover,ß÷≥t¥´Ωu,TRUE
+production,B?n th?nh ph?m,Semi-finished goods,•b¶®´~,TRUE
+production,Th?nh ph?m,Finished goods,¶®´~,TRUE
+production,Ph?,Scrap,≥¯ºo,TRUE
+production,T?i ch?,Rework,™§u,TRUE
+production,D?ng chuy?n,Line stop,∞±Ωu,TRUE
+production,T? l? s? d?ng,Utilization rate,Ω[∞ ≤v,TRUE
+Quality,T? l? ??t,Pass rate,®}≤v,TRUE
+production,H?ng t?n ?,WIP,¶bªs´~,TRUE
+LEAN,Th?i gian ti?u chu?n,Standard time,º–∑«Æ…∂°,TRUE
+Quality,Ki?m so?t ch?t l??ng,Quality control,´~ΩË∫ﬁ®Ó,TRUE
+Quality,Ki?m tra ??u chuy?n,First inspection,≠∫•Û¿À¨d,TRUE
+Quality,Ki?m tra 100%,100% inspection,•˛¿À,TRUE
+Quality,Ki?m tra l?y m?u,Sampling inspection,©‚¿À,TRUE
+Quality,Ki?m tra ngo?i quan,appearance inspection,•~∆[¿À¨d,TRUE
+Quality,M?c ??,Tolerance,§ÿ§o§ΩÆt,TRUE
+Quality,H?ng l?i,Defect,§£®}´~,TRUE
+Quality,L?i l?t,Missed defect,∫|¿À,TRUE
+Quality,Bi?n d?ng,Deformation,≈‹ßŒ,TRUE
+Quality,Co r?t,Shrinkage,¶¨¡Y,TRUE
+Quality,L?ch m?u,Color deviation,¶‚Æt,TRUE
+Quality,?? b?m d?nh,bonding,™˛µ€§O,TRUE
+Quality,Bong tr?c,Peeling,≠È¬˜,TRUE
+Quality,Ki?m tra ?? b?n,Strength test,±j´◊¥˙∏’,TRUE
+Quality,Ti?u chu?n ch?t l??ng,Quality standard,´~ΩËº–∑«,TRUE
+Quality,Truy xu?t ngu?n g?c,Traceability,∞l∑π© ,TRUE
+Quality,Khi?u n?i kh?ch h?ng,Customer complaint,´»∂D,TRUE
+Quality,??nh gi? n?i b?,Internal audit,§∫≥°Ω]Æ÷,TRUE
+Quality,Ph?n t?ch l?i,Failure analysis,•¢Æƒ§¿™R,TRUE
+LEAN,Nguy?n nh?n g?c,Root cause,Æ⁄•ª≠Ï¶],TRUE
+production,Th?n gi?y,Upper,æc≠±,TRUE
+production,?? l?n,Outsole,æc©≥,TRUE
+production,?? trung,Midsole,§§©≥,TRUE
+production,L??i g?,Tongue,æc¶ﬁ,TRUE
+production,Pho h?u,Heel counter,æc´·ÆM,TRUE
+production,Bao m?i,Toe cap,æc¿Y,TRUE
+production,?? c?p,Insole,æcπ‘,TRUE
+production,Phom,Last,æc›…,TRUE
+production,?p,Pressing,¿£¶X,TRUE
+production,Qu?t keo,Cementing,§WΩ¶,TRUE
+production,?p n?ng,Heat pressing,ºˆ¿£,TRUE
+production,L?m l?nh,Cooling,ßN´o,TRUE
+production,M?i,Buffing,•¥øi,TRUE
+production,Ch?t,Cutting,µÙ¬_,TRUE
+production,May,Stitching,¡_ªs,TRUE
+production,G?,Assembly,≤’∏À,TRUE
+production,G?p bi?n,Edge folding,•]√‰,TRUE
+production,??nh v?,Positioning,©w¶Ï,TRUE
+production,??c l?,Punching,•¥§’,TRUE
+production,L? th?ng h?i,Vent hole,Æ§’,TRUE
+production,In,Printing,¶L®Í,TRUE
+production,C?n,Lamination,∂K¶X,TRUE
+production,D?y gi?y,Shoelace,æc±a,TRUE
+production,Bao b?,Packing,•]∏À,TRUE
+production,D?n nh?n,Labeling,∂Kº–,TRUE
+production,SOP,SOP,SOP,TRUE
+LEAN,CT,CT,CT,TRUE
+LEAN,TT,TT,TT,TRUE
+production,3 d?y trang tr?,3 Stripes,§T±¯π¢§˘,TRUE
+production,Bao h?u HN,Lateral Heel Cap,´·•]§˘•~∏y,TRUE
+production,Bao h?u HT,Medial Heel Cap,´·•]§˘§∫∏y,TRUE
+production,Trang tr? h?u HN,Lateral Heel Patch,´·ÆMπ¢§˘ (•~∏y),TRUE
+production,Trang tr? h?u HT,Medial Heel Patch,´·ÆMπ¢§˘ (§∫∏y),TRUE
+Job title,T? ph?,,∞∆≤’™¯,TRUE
+Job title,CBTS-s?n xu?t,,πÍ≤ﬂ∑F≥°-•Õ?,TRUE
+Job title,C?ng nh?n,,§u§H,TRUE
+Job title,T? tr??ng,,≤’™¯,TRUE
+Job title,Ph? ng?nh,,∞∆Ω“™¯,TRUE
+Job title,Tr??ng ng?nh,,Ω“™¯,TRUE
+Job title,Ph? t?ng gi?m ??c,,∞∆??≤z,TRUE
+Job title,K? to?n tr??ng,,???,TRUE
+Job title,K? to?n ph?,,∞∆???,TRUE
+Job title,Ph? ch? nhi?m vi?t nam,,∂V´n∞∆•D•Ù,TRUE
+Job title,Nh?n vi?n,,??,TRUE
+Job title,Ch? nhi?m,,•D•Ù,TRUE
+Job title,CBTS-Nh?n vi?n,,πÍ≤ﬂ∑F≥°-??,TRUE
+Job title,Tr??ng B? Ph?n,,??,TRUE
+Job title,Tr??ng Ph?ng,,??,TRUE
+Job title,Ph? ph?ng,,∞∆??,TRUE
+Job title,Ph? Gi?m ??c,,∞∆?≤z,TRUE
+Job title,Ph? Tr??ng X??ng,,∞∆ºt™¯,TRUE
+Job title,Gi?m ??c SEA,,SEA ?≤z,TRUE
+Job title,TR??NG X??NG,,ºt™¯,TRUE
+Job title,Gi?m  ??c ?i?u h?nh,,∞ı¶Ê∏g≤z,TRUE
+Job title,Gi?m  ??c,,∏g≤z,TRUE
+Job title,Ph? Gi?m ??c,,∞∆≤z,TRUE
+Job title,T??ng L?,,¡∏≤z,TRUE
+Job title,T?ng gi?m ??c,,¡`∏g≤z,TRUE
+Job title,Ph? t?ng gi?m  ??c,,∞∆¡`∏g≤z,TRUE
+Job title,Tr? l? ??c bi?t,,ØSßU,TRUE
+Job title,Hi?p l?,,®Û≤z,TRUE
+Job title,Hi?p l? s?n xu?t,,®Û≤z,TRUE
+Job title,Ph? hi?p l?,,∞∆®Û≤z,TRUE
+Job title,Gi?m ??c x??ng,,∏g≤z,TRUE

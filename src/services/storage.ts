@@ -1,4 +1,4 @@
-import { VocabItem, AISettings, AppState, HistoryItem, ConversationContext } from '../types';
+import { VocabItem, AISettings, AppState, HistoryItem, ConversationContext, GlobalLanguage } from '../types';
 import { DEFAULT_STATE } from '../constants';
 import { storage as adapter } from '../runtime/storage';
 import { STORAGE_KEYS, DATA_KEYS } from '../constants/storageKeys';
@@ -52,6 +52,14 @@ export const storage = {
 
   async setTheme(theme: 'dark' | 'light' | 'system'): Promise<void> {
     await adapter.set(STORAGE_KEYS.THEME, theme);
+  },
+  
+  async getGlobalLanguage(): Promise<GlobalLanguage> {
+    return (await adapter.get<GlobalLanguage>(STORAGE_KEYS.GLOBAL_LANGUAGE)) || 'en';
+  },
+
+  async setGlobalLanguage(lang: GlobalLanguage): Promise<void> {
+    await adapter.set(STORAGE_KEYS.GLOBAL_LANGUAGE, lang);
   },
 
   async getHistory(): Promise<HistoryItem[]> {

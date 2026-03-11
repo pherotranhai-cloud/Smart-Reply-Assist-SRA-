@@ -234,14 +234,15 @@ Output as plain text with clear headings. No JSON.`;
     return result.text;
   }
 
-  async analyzeFileContent(text: string) {
+  async analyzeFileContent(text: string, language: string = 'Vietnamese') {
     const systemPrompt = `Bạn là hệ thống trích xuất ngữ cảnh chuyên nghiệp. Hãy đọc tài liệu sau và trả về một bản "Context Summary" (Tóm tắt ngữ cảnh) ngắn gọn, súc tích.
 Bản tóm tắt phải gồm 3 phần rõ ràng:
 1. **Thông tin cốt lõi**: Ý chính của tài liệu là gì?
 2. **Yêu cầu của người gửi**: Người gửi muốn gì?
 3. **Các hành động cần phản hồi**: Các điểm cần phản hồi lại là gì?
 
-Tuyệt đối KHÔNG sinh ra câu trả lời cuối cùng. KHÔNG phân tích dài dòng thừa thãi. Trình bày bằng Markdown.`;
+Tuyệt đối KHÔNG sinh ra câu trả lời cuối cùng. KHÔNG phân tích dài dòng thừa thãi. Trình bày bằng Markdown.
+IMPORTANT: You must write the entire output strictly in ${language}.`;
 
     const result = await this.generate({
       system: systemPrompt,

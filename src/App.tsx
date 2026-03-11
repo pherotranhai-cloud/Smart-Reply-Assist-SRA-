@@ -37,6 +37,7 @@ import { RUNTIME, IS_EXTENSION, IS_PWA } from './runtime/env';
 import { aiTransport } from './runtime/aiTransport';
 import { windowAdapter } from './runtime/window';
 import { FileAnalyzer } from './components/FileAnalyzer';
+import { translations } from './i18n';
 import { 
   VocabItem, 
   AISettings, 
@@ -45,7 +46,8 @@ import {
   Audience, 
   Tone, 
   Format,
-  ConversationContext
+  ConversationContext,
+  GlobalLanguage
 } from './types';
 import { 
   DEFAULT_STATE, 
@@ -249,7 +251,7 @@ const VocabularyModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose
   );
 };
 
-const SettingsPanel = ({ settings, onSave, onTest }: { settings: AISettings; onSave: (s: AISettings) => void; onTest: () => Promise<boolean> }) => {
+const SettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings; onSave: (s: AISettings) => void; onTest: () => Promise<boolean>; t: any }) => {
   const [localSettings, setLocalSettings] = useState(settings);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
@@ -290,7 +292,7 @@ const SettingsPanel = ({ settings, onSave, onTest }: { settings: AISettings; onS
     <div className="space-y-4 p-4 glass-panel neon-border">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-bold neon-text-cyan flex items-center gap-2">
-          <Settings size={20} /> AI Engine Configuration
+          <Settings size={20} /> {t('aiEngineConfig')}
         </h3>
         <div className="flex p-1 bg-[var(--input-bg)] rounded-lg border border-cyber-border">
           <button 
@@ -317,13 +319,13 @@ const SettingsPanel = ({ settings, onSave, onTest }: { settings: AISettings; onS
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1">
           <div className="flex justify-between items-center">
-            <label className="text-xs text-[var(--muted)] uppercase tracking-wider">Model Name</label>
+            <label className="text-xs text-[var(--muted)] uppercase tracking-wider">{t('modelName')}</label>
             <button 
               onClick={handleRefreshModels}
               disabled={testing}
               className="text-[10px] text-neon-cyan hover:underline flex items-center gap-1"
             >
-              {testing ? <Loader2 className="animate-spin" size={10} /> : <Check size={10} />} Refresh Models
+              {testing ? <Loader2 className="animate-spin" size={10} /> : <Check size={10} />} {t('refreshModels')}
             </button>
           </div>
           
@@ -333,7 +335,7 @@ const SettingsPanel = ({ settings, onSave, onTest }: { settings: AISettings; onS
               value={current.model}
               onChange={e => updateCurrent({ model: e.target.value })}
             >
-              <option value="">Select a model...</option>
+              <option value="">{t('selectModel')}</option>
               {availableModels.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           ) : (
@@ -351,12 +353,12 @@ const SettingsPanel = ({ settings, onSave, onTest }: { settings: AISettings; onS
               onClick={() => setManualMode(!manualMode)}
               className="text-[10px] text-[var(--muted)] hover:text-[var(--text)] underline mt-1"
             >
-              {manualMode ? 'Use dropdown' : 'Manual model override'}
+              {manualMode ? t('useDropdown') : t('manualOverride')}
             </button>
           </div>
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-[var(--muted)] uppercase tracking-wider">API Key</label>
+          <label className="text-xs text-[var(--muted)] uppercase tracking-wider">{t('apiKey')}</label>
           <input 
             type="password" 
             className="cyber-input w-full"
@@ -366,7 +368,7 @@ const SettingsPanel = ({ settings, onSave, onTest }: { settings: AISettings; onS
           />
         </div>
         <div className="space-y-1 md:col-span-2">
-          <label className="text-xs text-[var(--muted)] uppercase tracking-wider">Base URL</label>
+          <label className="text-xs text-[var(--muted)] uppercase tracking-wider">{t('baseUrl')}</label>
           <input 
             type="text" 
             className="cyber-input w-full"
@@ -391,16 +393,16 @@ const SettingsPanel = ({ settings, onSave, onTest }: { settings: AISettings; onS
             disabled={testing}
             className="cyber-button px-4 py-2 rounded-lg bg-[var(--btn-secondary-bg)] border border-[var(--btn-secondary-border)] hover:opacity-80 flex items-center gap-2 text-sm text-[var(--btn-secondary-text)]"
           >
-            {testing ? <Loader2 className="animate-spin" size={16} /> : 'Test Connection'}
+            {testing ? <Loader2 className="animate-spin" size={16} /> : t('testConnection')}
           </button>
-          {testResult === 'success' && <span className="text-green-500 text-sm flex items-center gap-1 font-medium"><Check size={14} /> Connected</span>}
-          {testResult === 'error' && <span className="text-red-500 text-sm flex items-center gap-1 font-medium"><AlertCircle size={14} /> Failed</span>}
+          {testResult === 'success' && <span className="text-green-500 text-sm flex items-center gap-1 font-medium"><Check size={14} /> {t('connected')}</span>}
+          {testResult === 'error' && <span className="text-red-500 text-sm flex items-center gap-1 font-medium"><AlertCircle size={14} /> {t('failed')}</span>}
         </div>
         <button 
           onClick={() => onSave(localSettings)}
           className="cyber-button px-6 py-2 rounded-lg bg-neon-cyan text-[var(--btn-text)] font-bold text-sm hover:shadow-[0_0_15px_var(--glow)] transition-all"
         >
-          Save Settings
+          {t('saveSettings')}
         </button>
       </div>
     </div>
@@ -439,12 +441,17 @@ export default function App() {
 
   const [reviewToggle, setReviewToggle] = useState<'reply' | 'summary'>('reply');
 
+  const t = (key: keyof typeof translations['en']) => {
+    return translations[state.globalLanguage][key] || translations['en'][key] || key;
+  };
+
   useEffect(() => {
     const init = async () => {
       try {
-        const [settings, themeMode, v, outputs, ctx, summary] = await Promise.all([
+        const [settings, themeMode, lang, v, outputs, ctx, summary] = await Promise.all([
           storage.getSettings(),
           storage.getTheme(),
+          storage.getGlobalLanguage(),
           storage.getVocab(),
           storage.getLastOutputs(),
           storage.getContext(),
@@ -476,7 +483,14 @@ export default function App() {
           await storage.setSettings(settings);
         }
 
-        setState(prev => ({ ...prev, settings, themeMode, lastOutputs: outputs, structuredSummary: summary }));
+        setState(prev => ({ 
+          ...prev, 
+          settings, 
+          themeMode, 
+          globalLanguage: lang, 
+          lastOutputs: outputs, 
+          structuredSummary: summary || undefined 
+        }));
         setVocab(v);
         setContext(ctx);
         
@@ -671,7 +685,7 @@ export default function App() {
   };
 
   const handleReset = async () => {
-    if (!window.confirm('Are you sure you want to clear all current context and outputs? Settings will be preserved.')) return;
+    if (!window.confirm(t('clearContextConfirm'))) return;
     
     try {
       // 1. Clear Storage
@@ -731,6 +745,24 @@ export default function App() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mr-2 border-r border-white/10 pr-2">
+            <Flag size={16} className="text-neon-cyan" />
+            <select 
+              value={state.globalLanguage}
+              onChange={async (e) => {
+                const lang = e.target.value as GlobalLanguage;
+                await storage.setGlobalLanguage(lang);
+                setState(prev => ({ ...prev, globalLanguage: lang }));
+                showToast(`Language set to ${lang === 'en' ? 'English' : lang === 'vi' ? 'Tiếng Việt' : '日本語'}`, 'info');
+              }}
+              className="bg-transparent text-xs font-bold text-neon-cyan border-none focus:ring-0 cursor-pointer uppercase"
+            >
+              <option value="en" className="bg-slate-900 text-neon-cyan">EN</option>
+              <option value="vi" className="bg-slate-900 text-neon-cyan">VI</option>
+              <option value="ja" className="bg-slate-900 text-neon-cyan">JA</option>
+            </select>
+          </div>
+
           {IS_EXTENSION && !windowAdapter.isStandalone() && (
             <motion.button 
               whileHover={{ scale: 1.1 }}
@@ -809,10 +841,11 @@ export default function App() {
           >
             <SettingsPanel 
               settings={state.settings} 
+              t={t}
               onSave={s => {
                 storage.setSettings(s);
                 setState(prev => ({ ...prev, settings: s }));
-                showToast('Settings saved', 'success');
+                showToast(t('saveSettings'), 'success');
               }}
               onTest={async () => {
                 const ai = new AIService(state.settings);
@@ -837,7 +870,7 @@ export default function App() {
                 : 'text-[var(--muted)] hover:text-[var(--text)]'
             }`}
           >
-            {tab}
+            {t(tab)}
           </motion.button>
         ))}
       </nav>
@@ -856,19 +889,19 @@ export default function App() {
             >
               <div className="glass-panel p-6 space-y-4 scanline relative">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-widest">Input Source</h3>
+                  <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-widest">{t('inputSource')}</h3>
                   <div className="flex gap-2">
                     <button 
                       onClick={() => setTranslateImage(null)}
                       className={`text-[10px] px-2 py-1 rounded border transition-colors ${translateImage ? 'border-neon-magenta text-neon-magenta' : 'border-[var(--border)] text-[var(--muted)]'}`}
                     >
-                      {translateImage ? 'Image Attached' : 'Text Only'}
+                      {translateImage ? t('imageAttached') : t('textOnly')}
                     </button>
                   </div>
                 </div>
                 <textarea 
                   className="cyber-input w-full h-48 resize-none font-mono text-sm"
-                  placeholder="Paste email, chat, or Ctrl+V to paste image..."
+                  placeholder={t('inputPlaceholder')}
                   value={translateInput}
                   onChange={e => setTranslateInput(e.target.value)}
                   onPaste={handlePaste}
@@ -886,7 +919,7 @@ export default function App() {
                 )}
                 <div className="flex gap-4 items-end">
                   <div className="flex-1 space-y-1">
-                    <label className="text-[10px] text-[var(--muted)] uppercase">Target Language</label>
+                    <label className="text-[10px] text-[var(--muted)] uppercase">{t('targetLanguage')}</label>
                     <select 
                       className="cyber-input w-full"
                       value={targetLang}
@@ -903,14 +936,14 @@ export default function App() {
                     className="cyber-button px-8 py-2 bg-neon-cyan text-[var(--btn-text)] font-bold rounded-lg flex items-center gap-2"
                   >
                     {loading ? <Loader2 className="animate-spin" size={18} /> : <Languages size={18} />}
-                    Translate
+                    {t('translate')}
                   </motion.button>
                 </div>
               </div>
 
               <div className="glass-panel p-6 flex flex-col gap-4">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-widest">Translated Output</h3>
+                  <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-widest">{t('translatedOutput')}</h3>
                   <motion.button 
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
@@ -921,7 +954,7 @@ export default function App() {
                   </motion.button>
                 </div>
                 <div className="flex-1 bg-[var(--input-bg)] rounded-lg p-4 font-mono text-sm border border-cyber-border overflow-auto whitespace-pre-wrap">
-                  {state.lastOutputs.translatedText || <span className="text-[var(--muted)] italic">Translation will appear here...</span>}
+                  {state.lastOutputs.translatedText || <span className="text-[var(--muted)] italic">{t('translationPlaceholder')}</span>}
                 </div>
               </div>
             </motion.div>
@@ -941,14 +974,14 @@ export default function App() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-widest">Message Context</h3>
+                      <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-widest">{t('messageContext')}</h3>
                       {context ? (
                         <span className="flex items-center gap-1 text-[10px] text-green-500 font-bold">
-                          <Link2 size={12} /> Linked
+                          <Link2 size={12} /> {t('linked')}
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-[10px] text-amber-500 font-bold">
-                          <Link2Off size={12} /> No Context
+                          <Link2Off size={12} /> {t('noLinked')}
                         </span>
                       )}
                     </div>
@@ -961,7 +994,7 @@ export default function App() {
                         }}
                         className={`px-2 py-0.5 text-[9px] font-bold rounded transition-colors ${state.lastOutputs.contextSource === 'translated' ? 'bg-neon-cyan text-[var(--btn-text)]' : 'text-[var(--muted)]'}`}
                       >
-                        Translated
+                        {t('translate')}
                       </button>
                       <button 
                         onClick={() => {
@@ -971,7 +1004,7 @@ export default function App() {
                         }}
                         className={`px-2 py-0.5 text-[9px] font-bold rounded transition-colors ${state.lastOutputs.contextSource === 'original' ? 'bg-neon-cyan text-[var(--btn-text)]' : 'text-[var(--muted)]'}`}
                       >
-                        Original
+                        {t('source')}
                       </button>
                     </div>
                   </div>
@@ -980,7 +1013,7 @@ export default function App() {
                       {context ? (
                         state.lastOutputs.contextSource === 'original' ? context.sourceText : context.translatedText
                       ) : (
-                        <span className="text-[var(--muted)] italic">No context available. Please translate a message first.</span>
+                        <span className="text-[var(--muted)] italic">{t('noContext')}</span>
                       )}
                     </div>
                     {context && (
@@ -988,7 +1021,7 @@ export default function App() {
                         onClick={() => setIsContextExpanded(!isContextExpanded)}
                         className="w-full mt-2 flex items-center justify-center gap-1 text-[10px] text-neon-cyan hover:underline border-t border-cyber-border/30 pt-2"
                       >
-                        {isContextExpanded ? <><ChevronUp size={12} /> Show Less</> : <><ChevronDown size={12} /> Expand Context</>}
+                        {isContextExpanded ? <><ChevronUp size={12} /> {t('showLess')}</> : <><ChevronDown size={12} /> {t('expandContext')}</>}
                       </button>
                     )}
                   </div>
@@ -996,15 +1029,15 @@ export default function App() {
 
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-3">
-                    <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-widest">Composition Parameters</h3>
+                    <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-widest">{t('compositionParameters')}</h3>
                     <div className="flex items-center gap-2 px-2 py-0.5 rounded bg-[var(--accent)]/10 border border-[var(--accent)]/20">
                       <span className="text-[9px] font-bold uppercase text-neon-cyan flex items-center gap-1">
                         {extracting ? (
-                          <><Loader2 size={10} className="animate-spin" /> EPE Extracting...</>
+                          <><Loader2 size={10} className="animate-spin" /> {t('epeExtracting')}</>
                         ) : state.structuredSummary ? (
-                          <><CheckCircle2 size={10} /> EPE Ready</>
+                          <><CheckCircle2 size={10} /> {t('epeReady')}</>
                         ) : (
-                          <><AlertCircle size={10} /> EPE Missing</>
+                          <><AlertCircle size={10} /> {t('epeMissing')}</>
                         )}
                       </span>
                       {context && (
@@ -1017,7 +1050,7 @@ export default function App() {
                           disabled={extracting}
                           className="text-[9px] text-[var(--muted)] hover:text-neon-cyan underline"
                         >
-                          Re-extract
+                          {t('reExtract')}
                         </button>
                       )}
                     </div>
@@ -1028,12 +1061,12 @@ export default function App() {
                     onClick={() => setIsVocabOpen(true)}
                     className="flex items-center gap-2 text-xs text-neon-cyan hover:underline"
                   >
-                    <BookOpen size={14} /> Manage Vocabulary
+                    <BookOpen size={14} /> {t('manageVocabulary')}
                   </motion.button>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] text-[var(--muted)] uppercase">Audience</label>
+                    <label className="text-[10px] text-[var(--muted)] uppercase">{t('audience')}</label>
                     <select 
                       className="cyber-input w-full text-xs"
                       value={composeParams.audience}
@@ -1043,7 +1076,7 @@ export default function App() {
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] text-[var(--muted)] uppercase">Tone</label>
+                    <label className="text-[10px] text-[var(--muted)] uppercase">{t('tone')}</label>
                     <select 
                       className="cyber-input w-full text-xs"
                       value={composeParams.tone}
@@ -1053,7 +1086,7 @@ export default function App() {
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] text-[var(--muted)] uppercase">Language</label>
+                    <label className="text-[10px] text-[var(--muted)] uppercase">{t('language')}</label>
                     <select 
                       className="cyber-input w-full text-xs"
                       value={composeParams.lang}
@@ -1063,7 +1096,7 @@ export default function App() {
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] text-[var(--muted)] uppercase">Format</label>
+                    <label className="text-[10px] text-[var(--muted)] uppercase">{t('format')}</label>
                     <select 
                       className="cyber-input w-full text-xs"
                       value={composeParams.format}
@@ -1074,10 +1107,10 @@ export default function App() {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] text-[var(--muted)] uppercase">Reply Requirements</label>
+                  <label className="text-[10px] text-[var(--muted)] uppercase">{t('replyRequirements')}</label>
                   <textarea 
                     className="cyber-input w-full h-32 resize-none text-sm"
-                    placeholder="e.g. Confirm the meeting for Thursday at 2 PM, but mention I might be 5 minutes late."
+                    placeholder={t('replyPlaceholder')}
                     value={composeReq}
                     onChange={e => setComposeReq(e.target.value)}
                   />
@@ -1090,20 +1123,20 @@ export default function App() {
                   className="cyber-button w-full py-3 bg-neon-cyan text-[var(--btn-text)] font-bold rounded-lg flex items-center justify-center gap-2"
                 >
                   {loading ? <Loader2 className="animate-spin" size={20} /> : <PenTool size={20} />}
-                  Generate Reply
+                  {t('generateReply')}
                 </motion.button>
               </div>
 
               <div className="lg:col-span-2 glass-panel p-6 flex flex-col gap-4">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-widest">Generated Output</h3>
+                  <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-widest">{t('generatedOutput')}</h3>
                   <div className="flex gap-2">
                     {state.lastOutputs.subject && (
                       <button 
                         onClick={() => copyToClipboard(state.lastOutputs.subject!)}
                         className="text-[10px] text-neon-cyan hover:underline"
                       >
-                        Copy Subject
+                        {t('copySubject')}
                       </button>
                     )}
                     <button 
@@ -1144,13 +1177,13 @@ export default function App() {
                     onClick={() => setReviewToggle('reply')}
                     className={`px-6 py-1.5 rounded-lg text-xs font-bold transition-all ${reviewToggle === 'reply' ? 'bg-neon-cyan text-[var(--btn-text)]' : 'text-[var(--muted)]'}`}
                   >
-                    Reply
+                    {t('reply')}
                   </button>
                   <button 
                     onClick={() => setReviewToggle('summary')}
                     className={`px-6 py-1.5 rounded-lg text-xs font-bold transition-all ${reviewToggle === 'summary' ? 'bg-neon-magenta text-[var(--btn-text)]' : 'text-[var(--muted)]'}`}
                   >
-                    Summary
+                    {t('summary')}
                   </button>
                 </div>
               </div>
@@ -1160,10 +1193,10 @@ export default function App() {
                   <div className="space-y-6">
                     <div className="flex justify-between items-center border-b border-cyber-border pb-4">
                       <div className="flex flex-col gap-1">
-                        <h3 className="text-lg font-bold neon-text-cyan">Last Generated Reply</h3>
+                        <h3 className="text-lg font-bold neon-text-cyan">{t('lastGeneratedReply')}</h3>
                         {state.lastOutputs.contextSource && (
                           <span className="text-[10px] text-[var(--muted)] uppercase tracking-widest">
-                            Source: <span className="text-neon-cyan">{state.lastOutputs.contextSource}</span>
+                            {t('source')}: <span className="text-neon-cyan">{t(state.lastOutputs.contextSource as any)}</span>
                           </span>
                         )}
                       </div>
@@ -1173,30 +1206,30 @@ export default function App() {
                         onClick={() => copyToClipboard(state.lastOutputs.generatedReply)}
                         className="flex items-center gap-2 px-4 py-2 bg-neon-cyan/10 border border-neon-cyan/30 rounded-lg text-neon-cyan hover:bg-neon-cyan/20 transition-all text-sm"
                       >
-                        <Copy size={16} /> Copy All
+                        <Copy size={16} /> {t('copyAll')}
                       </motion.button>
                     </div>
                     <div className="font-mono text-sm leading-relaxed whitespace-pre-wrap">
                       {state.lastOutputs.subject && (
                         <div className="mb-6 p-4 bg-neon-cyan/5 rounded border-l-4 border-neon-cyan">
-                          <span className="text-[10px] text-neon-cyan uppercase block mb-1">Subject</span>
+                          <span className="text-[10px] text-neon-cyan uppercase block mb-1">{t('subject')}</span>
                           <div className="text-lg text-[var(--text)]">{state.lastOutputs.subject}</div>
                         </div>
                       )}
-                      {state.lastOutputs.generatedReply || <div className="text-center py-20 text-[var(--muted)] italic">No reply generated yet.</div>}
+                      {state.lastOutputs.generatedReply || <div className="text-center py-20 text-[var(--muted)] italic">{t('noReplyGenerated')}</div>}
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-6">
                     <div className="flex justify-between items-center border-b border-neon-magenta/20 pb-4">
-                      <h3 className="text-lg font-bold neon-text-magenta">Context Summary</h3>
+                      <h3 className="text-lg font-bold neon-text-magenta">{t('contextSummary')}</h3>
                       <motion.button 
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => copyToClipboard(state.lastOutputs.summary)}
                         className="flex items-center gap-2 px-4 py-2 bg-neon-magenta/10 border border-neon-magenta/30 rounded-lg text-neon-magenta hover:bg-neon-magenta/20 transition-all text-sm"
                       >
-                        <Copy size={16} /> Copy Summary
+                        <Copy size={16} /> {t('copySummary')}
                       </motion.button>
                     </div>
                     <div className="space-y-6">
@@ -1206,7 +1239,7 @@ export default function App() {
                           <div className="glass-panel p-4 border-l-4 border-red-500/50">
                             <div className="flex items-center gap-2 mb-3">
                               <Flag className="text-red-500" size={16} />
-                              <h4 className="text-xs font-bold uppercase tracking-widest text-red-500">Priority Requests</h4>
+                              <h4 className="text-xs font-bold uppercase tracking-widest text-red-500">{t('priorityRequests')}</h4>
                             </div>
                             <div className="space-y-2">
                               {state.structuredSummary.requests_and_directions
@@ -1222,7 +1255,7 @@ export default function App() {
                                   </div>
                                 ))}
                               {state.structuredSummary.requests_and_directions.length === 0 && (
-                                <div className="text-[10px] text-[var(--muted)] italic">No specific requests found.</div>
+                                <div className="text-[10px] text-[var(--muted)] italic">{t('noRequests')}</div>
                               )}
                             </div>
                           </div>
@@ -1231,7 +1264,7 @@ export default function App() {
                           <div className="glass-panel p-4 border-l-4 border-blue-500/50">
                             <div className="flex items-center gap-2 mb-3">
                               <User className="text-blue-500" size={16} />
-                              <h4 className="text-xs font-bold uppercase tracking-widest text-blue-500">People & Titles</h4>
+                              <h4 className="text-xs font-bold uppercase tracking-widest text-blue-500">{t('peopleAndRoles')}</h4>
                             </div>
                             <div className="space-y-2">
                               {state.structuredSummary.people_and_roles.slice(0, 3).map((person, idx) => (
@@ -1246,7 +1279,7 @@ export default function App() {
                                 </div>
                               ))}
                               {state.structuredSummary.people_and_roles.length === 0 && (
-                                <div className="text-[10px] text-[var(--muted)] italic">No people identified.</div>
+                                <div className="text-[10px] text-[var(--muted)] italic">{t('noPeople')}</div>
                               )}
                             </div>
                           </div>
@@ -1255,7 +1288,7 @@ export default function App() {
                           <div className="glass-panel p-4 border-l-4 border-emerald-500/50">
                             <div className="flex items-center gap-2 mb-3">
                               <BarChart3 className="text-emerald-500" size={16} />
-                              <h4 className="text-xs font-bold uppercase tracking-widest text-emerald-500">Key Metrics</h4>
+                              <h4 className="text-xs font-bold uppercase tracking-widest text-emerald-500">{t('keyMetrics')}</h4>
                             </div>
                             <div className="space-y-2">
                               {state.structuredSummary.production_data.map((data, idx) => (
@@ -1271,7 +1304,7 @@ export default function App() {
                                 </div>
                               ))}
                               {state.structuredSummary.production_data.length === 0 && (
-                                <div className="text-[10px] text-[var(--muted)] italic">No metrics identified.</div>
+                                <div className="text-[10px] text-[var(--muted)] italic">{t('noMetrics')}</div>
                               )}
                             </div>
                           </div>
@@ -1280,7 +1313,7 @@ export default function App() {
                           <div className="glass-panel p-4 border-l-4 border-amber-500/50">
                             <div className="flex items-center gap-2 mb-3">
                               <HelpCircle className="text-amber-500" size={16} />
-                              <h4 className="text-xs font-bold uppercase tracking-widest text-amber-500">Questions / Gaps</h4>
+                              <h4 className="text-xs font-bold uppercase tracking-widest text-amber-500">{t('questionsGaps')}</h4>
                             </div>
                             <div className="space-y-2">
                               {state.structuredSummary.risks_gaps_questions.map((q, idx) => (
@@ -1290,7 +1323,7 @@ export default function App() {
                                 </div>
                               ))}
                               {state.structuredSummary.risks_gaps_questions.length === 0 && (
-                                <div className="text-[10px] text-[var(--muted)] italic">No gaps or questions identified.</div>
+                                <div className="text-[10px] text-[var(--muted)] italic">{t('noQuestions')}</div>
                               )}
                             </div>
                           </div>
@@ -1298,7 +1331,7 @@ export default function App() {
                       ) : null}
 
                       <div className="font-sans text-sm leading-relaxed whitespace-pre-wrap border-t border-cyber-border/30 pt-6">
-                        {state.lastOutputs.summary || <div className="text-center py-20 text-slate-700 italic">Summary will be generated automatically when you translate a message.</div>}
+                        {state.lastOutputs.summary || <div className="text-center py-20 text-slate-700 italic">{t('summaryPlaceholder')}</div>}
                       </div>
                     </div>
                   </div>
@@ -1317,6 +1350,8 @@ export default function App() {
             >
               <FileAnalyzer 
                 settings={state.settings} 
+                globalLanguage={state.globalLanguage === 'vi' ? 'Vietnamese' : state.globalLanguage === 'ja' ? 'Japanese' : 'English'}
+                t={t}
                 onAnalyzeComplete={async (summary) => {
                   // Save summary to context and switch to compose tab
                   const newContext: ConversationContext = {

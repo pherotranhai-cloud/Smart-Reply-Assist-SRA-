@@ -39,6 +39,7 @@ export interface ConversationContext {
 
 export type ThemeMode = 'dark' | 'light' | 'system';
 export type Theme = 'dark' | 'light';
+export type GlobalLanguage = 'en' | 'vi' | 'ja';
 
 export interface StructuredSummary {
   meta: {
@@ -89,6 +90,7 @@ export interface StructuredSummary {
 
 export interface AppState {
   themeMode: ThemeMode;
+  globalLanguage: GlobalLanguage;
   settings: AISettings;
   lastOutputs: {
     translatedText: string;

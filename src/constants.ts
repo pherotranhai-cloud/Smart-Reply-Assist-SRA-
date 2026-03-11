@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS: AISettings = {
 
 export const DEFAULT_STATE: AppState = {
   themeMode: 'system',
+  globalLanguage: 'en',
   settings: DEFAULT_SETTINGS,
   lastOutputs: {
     translatedText: '',

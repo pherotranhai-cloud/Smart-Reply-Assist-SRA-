@@ -8,13 +8,15 @@ import { AISettings } from '../types';
 
 interface FileAnalyzerProps {
   settings: AISettings;
+  globalLanguage: string;
   onAnalyzeComplete: (summary: string) => void;
+  t: any;
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_EXTENSIONS = ['pdf', 'xlsx', 'xls', 'csv'];
 
-export const FileAnalyzer: React.FC<FileAnalyzerProps> = ({ settings, onAnalyzeComplete }) => {
+export const FileAnalyzer: React.FC<FileAnalyzerProps> = ({ settings, globalLanguage, onAnalyzeComplete, t }) => {
   const [file, setFile] = useState<File | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -26,13 +28,13 @@ export const FileAnalyzer: React.FC<FileAnalyzerProps> = ({ settings, onAnalyzeC
     setResult(null);
 
     if (selectedFile.size > MAX_FILE_SIZE) {
-      setError('File size exceeds 5MB limit.');
+      setError(t('fileSizeError') || 'File size exceeds 5MB limit.');
       return;
     }
 
     const extension = selectedFile.name.split('.').pop()?.toLowerCase();
     if (!extension || !ALLOWED_EXTENSIONS.includes(extension)) {
-      setError(`Unsupported file format. Allowed: ${ALLOWED_EXTENSIONS.join(', ')}`);
+      setError(`${t('unsupportedFormat') || 'Unsupported file format. Allowed:'} ${ALLOWED_EXTENSIONS.join(', ')}`);
       return;
     }
 
@@ -59,17 +61,17 @@ export const FileAnalyzer: React.FC<FileAnalyzerProps> = ({ settings, onAnalyzeC
       const text = await parseFile(file);
       
       if (!text || text.trim().length === 0) {
-        throw new Error('Could not extract text from file. The file might be empty or scanned image.');
+        throw new Error(t('extractError') || 'Could not extract text from file. The file might be empty or scanned image.');
       }
 
       // 2. Analyze with AI
       const ai = new AIService(settings);
-      const analysis = await ai.analyzeFileContent(text);
+      const analysis = await ai.analyzeFileContent(text, globalLanguage);
       
       setResult(analysis);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Analysis failed');
+      setError(err.message || t('analysisFailed') || 'Analysis failed');
     } finally {
       setAnalyzing(false);
     }
@@ -103,16 +105,16 @@ export const FileAnalyzer: React.FC<FileAnalyzerProps> = ({ settings, onAnalyzeC
                 <Upload size={32} className="text-[var(--muted)]" />
               </div>
               <div>
-                <p className="text-lg font-medium">Drag & Drop or Click to Upload</p>
+                <p className="text-lg font-medium">{t('dragDrop')}</p>
                 <p className="text-sm text-[var(--muted)] mt-1">
-                  Supports PDF, Excel, CSV (Max 5MB)
+                  {t('supports')}
                 </p>
               </div>
               <button 
                 onClick={() => fileInputRef.current?.click()}
                 className="cyber-button px-6 py-2 rounded-lg bg-[var(--btn-secondary-bg)] border border-[var(--btn-secondary-border)] text-[var(--btn-secondary-text)] hover:opacity-80"
               >
-                Select File
+                {t('selectFile')}
               </button>
             </motion.div>
           ) : (
@@ -142,7 +144,7 @@ export const FileAnalyzer: React.FC<FileAnalyzerProps> = ({ settings, onAnalyzeC
                   className="cyber-button px-8 py-2 rounded-lg bg-neon-cyan text-[var(--btn-text)] font-bold hover:shadow-[0_0_15px_var(--glow)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {analyzing ? <Loader2 className="animate-spin" size={18} /> : null}
-                  {analyzing ? 'Analyzing...' : 'Analyze Document'}
+                  {analyzing ? t('analyzing') : t('analyzeDocument')}
                 </button>
               </div>
             </motion.div>
@@ -176,13 +178,13 @@ export const FileAnalyzer: React.FC<FileAnalyzerProps> = ({ settings, onAnalyzeC
         >
           <div className="flex justify-between items-center mb-4 border-b border-cyber-border pb-4">
             <h3 className="text-xl font-bold neon-text-cyan flex items-center gap-2">
-              <FileText size={24} /> Context Summary
+              <FileText size={24} /> {t('contextSummary')}
             </h3>
             <button 
               onClick={() => navigator.clipboard.writeText(result)}
               className="text-xs text-[var(--muted)] hover:text-neon-cyan uppercase tracking-wider"
             >
-              Copy
+              {t('copy')}
             </button>
           </div>
           <div className="markdown-body prose prose-invert max-w-none prose-headings:text-neon-cyan prose-a:text-neon-magenta">
@@ -196,7 +198,7 @@ export const FileAnalyzer: React.FC<FileAnalyzerProps> = ({ settings, onAnalyzeC
               onClick={() => onAnalyzeComplete(result)}
               className="cyber-button px-6 py-3 bg-neon-magenta text-[var(--btn-text)] font-bold rounded-lg flex items-center gap-2 hover:shadow-[0_0_15px_var(--glow)] transition-all"
             >
-              Draft Reply with Compose
+              {t('draftReply')}
             </motion.button>
           </div>
         </motion.div>

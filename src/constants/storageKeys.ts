@@ -6,6 +6,7 @@ export const STORAGE_KEYS = {
   THEME: 'sra_theme',
   HISTORY: 'sra_history',
   STRUCTURED_SUMMARY: 'sra_structured_summary',
+  GLOBAL_LANGUAGE: 'sra_global_language',
 };
 
 export const DATA_KEYS = [
