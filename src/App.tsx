@@ -38,6 +38,8 @@ import { aiTransport } from './runtime/aiTransport';
 import { windowAdapter } from './runtime/window';
 import { FileAnalyzer } from './components/FileAnalyzer';
 import { translations } from './i18n';
+import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { 
   VocabItem, 
   AISettings, 
@@ -90,40 +92,86 @@ const VocabularyModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose
     }
   }, [isOpen]);
 
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const content = event.target?.result as string;
-        let imported: any[] = [];
-        if (file.name.endsWith('.json')) {
-          imported = JSON.parse(content);
-        } else if (file.name.endsWith('.csv')) {
-          const lines = content.split('\n');
-          imported = lines.slice(1).filter(l => l.trim()).map(line => {
-            const [term, meaningVi, targetEn, targetZh] = line.split(',').map(s => s.trim());
-            return { term, meaningVi, targetEn, targetZh, enabled: true };
-          });
-        }
+    try {
+      let imported: any[] = [];
 
-        const newVocab = [...vocab];
-        imported.forEach(item => {
-          const existing = newVocab.find(v => v.term === item.term);
-          if (existing) {
-            Object.assign(existing, item);
-          } else {
-            newVocab.push({ ...item, id: crypto.randomUUID(), enabled: true });
-          }
-        });
-        setVocab(newVocab);
-      } catch (err) {
-        alert('Failed to import file');
+      if (file.name.endsWith('.json')) {
+        const text = await file.text();
+        imported = JSON.parse(text);
+      } else if (file.name.endsWith('.csv')) {
+        const text = await file.text();
+        const results = Papa.parse(text, { header: true, skipEmptyLines: true });
+        imported = results.data.map((row: any) => ({
+          term: row.term || row.Term || '',
+          meaningVi: row.meaningVi || row.MeaningVi || row['Meaning (VI)'] || '',
+          targetEn: row.targetEn || row.TargetEn || row['Target EN'] || '',
+          targetZh: row.targetZh || row.TargetZh || row['Target ZH'] || '',
+          enabled: true
+        }));
+      } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data);
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        imported = jsonData.map((row: any) => ({
+          term: row.term || row.Term || '',
+          meaningVi: row.meaningVi || row.MeaningVi || row['Meaning (VI)'] || '',
+          targetEn: row.targetEn || row.TargetEn || row['Target EN'] || '',
+          targetZh: row.targetZh || row.TargetZh || row['Target ZH'] || '',
+          enabled: true
+        }));
       }
-    };
-    reader.readAsText(file);
+
+      // Filter out empty rows and ensure required fields
+      const validImported = imported.filter(item => item && item.term && item.meaningVi);
+
+      if (validImported.length === 0) {
+        alert('No valid vocabulary items found in file');
+        return;
+      }
+
+      // Send to Netlify Function (Backend sync)
+      try {
+        const response = await fetch('/.netlify/functions/import-vocab', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(validImported)
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to sync with server');
+        }
+        
+        const result = await response.json();
+        console.log('Server sync success:', result);
+      } catch (syncErr: any) {
+        console.error('Sync error (continuing locally):', syncErr);
+        // We continue locally even if sync fails
+      }
+
+      const newVocab = [...vocab];
+      validImported.forEach(item => {
+        const existing = newVocab.find(v => v.term === item.term);
+        if (existing) {
+          Object.assign(existing, item);
+        } else {
+          newVocab.push({ ...item, id: crypto.randomUUID(), enabled: true });
+        }
+      });
+      setVocab(newVocab);
+      alert(`Successfully imported ${validImported.length} items`);
+    } catch (err: any) {
+      console.error('Import error:', err);
+      alert('Failed to import file: ' + err.message);
+    }
+    
+    // Reset input
+    e.target.value = '';
   };
 
   const handleExport = () => {
@@ -178,7 +226,7 @@ const VocabularyModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose
           </div>
           <label className="cyber-button bg-neon-cyan/10 border border-neon-cyan/30 px-4 py-2 rounded-lg cursor-pointer hover:bg-neon-cyan/20 flex items-center gap-2 text-neon-cyan">
             <Upload size={16} /> Import
-            <input type="file" accept=".json,.csv" className="hidden" onChange={handleImport} />
+            <input type="file" accept=".json,.csv,.xlsx,.xls" className="hidden" onChange={handleImport} />
           </label>
           <button onClick={handleExport} className="cyber-button bg-[var(--btn-secondary-bg)] border border-[var(--btn-secondary-border)] px-4 py-2 rounded-lg hover:opacity-80 flex items-center gap-2 text-[var(--btn-secondary-text)]">
             <Download size={16} /> Export
