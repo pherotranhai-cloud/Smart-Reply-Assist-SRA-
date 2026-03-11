@@ -134,20 +134,30 @@ const VocabularyModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose
         return;
       }
 
-      // Send to Netlify Function (Backend sync)
+      // Send to Backend sync
       try {
-        const response = await fetch('/.netlify/functions/import-vocab', {
+        const response = await fetch('/api/import-vocab', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(validImported)
         });
         
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to sync with server');
+        const contentType = response.headers.get('content-type');
+        let result: any = {};
+        
+        if (contentType && contentType.includes('application/json')) {
+          result = await response.json();
+        } else {
+          const text = await response.text();
+          console.warn('Server returned non-JSON response:', text);
+          if (!response.ok) throw new Error(`Server error: ${response.status} ${response.statusText}`);
         }
         
-        const result = await response.json();
+        if (!response.ok) {
+          const errorMessage = result.details ? `${result.error}: ${result.details}` : (result.error || `Failed to sync with server (${response.status})`);
+          throw new Error(errorMessage);
+        }
+        
         console.log('Server sync success:', result);
       } catch (syncErr: any) {
         console.error('Sync error (continuing locally):', syncErr);
@@ -233,7 +243,7 @@ const VocabularyModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose
           </button>
         </div>
 
-        <div className="flex-1 overflow-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 max-h-[60vh] custom-scrollbar">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="text-[var(--muted)] text-sm border-b border-cyber-border">

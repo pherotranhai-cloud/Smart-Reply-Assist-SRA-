@@ -4,7 +4,7 @@
   "version": "1.0.3",
   "type": "module",
   "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
+    "dev": "tsx server.ts",
     "dev:ext": "vite --mode extension --port=3000 --host=0.0.0.0",
     "dev:pwa": "vite --mode pwa --port=3000 --host=0.0.0.0",
     "build": "npm run build:pwa",
