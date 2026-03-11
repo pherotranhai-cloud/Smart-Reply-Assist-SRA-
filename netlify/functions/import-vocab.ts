@@ -1,38 +1,33 @@
 import { Handler } from '@netlify/functions';
-import mongoose from 'mongoose';
+import pg from 'pg';
 import crypto from 'crypto';
 
-const MONGODB_URI = process.env.MONGODB_URI;
+const { Pool } = pg;
+const DATABASE_URL = process.env.NETLIFY_DATABASE_URL;
 
-const VocabSchema = new mongoose.Schema({
-  term: { type: String, required: true },
-  meaningVi: { type: String, required: true },
-  targetEn: String,
-  targetZh: String,
-  enabled: { type: Boolean, default: true },
-  id: String, // Keep the client-side ID if provided
-}, { timestamps: true });
-
-const Vocab = mongoose.models.Vocab || mongoose.model('Vocab', VocabSchema);
-
-let cachedDb: typeof mongoose | null = null;
-
-async function connectToDatabase() {
-  if (cachedDb && mongoose.connection.readyState === 1) {
-    return cachedDb;
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false // Required for Neon
   }
+});
 
-  if (!MONGODB_URI) {
-    throw new Error('Please define the MONGODB_URI environment variable');
-  }
-
-  // Use connection caching to prevent pool exhaustion
-  cachedDb = await mongoose.connect(MONGODB_URI);
-  return cachedDb;
+async function initDatabase(client: pg.PoolClient) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS vocab (
+      id TEXT PRIMARY KEY,
+      term TEXT NOT NULL,
+      meaning_vi TEXT NOT NULL,
+      target_en TEXT,
+      target_zh TEXT,
+      enabled BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
 }
 
 export const handler: Handler = async (event) => {
-  // CORS headers for preflight and actual requests
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -52,9 +47,15 @@ export const handler: Handler = async (event) => {
     };
   }
 
+  if (!DATABASE_URL) {
+    return {
+      statusCode: 503,
+      headers,
+      body: JSON.stringify({ error: 'Database connection not configured' }),
+    };
+  }
+
   try {
-    await connectToDatabase();
-    
     const data = JSON.parse(event.body || '[]');
 
     if (!Array.isArray(data) || data.length === 0) {
@@ -65,19 +66,13 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    // Filter out empty rows and ensure required fields
     const sanitizedData = data.filter(item => 
-      item && 
-      typeof item === 'object' && 
-      item.term && 
-      item.term.trim() !== '' &&
-      item.meaningVi && 
-      item.meaningVi.trim() !== ''
+      item && typeof item === 'object' && item.term && item.meaningVi
     ).map(item => ({
       term: item.term.trim(),
-      meaningVi: item.meaningVi.trim(),
-      targetEn: item.targetEn?.trim() || '',
-      targetZh: item.targetZh?.trim() || '',
+      meaning_vi: item.meaningVi.trim(),
+      target_en: item.targetEn?.trim() || '',
+      target_zh: item.targetZh?.trim() || '',
       enabled: item.enabled !== undefined ? item.enabled : true,
       id: item.id || crypto.randomUUID()
     }));
@@ -90,8 +85,41 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    // Optimized batch insertion
-    await Vocab.insertMany(sanitizedData as any[], { ordered: false });
+    const client = await pool.connect();
+    try {
+      await initDatabase(client);
+      await client.query('BEGIN');
+      
+      const query = `
+        INSERT INTO vocab (id, term, meaning_vi, target_en, target_zh, enabled)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (id) DO UPDATE SET
+          term = EXCLUDED.term,
+          meaning_vi = EXCLUDED.meaning_vi,
+          target_en = EXCLUDED.target_en,
+          target_zh = EXCLUDED.target_zh,
+          enabled = EXCLUDED.enabled,
+          updated_at = CURRENT_TIMESTAMP
+      `;
+
+      for (const item of sanitizedData) {
+        await client.query(query, [
+          item.id,
+          item.term,
+          item.meaning_vi,
+          item.target_en,
+          item.target_zh,
+          item.enabled
+        ]);
+      }
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
 
     return {
       statusCode: 200,
