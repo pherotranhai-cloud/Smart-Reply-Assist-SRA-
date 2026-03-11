@@ -141,6 +141,33 @@ async function startServer() {
     }
   });
 
+  app.get('/api/get-vocab', async (req, res) => {
+    try {
+      if (!DATABASE_URL) {
+        return res.status(503).json({ error: 'Database connection not configured' });
+      }
+
+      const client = await pool.connect();
+      try {
+        const result = await client.query('SELECT * FROM vocab ORDER BY created_at DESC');
+        const mapped = result.rows.map(row => ({
+          id: row.id,
+          term: row.term,
+          meaningVi: row.meaning_vi,
+          targetEn: row.target_en,
+          targetZh: row.target_zh,
+          enabled: row.enabled
+        }));
+        res.json(mapped);
+      } finally {
+        client.release();
+      }
+    } catch (error: any) {
+      console.error('Fetch error:', error);
+      res.status(500).json({ error: error.message || 'Internal Server Error' });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

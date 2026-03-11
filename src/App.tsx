@@ -85,10 +85,28 @@ const VocabularyModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose
 
   useEffect(() => {
     if (isOpen) {
-      storage.getVocab().then(v => {
+      const loadVocab = async () => {
+        setLoading(true);
+        try {
+          const response = await fetch('/api/get-vocab');
+          if (response.ok) {
+            const data = await response.json();
+            if (Array.isArray(data)) {
+              setVocab(data);
+              storage.setVocab(data);
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch vocab from backend:', err);
+        }
+
+        const v = await storage.getVocab();
         setVocab(v);
         setLoading(false);
-      });
+      };
+      loadVocab();
     }
   }, [isOpen]);
 
@@ -142,15 +160,17 @@ const VocabularyModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose
           body: JSON.stringify(validImported)
         });
         
-        const contentType = response.headers.get('content-type');
         let result: any = {};
-        
-        if (contentType && contentType.includes('application/json')) {
-          result = await response.json();
-        } else {
+        try {
           const text = await response.text();
-          console.warn('Server returned non-JSON response:', text);
-          if (!response.ok) throw new Error(`Server error: ${response.status} ${response.statusText}`);
+          try {
+            result = JSON.parse(text);
+          } catch (e) {
+            // Not JSON, use the raw text
+            if (!response.ok) throw new Error(`Server error (${response.status}): ${text || response.statusText}`);
+          }
+        } catch (e: any) {
+          if (!response.ok && !result.error) throw e;
         }
         
         if (!response.ok) {
@@ -243,7 +263,7 @@ const VocabularyModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 max-h-[60vh] custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar min-h-[300px]">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="text-[var(--muted)] text-sm border-b border-cyber-border">
@@ -506,7 +526,7 @@ export default function App() {
   useEffect(() => {
     const init = async () => {
       try {
-        const [settings, themeMode, lang, v, outputs, ctx, summary] = await Promise.all([
+        const [settings, themeMode, lang, localVocab, outputs, ctx, summary] = await Promise.all([
           storage.getSettings(),
           storage.getTheme(),
           storage.getGlobalLanguage(),
@@ -515,6 +535,20 @@ export default function App() {
           storage.getContext(),
           storage.getStructuredSummary()
         ]);
+
+        let v = localVocab;
+        try {
+          const response = await fetch('/api/get-vocab');
+          if (response.ok) {
+            const data = await response.json();
+            if (Array.isArray(data) && data.length > 0) {
+              v = data;
+              storage.setVocab(data);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch vocab from backend on init:', err);
+        }
 
         // Migration: Normalize Gemini model name
         let migrated = false;
