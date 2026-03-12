@@ -796,6 +796,24 @@ export default function App() {
     }
   };
 
+  const handlePasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        setTranslateInput(prev => prev + (prev ? '\n' : '') + text);
+        showToast('Text pasted from clipboard', 'success');
+      }
+    } catch (err) {
+      console.error('Failed to read clipboard:', err);
+      showToast('Clipboard access denied', 'error');
+    }
+  };
+
+  const handleClearInput = () => {
+    setTranslateInput('');
+    setTranslateImage(null);
+  };
+
   const handleReset = async () => {
     if (!window.confirm(t('clearContextConfirm'))) return;
     
@@ -844,21 +862,21 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col p-4 md:p-8 max-w-6xl mx-auto gap-6">
+    <div className="min-h-screen flex flex-col p-4 md:p-8 max-w-6xl mx-auto gap-6 pb-24 sm:pb-0">
       {/* Header */}
-      <header className="flex justify-between items-center glass-panel p-4 neon-border">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-neon-cyan rounded-lg flex items-center justify-center shadow-[0_0_15px_var(--glow)]">
-            <Languages className="text-[var(--btn-text)]" size={24} />
+      <header className="flex justify-between items-center glass-panel py-2 px-3 sm:p-4 neon-border shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-neon-cyan rounded-lg flex items-center justify-center shadow-[0_0_15px_var(--glow)] shrink-0">
+            <Languages className="text-[var(--btn-text)]" size={18} />
           </div>
-          <div>
-            <h1 className="text-xl font-bold neon-text-cyan tracking-tight">SMART REPLY ASSIST</h1>
-            <p className="text-[10px] text-[var(--muted)] uppercase tracking-widest">Cybernetic Communication Interface</p>
+          <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
+            <h1 className="text-sm sm:text-xl font-bold neon-text-cyan tracking-tight leading-tight">SMART REPLY ASSIST</h1>
+            <p className="text-[10px] text-[var(--muted)] uppercase tracking-widest hidden sm:block">Cybernetic Communication Interface</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 mr-2 border-r border-white/10 pr-2">
-            <Flag size={16} className="text-neon-cyan" />
+        <div className="flex items-center gap-0 sm:gap-2">
+          <div className="flex items-center justify-center min-w-[44px] min-h-[44px] border-r border-white/10 pr-1 sm:pr-2">
+            <Flag size={14} className="text-neon-cyan sm:size-4" />
             <select 
               value={state.globalLanguage}
               onChange={async (e) => {
@@ -867,7 +885,7 @@ export default function App() {
                 setState(prev => ({ ...prev, globalLanguage: lang }));
                 showToast(`Language set to ${lang === 'en' ? 'English' : lang === 'vi' ? 'Tiếng Việt' : '日本語'}`, 'info');
               }}
-              className="bg-transparent text-xs font-bold text-neon-cyan border-none focus:ring-0 cursor-pointer uppercase"
+              className="bg-transparent text-[10px] sm:text-xs font-bold text-neon-cyan border-none focus:ring-0 cursor-pointer uppercase p-0 ml-1"
             >
               <option value="en" className="bg-slate-900 text-neon-cyan">EN</option>
               <option value="vi" className="bg-slate-900 text-neon-cyan">VI</option>
@@ -875,25 +893,14 @@ export default function App() {
             </select>
           </div>
 
-          {IS_EXTENSION && !windowAdapter.isStandalone() && (
-            <motion.button 
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => windowAdapter.openAppWindow()}
-              title="Open in standalone window"
-              className="p-2 rounded-lg hover:bg-[var(--accent)]/10 transition-colors text-neon-cyan"
-            >
-              <Monitor size={20} />
-            </motion.button>
-          )}
           <motion.button 
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={handleReset}
             title="Clear all context and outputs"
-            className="p-2 rounded-lg hover:bg-[var(--accent)]/10 transition-colors text-[var(--muted)]"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-[var(--accent)]/10 transition-colors text-[var(--muted)]"
           >
-            <RotateCcw size={20} />
+            <RotateCcw size={18} className="sm:size-5" />
           </motion.button>
           {IS_PWA && deferredPrompt && (
             <motion.button 
@@ -901,9 +908,9 @@ export default function App() {
               whileTap={{ scale: 0.9 }}
               onClick={handleInstallPWA}
               title="Install App"
-              className="p-2 rounded-lg bg-neon-magenta/20 text-neon-magenta border border-neon-magenta/30 transition-colors"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-neon-magenta/20 text-neon-magenta border border-neon-magenta/30 transition-colors"
             >
-              <Download size={20} />
+              <Download size={18} className="sm:size-5" />
             </motion.button>
           )}
           <motion.button 
@@ -923,20 +930,20 @@ export default function App() {
               showToast(`Theme set to ${nextMode}`, 'info');
             }}
             title={`Current theme: ${state.themeMode}`}
-            className="p-2 rounded-lg hover:bg-white/5 transition-colors text-slate-400 flex items-center gap-2"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-white/5 transition-colors text-slate-400 gap-1 sm:gap-2"
           >
-            {state.themeMode === 'system' && <Monitor size={20} />}
-            {state.themeMode === 'dark' && <Moon size={20} />}
-            {state.themeMode === 'light' && <Sun size={20} />}
+            {state.themeMode === 'system' && <Monitor size={18} className="sm:size-5" />}
+            {state.themeMode === 'dark' && <Moon size={18} className="sm:size-5" />}
+            {state.themeMode === 'light' && <Sun size={18} className="sm:size-5" />}
             <span className="text-[10px] font-bold uppercase hidden sm:inline">{state.themeMode}</span>
           </motion.button>
           <motion.button 
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-            className={`p-2 rounded-lg transition-colors ${isSettingsOpen ? 'bg-neon-cyan/20 text-neon-cyan' : 'hover:bg-[var(--accent)]/10 text-[var(--muted)]'}`}
+            className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg transition-colors ${isSettingsOpen ? 'bg-neon-cyan/20 text-neon-cyan' : 'hover:bg-[var(--accent)]/10 text-[var(--muted)]'}`}
           >
-            <Settings size={20} />
+            <Settings size={18} className="sm:size-5" />
           </motion.button>
         </div>
       </header>
@@ -969,22 +976,28 @@ export default function App() {
       </AnimatePresence>
 
       {/* Navigation */}
-      <nav className="flex gap-2 p-1 glass-panel neon-border self-center">
-        {(['translate', 'compose', 'review', 'analyze'] as const).map(tab => (
-          <motion.button
-            key={tab}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setActiveTab(tab)}
-            className={`px-8 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-all ${
-              activeTab === tab 
-                ? 'bg-neon-cyan text-[var(--btn-text)] shadow-[0_0_15px_var(--glow)]' 
-                : 'text-[var(--muted)] hover:text-[var(--text)]'
-            }`}
-          >
-            {t(tab)}
-          </motion.button>
-        ))}
+      <nav className="fixed bottom-0 left-0 w-full z-50 bg-[#0a0f1a]/90 backdrop-blur-md border-t border-cyan-500/50 shadow-[0_-4px_15px_rgba(0,255,255,0.15)] flex justify-around items-center h-16 sm:relative sm:bottom-auto sm:left-auto sm:w-auto sm:z-auto sm:bg-transparent sm:backdrop-blur-none sm:border-t-0 sm:shadow-none sm:h-auto sm:gap-2 sm:p-1 sm:glass-panel sm:neon-border sm:self-center">
+        {(['translate', 'compose', 'review', 'analyze'] as const).map(tab => {
+          const Icon = tab === 'translate' ? Languages : 
+                       tab === 'compose' ? PenTool : 
+                       tab === 'review' ? ClipboardCheck : BarChart3;
+          return (
+            <motion.button
+              key={tab}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setActiveTab(tab)}
+              className={`min-w-[64px] min-h-[44px] flex flex-col items-center justify-center transition-all sm:px-8 sm:py-2 sm:rounded-lg sm:text-sm sm:font-bold sm:uppercase sm:tracking-wider ${
+                activeTab === tab 
+                  ? 'text-neon-cyan drop-shadow-[0_0_8px_rgba(0,255,255,0.8)] sm:bg-neon-cyan sm:text-[var(--btn-text)] sm:shadow-[0_0_15px_var(--glow)] sm:drop-shadow-none' 
+                  : 'text-cyan-700 sm:text-[var(--muted)] sm:hover:text-[var(--text)]'
+              }`}
+            >
+              <Icon size={20} className="sm:hidden" />
+              <span className="text-[10px] sm:text-sm font-bold uppercase tracking-wider mt-1 sm:mt-0">{t(tab)}</span>
+            </motion.button>
+          );
+        })}
       </nav>
 
       {/* Main Content */}
@@ -1011,13 +1024,31 @@ export default function App() {
                     </button>
                   </div>
                 </div>
-                <textarea 
-                  className="cyber-input w-full h-48 resize-none font-mono text-sm"
-                  placeholder={t('inputPlaceholder')}
-                  value={translateInput}
-                  onChange={e => setTranslateInput(e.target.value)}
-                  onPaste={handlePaste}
-                />
+                <div className="relative group">
+                  <textarea 
+                    className="cyber-input w-full h-48 min-h-[120px] resize-none font-mono text-sm focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all"
+                    placeholder={t('inputPlaceholder')}
+                    value={translateInput}
+                    onChange={e => setTranslateInput(e.target.value)}
+                    onPaste={handlePaste}
+                  />
+                  <div className="absolute bottom-3 right-3 flex gap-2">
+                    <button 
+                      onClick={handleClearInput}
+                      title="Clear"
+                      className="p-2 bg-black/40 backdrop-blur-md rounded-lg border border-white/10 text-[var(--muted)] hover:text-red-400 transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                    <button 
+                      onClick={handlePasteFromClipboard}
+                      title="Paste"
+                      className="p-2 bg-black/40 backdrop-blur-md rounded-lg border border-white/10 text-[var(--muted)] hover:text-neon-cyan transition-colors"
+                    >
+                      <ClipboardCheck size={16} />
+                    </button>
+                  </div>
+                </div>
                 {translateImage && (
                   <div className="relative group">
                     <img src={translateImage} className="max-h-32 rounded border border-neon-magenta/50" alt="Pasted" />
@@ -1029,11 +1060,11 @@ export default function App() {
                     </button>
                   </div>
                 )}
-                <div className="flex gap-4 items-end">
+                <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
                   <div className="flex-1 space-y-1">
                     <label className="text-[10px] text-[var(--muted)] uppercase">{t('targetLanguage')}</label>
                     <select 
-                      className="cyber-input w-full"
+                      className="cyber-input w-full min-h-[48px] py-3"
                       value={targetLang}
                       onChange={e => setTargetLang(e.target.value as Language)}
                     >
@@ -1045,7 +1076,7 @@ export default function App() {
                     whileTap={{ scale: 0.95 }}
                     onClick={handleTranslate}
                     disabled={loading}
-                    className="cyber-button px-8 py-2 bg-neon-cyan text-[var(--btn-text)] font-bold rounded-lg flex items-center gap-2"
+                    className="cyber-button px-8 py-3 min-h-[48px] bg-neon-cyan text-[var(--btn-text)] font-bold rounded-lg flex items-center justify-center gap-2"
                   >
                     {loading ? <Loader2 className="animate-spin" size={18} /> : <Languages size={18} />}
                     {t('translate')}
