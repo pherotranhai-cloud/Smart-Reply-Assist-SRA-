@@ -23,19 +23,26 @@ export class AIService {
     }
   }
 
-  private buildGlossaryPrompt(vocab: VocabItem[]): string {
+  private buildGlossaryPrompt(vocab: VocabItem[], sourceText?: string): string {
     const enabled = vocab.filter(v => v.enabled);
     if (enabled.length === 0) return '';
 
+    let matched = enabled;
+    if (sourceText) {
+      const lowerText = sourceText.toLowerCase();
+      matched = enabled.filter(v => lowerText.includes(v.term.toLowerCase()));
+    }
+
+    if (matched.length === 0) return '';
+
     return `
-ENFORCE GLOSSARY MAPPINGS:
-${enabled.map(v => `- "${v.term}" -> EN: "${v.targetEn}", ZH: "${v.targetZh}"`).join('\n')}
-If any of these terms appear in the source text, you MUST use the provided translations.
+IMPORTANT: You must use the following glossary for specific terms. Do not translate them differently:
+${matched.map(v => `- "${v.term}" -> EN: "${v.targetEn}", ZH: "${v.targetZh}"`).join('\n')}
 `;
   }
 
   async translate(text: string, targetLang: string, vocab: VocabItem[], image?: string) {
-    const glossaryPrompt = this.buildGlossaryPrompt(vocab);
+    const glossaryPrompt = this.buildGlossaryPrompt(vocab, text);
     const systemPrompt = `You are a professional translator. Translate the following content to ${targetLang}. 
 Keep the tone natural but professional. 
 ${glossaryPrompt}
@@ -148,7 +155,7 @@ ${badJson}`;
     vocab: VocabItem[],
     structuredSummary?: any
   ) {
-    const glossaryPrompt = this.buildGlossaryPrompt(vocab);
+    const glossaryPrompt = this.buildGlossaryPrompt(vocab, contextText);
     
     // Truncation strategy: keep first 6,000 chars and last 2,000 chars
     let truncatedContext = contextText;
