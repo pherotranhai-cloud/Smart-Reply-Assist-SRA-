@@ -1,9 +1,17 @@
 @import "tailwindcss";
 
 @theme {
-  --color-cyber-bg: var(--bg);
-  --color-cyber-panel: var(--panel);
+  --color-background: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-primary: var(--color-primary);
+  --color-primary-glow: var(--color-primary-glow);
+  --color-text-main: var(--color-text);
+  --color-border-main: var(--border);
+  
+  --color-cyber-bg: var(--color-bg);
+  --color-cyber-panel: var(--color-surface);
   --color-cyber-border: var(--border);
+  
   --color-neon-cyan: var(--accent);
   --color-neon-magenta: var(--accent2);
   --color-neon-yellow: #f0f000;
@@ -13,20 +21,51 @@
 }
 
 :root {
-  --bg: #050505;
-  --panel: rgba(15, 15, 20, 0.8);
-  --text: #e2e8f0;
+  /* Cyberpunk (Default) */
+  --color-bg: #050505;
+  --color-surface: rgba(15, 15, 20, 0.8);
+  --color-primary: #00ffff;
+  --color-primary-glow: rgba(0, 255, 255, 0.5);
+  --color-text: #e2e8f0;
+
+  --bg: var(--color-bg);
+  --panel: var(--color-surface);
+  --text: var(--color-text);
   --muted: #94a3b8;
   --border: rgba(0, 255, 255, 0.2);
-  --accent: #00ffff;
+  --accent: var(--color-primary);
   --accent2: #ff00ff;
-  --glow: rgba(0, 255, 255, 0.5);
+  --glow: var(--color-primary-glow);
   --shadow: rgba(0, 0, 0, 0.8);
   --input-bg: rgba(0, 0, 0, 0.4);
   --btn-text: #000000;
   --btn-secondary-bg: #1e293b;
   --btn-secondary-border: #334155;
   --btn-secondary-text: #94a3b8;
+}
+
+[data-theme="matrix"] {
+  --color-bg: #000000;
+  --color-surface: rgba(0, 20, 0, 0.8);
+  --color-primary: #00ff41;
+  --color-primary-glow: rgba(0, 255, 65, 0.5);
+  --color-text: #00ff41;
+  
+  --border: rgba(0, 255, 65, 0.2);
+  --accent2: #003b00;
+  --muted: #008f11;
+}
+
+[data-theme="synthwave"] {
+  --color-bg: #2b065a;
+  --color-surface: rgba(45, 10, 90, 0.8);
+  --color-primary: #ff00ff;
+  --color-primary-glow: rgba(255, 0, 255, 0.5);
+  --color-text: #f0f0f0;
+  
+  --border: rgba(255, 0, 255, 0.2);
+  --accent2: #00ffff;
+  --muted: #b085f5;
 }
 
 :root[data-theme="light"] {
@@ -48,7 +87,7 @@
 
 @layer base {
   body {
-    @apply bg-cyber-bg text-[var(--text)] antialiased selection:bg-neon-cyan/30;
+    @apply bg-background text-text-main antialiased selection:bg-primary/30;
     background-image: 
       radial-gradient(circle at 50% -20%, var(--glow), transparent 40%),
       radial-gradient(circle at 0% 100%, var(--accent2), transparent 5%);
@@ -69,17 +108,17 @@
 
 @layer components {
   .glass-panel {
-    @apply bg-cyber-panel backdrop-blur-xl border border-cyber-border rounded-xl;
+    @apply bg-surface backdrop-blur-xl border border-border-main rounded-xl;
     box-shadow: 0 8px 32px 0 var(--shadow);
     transition: background-color 0.3s ease, border-color 0.3s ease;
   }
 
   .neon-border {
-    @apply border border-neon-cyan/30 shadow-[0_0_10px_var(--glow)];
+    @apply border border-primary/30 shadow-[0_0_10px_var(--glow)];
   }
 
   .neon-text-cyan {
-    @apply text-neon-cyan drop-shadow-[0_0_5px_var(--glow)];
+    @apply text-primary drop-shadow-[0_0_5px_var(--glow)];
   }
 
   .neon-text-magenta {
@@ -91,7 +130,7 @@
   }
 
   .cyber-input {
-    @apply bg-[var(--input-bg)] border border-cyber-border rounded-lg px-4 py-2 focus:outline-none focus:border-neon-cyan/60 focus:ring-1 focus:ring-neon-cyan/30 transition-all text-[var(--text)];
+    @apply bg-[var(--input-bg)] border border-border-main rounded-lg px-4 py-2 focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 transition-all text-text-main;
   }
 }
 
@@ -105,7 +144,7 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-neon-cyan/20 rounded-full hover:bg-neon-cyan/40 transition-colors;
+  @apply bg-primary/20 rounded-full hover:bg-primary/40 transition-colors;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -113,7 +152,7 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  @apply bg-neon-cyan/30 rounded-full;
+  @apply bg-primary/30 rounded-full;
 }
 
 /* Animations */

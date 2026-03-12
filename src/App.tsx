@@ -503,7 +503,16 @@ export default function App() {
   const [extracting, setExtracting] = useState(false);
   const [resetNonce, setResetNonce] = useState(0);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isCopied, setIsCopied] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState<string>(() => localStorage.getItem('app-theme') || 'cyberpunk');
   
+  const outputRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    localStorage.setItem('app-theme', currentTheme);
+  }, [currentTheme]);
+
   // Tab States
   const [translateInput, setTranslateInput] = useState('');
   const [translateImage, setTranslateImage] = useState<string | null>(null);
@@ -518,6 +527,12 @@ export default function App() {
   });
 
   const [reviewToggle, setReviewToggle] = useState<'reply' | 'summary'>('reply');
+
+  useEffect(() => {
+    if (state.lastOutputs.translatedText && outputRef.current) {
+      outputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [state.lastOutputs.translatedText]);
 
   const t = (key: keyof typeof translations['en']) => {
     return translations[state.globalLanguage][key] || translations['en'][key] || key;
@@ -856,6 +871,14 @@ export default function App() {
     }
   };
 
+  const handleCopy = (text: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setIsCopied(true);
+    showToast('Copied to clipboard', 'success');
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     showToast('Copied to clipboard', 'success');
@@ -866,17 +889,30 @@ export default function App() {
       {/* Header */}
       <header className="flex justify-between items-center glass-panel py-2 px-3 sm:p-4 neon-border shrink-0">
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-neon-cyan rounded-lg flex items-center justify-center shadow-[0_0_15px_var(--glow)] shrink-0">
-            <Languages className="text-[var(--btn-text)]" size={18} />
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-lg flex items-center justify-center shadow-[0_0_15px_var(--glow)] shrink-0">
+            <Languages className="text-black" size={18} />
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
-            <h1 className="text-sm sm:text-xl font-bold neon-text-cyan tracking-tight leading-tight">SMART REPLY ASSIST</h1>
+            <h1 className="text-sm sm:text-xl font-bold text-primary drop-shadow-[0_0_5px_var(--glow)] tracking-tight leading-tight">SMART REPLY ASSIST</h1>
             <p className="text-[10px] text-[var(--muted)] uppercase tracking-widest hidden sm:block">Cybernetic Communication Interface</p>
           </div>
         </div>
         <div className="flex items-center gap-0 sm:gap-2">
           <div className="flex items-center justify-center min-w-[44px] min-h-[44px] border-r border-white/10 pr-1 sm:pr-2">
-            <Flag size={14} className="text-neon-cyan sm:size-4" />
+            <Monitor size={14} className="text-primary sm:size-4" />
+            <select 
+              value={currentTheme}
+              onChange={(e) => setCurrentTheme(e.target.value)}
+              className="bg-transparent text-[10px] sm:text-xs font-bold text-primary border-none focus:ring-0 cursor-pointer uppercase p-0 ml-1"
+            >
+              <option value="cyberpunk" className="bg-slate-900">CYBER</option>
+              <option value="matrix" className="bg-slate-900">MATRIX</option>
+              <option value="synthwave" className="bg-slate-900">SYNTH</option>
+            </select>
+          </div>
+
+          <div className="flex items-center justify-center min-w-[44px] min-h-[44px] border-r border-white/10 pr-1 sm:pr-2">
+            <Flag size={14} className="text-primary sm:size-4" />
             <select 
               value={state.globalLanguage}
               onChange={async (e) => {
@@ -885,11 +921,11 @@ export default function App() {
                 setState(prev => ({ ...prev, globalLanguage: lang }));
                 showToast(`Language set to ${lang === 'en' ? 'English' : lang === 'vi' ? 'Tiếng Việt' : '日本語'}`, 'info');
               }}
-              className="bg-transparent text-[10px] sm:text-xs font-bold text-neon-cyan border-none focus:ring-0 cursor-pointer uppercase p-0 ml-1"
+              className="bg-transparent text-[10px] sm:text-xs font-bold text-primary border-none focus:ring-0 cursor-pointer uppercase p-0 ml-1"
             >
-              <option value="en" className="bg-slate-900 text-neon-cyan">EN</option>
-              <option value="vi" className="bg-slate-900 text-neon-cyan">VI</option>
-              <option value="ja" className="bg-slate-900 text-neon-cyan">JA</option>
+              <option value="en" className="bg-slate-900">EN</option>
+              <option value="vi" className="bg-slate-900">VI</option>
+              <option value="ja" className="bg-slate-900">JA</option>
             </select>
           </div>
 
@@ -976,7 +1012,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Navigation */}
-      <nav className="fixed bottom-0 left-0 w-full z-50 bg-[#0a0f1a]/90 backdrop-blur-md border-t border-cyan-500/50 shadow-[0_-4px_15px_rgba(0,255,255,0.15)] flex justify-around items-center h-16 sm:relative sm:bottom-auto sm:left-auto sm:w-auto sm:z-auto sm:bg-transparent sm:backdrop-blur-none sm:border-t-0 sm:shadow-none sm:h-auto sm:gap-2 sm:p-1 sm:glass-panel sm:neon-border sm:self-center">
+      <nav className="fixed bottom-0 left-0 w-full z-50 bg-background/90 backdrop-blur-md border-t border-primary/50 shadow-[0_-4px_15px_var(--glow)] flex justify-around items-center h-16 sm:relative sm:bottom-auto sm:left-auto sm:w-auto sm:z-auto sm:bg-transparent sm:backdrop-blur-none sm:border-t-0 sm:shadow-none sm:h-auto sm:gap-2 sm:p-1 sm:glass-panel sm:neon-border sm:self-center">
         {(['translate', 'compose', 'review', 'analyze'] as const).map(tab => {
           const Icon = tab === 'translate' ? Languages : 
                        tab === 'compose' ? PenTool : 
@@ -989,8 +1025,8 @@ export default function App() {
               onClick={() => setActiveTab(tab)}
               className={`min-w-[64px] min-h-[44px] flex flex-col items-center justify-center transition-all sm:px-8 sm:py-2 sm:rounded-lg sm:text-sm sm:font-bold sm:uppercase sm:tracking-wider ${
                 activeTab === tab 
-                  ? 'text-neon-cyan drop-shadow-[0_0_8px_rgba(0,255,255,0.8)] sm:bg-neon-cyan sm:text-[var(--btn-text)] sm:shadow-[0_0_15px_var(--glow)] sm:drop-shadow-none' 
-                  : 'text-cyan-700 sm:text-[var(--muted)] sm:hover:text-[var(--text)]'
+                  ? 'text-primary drop-shadow-[0_0_8px_var(--glow)] sm:bg-primary sm:text-black sm:shadow-[0_0_15px_var(--glow)] sm:drop-shadow-none' 
+                  : 'text-primary/40 sm:text-[var(--muted)] sm:hover:text-[var(--text)]'
               }`}
             >
               <Icon size={20} className="sm:hidden" />
@@ -1026,7 +1062,7 @@ export default function App() {
                 </div>
                 <div className="relative group">
                   <textarea 
-                    className="cyber-input w-full h-48 min-h-[120px] resize-none font-mono text-sm focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all"
+                    className="cyber-input w-full h-48 min-h-[120px] resize-none font-mono text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
                     placeholder={t('inputPlaceholder')}
                     value={translateInput}
                     onChange={e => setTranslateInput(e.target.value)}
@@ -1043,7 +1079,7 @@ export default function App() {
                     <button 
                       onClick={handlePasteFromClipboard}
                       title="Paste"
-                      className="p-2 bg-black/40 backdrop-blur-md rounded-lg border border-white/10 text-[var(--muted)] hover:text-neon-cyan transition-colors"
+                      className="p-2 bg-black/40 backdrop-blur-md rounded-lg border border-white/10 text-[var(--muted)] hover:text-primary transition-colors"
                     >
                       <ClipboardCheck size={16} />
                     </button>
@@ -1076,7 +1112,7 @@ export default function App() {
                     whileTap={{ scale: 0.95 }}
                     onClick={handleTranslate}
                     disabled={loading}
-                    className="cyber-button px-8 py-3 min-h-[48px] bg-neon-cyan text-[var(--btn-text)] font-bold rounded-lg flex items-center justify-center gap-2"
+                    className="cyber-button px-8 py-3 min-h-[48px] bg-primary text-black font-bold rounded-lg flex items-center justify-center gap-2"
                   >
                     {loading ? <Loader2 className="animate-spin" size={18} /> : <Languages size={18} />}
                     {t('translate')}
@@ -1084,21 +1120,37 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="glass-panel p-6 flex flex-col gap-4">
+              <div ref={outputRef} className="glass-panel p-6 flex flex-col gap-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-widest">{t('translatedOutput')}</h3>
-                  <motion.button 
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => copyToClipboard(state.lastOutputs.translatedText)}
-                    className="p-2 hover:bg-[var(--accent)]/10 rounded-lg text-neon-cyan"
-                  >
-                    <Copy size={18} />
-                  </motion.button>
                 </div>
-                <div className="flex-1 bg-[var(--input-bg)] rounded-lg p-4 font-mono text-sm border border-cyber-border overflow-auto whitespace-pre-wrap">
+                <div className="flex-1 bg-[var(--input-bg)] rounded-lg p-4 font-mono text-base leading-relaxed border border-cyber-border overflow-auto whitespace-pre-wrap">
                   {state.lastOutputs.translatedText || <span className="text-[var(--muted)] italic">{t('translationPlaceholder')}</span>}
                 </div>
+                {state.lastOutputs.translatedText && (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleCopy(state.lastOutputs.translatedText)}
+                    className={`w-full min-h-[48px] mt-4 flex justify-center items-center gap-2 rounded-lg font-bold transition-all border ${
+                      isCopied 
+                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]' 
+                        : 'bg-primary/10 border-primary text-primary hover:bg-primary/20'
+                    }`}
+                  >
+                    {isCopied ? (
+                      <>
+                        <Check size={20} />
+                        <span>COPIED!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={20} />
+                        <span>COPY TRANSLATION</span>
+                      </>
+                    )}
+                  </motion.button>
+                )}
               </div>
             </motion.div>
           )}
