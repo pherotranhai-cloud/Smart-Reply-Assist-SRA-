@@ -130,9 +130,9 @@ const VocabularyModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose
         const results = Papa.parse(text, { header: true, skipEmptyLines: true });
         imported = results.data.map((row: any) => ({
           term: row.term || row.Term || '',
-          meaningVi: row.meaningVi || row.MeaningVi || row['Meaning (VI)'] || '',
-          targetEn: row.targetEn || row.TargetEn || row['Target EN'] || '',
-          targetZh: row.targetZh || row.TargetZh || row['Target ZH'] || '',
+          meaning_vi: row.meaning_vi || row.meaningVi || row.MeaningVi || row['Meaning (VI)'] || '',
+          target_en: row.target_en || row.targetEn || row.TargetEn || row['Target EN'] || '',
+          target_zh: row.target_zh || row.targetZh || row.TargetZh || row['Target ZH'] || '',
           enabled: true
         }));
       } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
@@ -142,15 +142,15 @@ const VocabularyModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
         imported = jsonData.map((row: any) => ({
           term: row.term || row.Term || '',
-          meaningVi: row.meaningVi || row.MeaningVi || row['Meaning (VI)'] || '',
-          targetEn: row.targetEn || row.TargetEn || row['Target EN'] || '',
-          targetZh: row.targetZh || row.TargetZh || row['Target ZH'] || '',
+          meaning_vi: row.meaning_vi || row.meaningVi || row.MeaningVi || row['Meaning (VI)'] || '',
+          target_en: row.target_en || row.targetEn || row.TargetEn || row['Target EN'] || '',
+          target_zh: row.target_zh || row.targetZh || row.TargetZh || row['Target ZH'] || '',
           enabled: true
         }));
       }
 
       // Filter out empty rows and ensure required fields
-      const validImported = imported.filter(item => item && item.term && item.meaningVi);
+      const validImported = imported.filter(item => item && item.term && item.meaning_vi);
 
       if (validImported.length === 0) {
         alert('No valid vocabulary items found in file');
@@ -220,7 +220,7 @@ const VocabularyModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose
 
   const filtered = vocab.filter(v => 
     v.term.toLowerCase().includes(search.toLowerCase()) || 
-    v.meaningVi.toLowerCase().includes(search.toLowerCase())
+    v.meaning_vi.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -284,13 +284,13 @@ const VocabularyModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose
               {filtered.map(item => (
                 <tr key={item.id} className="border-b border-cyber-border/50 hover:bg-[var(--accent)]/5 transition-colors">
                   <td className="py-3 font-mono text-neon-cyan">{item.term}</td>
-                  <td className="py-3 text-sm">{item.meaningVi}</td>
-                  <td className="py-3 text-sm">{item.targetEn}</td>
-                  <td className="py-3 text-sm">{item.targetZh}</td>
+                  <td className="py-3 text-sm">{item.meaning_vi}</td>
+                  <td className="py-3 text-sm">{item.target_en}</td>
+                  <td className="py-3 text-sm">{item.target_zh}</td>
                   <td className="py-3 text-center">
                     <input 
                       type="checkbox" 
-                      checked={item.enabled}
+                      checked={item.enabled === true || item.enabled === 'true'}
                       onChange={e => {
                         setVocab(vocab.map(v => v.id === item.id ? { ...v, enabled: e.target.checked } : v));
                       }}

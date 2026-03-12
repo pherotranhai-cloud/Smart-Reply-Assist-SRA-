@@ -23,26 +23,43 @@ export class AIService {
     }
   }
 
-  private buildGlossaryPrompt(vocab: VocabItem[], sourceText?: string): string {
-    const enabled = vocab.filter(v => v.enabled);
-    if (enabled.length === 0) return '';
+  private buildGlossaryPrompt(vocab: VocabItem[], targetLang: string, sourceText?: string): string {
+    const langLower = targetLang.toLowerCase();
+    const isEnglish = langLower.includes('en') || langLower.includes('english');
+    const isChinese = langLower.includes('zh') || langLower.includes('chinese');
 
-    let matched = enabled;
-    if (sourceText) {
-      const lowerText = sourceText.toLowerCase();
-      matched = enabled.filter(v => lowerText.includes(v.term.toLowerCase()));
-    }
+    if (!isEnglish && !isChinese) return '';
+
+    const matched = vocab.filter(v => {
+      // 1. Filtering: enabled must be true or "true"
+      const isEnabled = v.enabled === true || v.enabled === 'true';
+      if (!isEnabled) return false;
+
+      // 2. Filtering: source text must include meaning_vi (case-insensitive)
+      if (sourceText) {
+        if (!sourceText.toLowerCase().includes(v.meaning_vi.toLowerCase())) return false;
+      }
+
+      // 3. Filtering: target translation must not be empty or null
+      const targetValue = isEnglish ? v.target_en : v.target_zh;
+      if (!targetValue) return false;
+
+      return true;
+    });
 
     if (matched.length === 0) return '';
 
     return `
 IMPORTANT: You must use the following glossary for specific terms. Do not translate them differently:
-${matched.map(v => `- "${v.term}" -> EN: "${v.targetEn}", ZH: "${v.targetZh}"`).join('\n')}
+${matched.map(v => {
+  const targetValue = isEnglish ? v.target_en : v.target_zh;
+  return `- "${v.meaning_vi}" -> "${targetValue}"`;
+}).join('\n')}
 `;
   }
 
   async translate(text: string, targetLang: string, vocab: VocabItem[], image?: string) {
-    const glossaryPrompt = this.buildGlossaryPrompt(vocab, text);
+    const glossaryPrompt = this.buildGlossaryPrompt(vocab, targetLang, text);
     const systemPrompt = `You are a professional translator. Translate the following content to ${targetLang}. 
 Keep the tone natural but professional. 
 ${glossaryPrompt}
@@ -156,7 +173,7 @@ ${badJson}`;
     structuredSummary?: any
   ) {
     const hasContext = contextText && contextText.trim().length > 0;
-    const glossaryPrompt = this.buildGlossaryPrompt(vocab, hasContext ? contextText : undefined);
+    const glossaryPrompt = this.buildGlossaryPrompt(vocab, params.lang, hasContext ? contextText : undefined);
     
     // Truncation strategy: keep first 6,000 chars and last 2,000 chars
     let truncatedContext = contextText;

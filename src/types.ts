@@ -7,10 +7,10 @@ export type Format = 'Email' | 'WeChat' | 'Chat' | 'Report-Short' | 'Report-Deta
 export interface VocabItem {
   id: string;
   term: string;
-  meaningVi: string;
-  targetEn: string;
-  targetZh: string;
-  enabled: boolean;
+  meaning_vi: string;
+  target_en: string;
+  target_zh: string;
+  enabled: boolean | string;
 }
 
 export type ProviderType = 'openai' | 'gemini';
