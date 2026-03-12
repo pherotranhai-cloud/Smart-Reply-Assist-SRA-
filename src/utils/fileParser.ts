@@ -2,8 +2,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 import * as XLSX from 'xlsx';
 
 // Set worker source for PDF.js
-// Note: In a real extension build, you might need to copy the worker file to public/
-// and reference it via chrome.runtime.getURL() or similar.
+// Note: In a production PWA build, you should copy the worker file to public/
+// and reference it via a local URL.
 // For now, we use the CDN or try to resolve it via import if the bundler supports it.
 // However, importing the worker directly often causes issues in some setups.
 // Let's try a CDN fallback for simplicity, but ideally this should be a local asset.

@@ -1,22 +1,9 @@
-import { RUNTIME } from '../runtime/env';
-
 export async function setupPWA() {
-  if (RUNTIME === 'pwa') {
-    try {
-      // @ts-ignore
-      const { registerSW } = await import('virtual:pwa-register');
-      const updateSW = registerSW({
-        onNeedRefresh() {
-          if (confirm('New content available. Reload?')) {
-            updateSW(true);
-          }
-        },
-        onOfflineReady() {
-          console.log('PWA Offline Ready');
-        },
-      });
-    } catch (e) {
-      console.warn('PWA registration failed or virtual module missing', e);
-    }
+  if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(reg => console.log('Service Worker registered. Scope:', reg.scope))
+        .catch(err => console.error('Service Worker registration failed:', err));
+    });
   }
 }

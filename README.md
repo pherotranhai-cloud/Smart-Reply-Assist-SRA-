@@ -1,44 +1,35 @@
-# Smart Reply Assist (SRA) - Unified Codebase
+# Smart Reply Assist (SRA)
 
-This project is a unified codebase for both a Chrome Extension and a PWA.
+Cyberpunk-themed AI assistant for translation and message composition, built as a Pure Progressive Web App (PWA).
 
-## Build Targets
+## Features
 
-### 1. Chrome Extension (Manifest V3)
-Builds the UI and packages it with the extension background script and manifest.
-
-- **Build Command:** `npm run build:ext`
-- **Output:** `dist-ext/`
-- **Installation:**
-  1. Open `chrome://extensions`
-  2. Enable "Developer mode"
-  3. Click "Load unpacked"
-  4. Select the `dist-ext/` folder
-
-### 2. PWA (Installable Web App)
-Builds the UI as a standard web application with service worker support for offline usage and installation.
-
-- **Build Command:** `npm run build:pwa`
-- **Output:** `dist/`
-- **Deployment:** Deploy the contents of `dist/` to any static hosting provider.
+- **AI Translation:** Multi-language support with vocabulary integration.
+- **Smart Composition:** Generate replies based on context, audience, and tone.
+- **Vocabulary Library:** Manage custom terms and meanings.
+- **PWA Support:** Installable on desktop and mobile with offline capabilities.
+- **Cyberpunk UI:** High-contrast, neon-themed interface.
 
 ## Development
 
-### Extension Mode
-Runs Vite in extension mode. Note that HMR is limited in extension contexts.
-- **Command:** `npm run dev:ext`
+### Run Development Server
+```bash
+npm run dev
+```
 
-### PWA Mode
-Runs Vite in PWA mode with full HMR support.
-- **Command:** `npm run dev:pwa`
+### Build for Production
+```bash
+npm run build
+```
+The output will be in the `dist/` directory.
 
 ## Architecture
 
-The project uses a **Runtime Abstraction Layer** (`src/runtime/`) to handle differences between the extension and web environments:
+The project is built as a standalone Single Page Application (SPA) with PWA capabilities:
 
-- **Storage Adapter:** Automatically switches between `chrome.storage` and `localStorage`.
-- **AI Transport:** Proxies AI calls through the background script in extension mode to avoid CORS issues and keep keys secure, while calling providers directly in PWA mode.
-- **Window Adapter:** Handles standalone window behavior for the extension.
+- **Storage:** Uses standard `localStorage` for persistent data.
+- **AI Integration:** Calls Gemini API directly from the client.
+- **Service Worker:** Handles caching for offline performance and installation.
 
 ## Environment Variables
 

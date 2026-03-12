@@ -5,13 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "dev:ext": "vite --mode extension --port=3000 --host=0.0.0.0",
-    "dev:pwa": "vite --mode pwa --port=3000 --host=0.0.0.0",
-    "build": "npm run build:pwa",
-    "build:ext": "vite build --mode extension && node scripts/build-extension.mjs",
-    "build:pwa": "vite build --mode pwa",
+    "build": "vite build",
     "preview": "vite preview",
-    "clean": "rm -rf dist dist-ext",
+    "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
@@ -36,7 +32,6 @@
   },
   "devDependencies": {
     "@netlify/functions": "^5.1.2",
-    "@types/chrome": "^0.1.37",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/papaparse": "^5.5.2",

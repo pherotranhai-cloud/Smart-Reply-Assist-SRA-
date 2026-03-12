@@ -108,6 +108,14 @@
   @apply bg-neon-cyan/20 rounded-full hover:bg-neon-cyan/40 transition-colors;
 }
 
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-neon-cyan/30 rounded-full;
+}
+
 /* Animations */
 @keyframes scanline {
   0% { transform: translateY(-100%); }
