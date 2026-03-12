@@ -650,9 +650,29 @@ export default function App() {
       return;
     }
     setLoading(true);
+
+    // Defensive vocabulary fetching with graceful fallback
+    let currentVocab: VocabItem[] = [];
+    try {
+      const response = await fetch('/api/get-vocab');
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          currentVocab = data;
+          setVocab(data);
+          storage.setVocab(data);
+        }
+      } else {
+        console.warn(`Vocabulary fetch failed with status: ${response.status}. Falling back to empty list.`);
+      }
+    } catch (err) {
+      console.error('Graceful fallback: Failed to fetch vocabulary list:', err);
+      // Continue with empty array as requested
+    }
+
     try {
       const ai = new AIService(state.settings);
-      const result = await ai.translate(translateInput, targetLang, vocab, translateImage || undefined);
+      const result = await ai.translate(translateInput, targetLang, currentVocab, translateImage || undefined);
       
       // Generate summary of the input/translation
       const summary = await ai.summarize(translateInput);
