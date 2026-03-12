@@ -155,18 +155,19 @@ ${badJson}`;
     vocab: VocabItem[],
     structuredSummary?: any
   ) {
-    const glossaryPrompt = this.buildGlossaryPrompt(vocab, contextText);
+    const hasContext = contextText && contextText.trim().length > 0;
+    const glossaryPrompt = this.buildGlossaryPrompt(vocab, hasContext ? contextText : undefined);
     
     // Truncation strategy: keep first 6,000 chars and last 2,000 chars
     let truncatedContext = contextText;
-    if (contextText.length > 8000) {
+    if (hasContext && contextText.length > 8000) {
       truncatedContext = contextText.substring(0, 6000) + 
         '\n\n[...content truncated for brevity...]\n\n' + 
         contextText.substring(contextText.length - 2000);
     }
 
     let summaryPrompt = '';
-    if (structuredSummary) {
+    if (hasContext && structuredSummary) {
       summaryPrompt = `
 STRUCTURED CONTEXT INTELLIGENCE (EPE):
 ${JSON.stringify(structuredSummary, null, 2)}
@@ -180,8 +181,8 @@ MANDATORY GUIDELINES:
 `;
     }
 
-    const systemPrompt = `You are an expert communicator. You are replying to the message provided in the CONTEXT.
-Generate a reply based on the following parameters:
+    const systemPrompt = `You are an expert communicator. ${hasContext ? 'You are replying to the message provided in the CONTEXT.' : 'You are drafting a new message based on the provided requirements.'}
+Generate a message based on the following parameters:
 - Audience: ${params.audience}
 - Tone: ${params.tone}
 - Target Language: ${params.lang}
@@ -191,21 +192,26 @@ ${glossaryPrompt}
 ${summaryPrompt}
 
 INSTRUCTIONS:
-1. You are replying to the message below.
+1. ${hasContext ? 'You are replying to the message below.' : 'Draft a new message based entirely on the requirements provided.'}
 2. Do NOT invent missing facts.
-3. If essential details are missing, ask 2–3 clarifying questions in the reply OR include a short ‘Need confirmation’ section (depends on Reply Format).
-4. Output ONLY the generated reply as plain text. 
+3. If essential details are missing, ask 2–3 clarifying questions in the message OR include a short ‘Need confirmation’ section (depends on Format).
+4. Output ONLY the generated message as plain text. 
 5. If the format is "Email", start with "Subject: [Subject Line]" followed by the body.
 6. Otherwise, output the message body directly.
 7. Do not output JSON or any metadata.`;
 
-    const userPrompt = `
+    const userPrompt = hasContext ? `
 CONTEXT (Message you are replying to):
 ---
 ${truncatedContext}
 ---
 
 REPLY REQUIREMENTS (User Intent):
+---
+${requirements}
+---
+` : `
+DRAFT REQUIREMENTS (User Intent):
 ---
 ${requirements}
 ---

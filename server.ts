@@ -60,7 +60,16 @@ async function startServer() {
   await initDatabase();
 
   // API Routes
-  app.post('/api/import-vocab', async (req, res) => {
+  const apiRouter = express.Router();
+
+  apiRouter.use((req, res, next) => {
+    console.log(`API Request: ${req.method} ${req.url}`);
+    next();
+  });
+
+  apiRouter.get('/health', (req, res) => res.json({ status: 'ok' }));
+
+  apiRouter.post('/import-vocab', async (req, res) => {
     try {
       if (!DATABASE_URL) {
         return res.status(503).json({ error: 'Database connection not configured' });
@@ -141,7 +150,7 @@ async function startServer() {
     }
   });
 
-  app.get('/api/get-vocab', async (req, res) => {
+  apiRouter.get('/vocab', async (req, res) => {
     try {
       if (!DATABASE_URL) {
         return res.status(503).json({ error: 'Database connection not configured' });
@@ -167,6 +176,13 @@ async function startServer() {
       res.status(500).json({ error: error.message || 'Internal Server Error' });
     }
   });
+
+  // Catch-all for API routes to prevent falling through to SPA fallback
+  apiRouter.all('*', (req, res) => {
+    res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
+  });
+
+  app.use('/api', apiRouter);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {

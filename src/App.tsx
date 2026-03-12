@@ -88,14 +88,19 @@ const VocabularyModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose
       const loadVocab = async () => {
         setLoading(true);
         try {
-          const response = await fetch('/api/get-vocab');
+          const response = await fetch('/api/vocab');
           if (response.ok) {
-            const data = await response.json();
-            if (Array.isArray(data)) {
-              setVocab(data);
-              storage.setVocab(data);
-              setLoading(false);
-              return;
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const data = await response.json();
+              if (Array.isArray(data)) {
+                setVocab(data);
+                storage.setVocab(data);
+                setLoading(false);
+                return;
+              }
+            } else {
+              console.warn('Expected JSON from /api/vocab but received non-JSON response');
             }
           }
         } catch (err) {
@@ -553,12 +558,17 @@ export default function App() {
 
         let v = localVocab;
         try {
-          const response = await fetch('/api/get-vocab');
+          const response = await fetch('/api/vocab');
           if (response.ok) {
-            const data = await response.json();
-            if (Array.isArray(data) && data.length > 0) {
-              v = data;
-              storage.setVocab(data);
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const data = await response.json();
+              if (Array.isArray(data) && data.length > 0) {
+                v = data;
+                storage.setVocab(data);
+              }
+            } else {
+              console.warn('Expected JSON from /api/vocab on init but received non-JSON response');
             }
           }
         } catch (err) {
@@ -669,13 +679,18 @@ export default function App() {
     // Defensive vocabulary fetching with graceful fallback
     let currentVocab: VocabItem[] = [];
     try {
-      const response = await fetch('/api/get-vocab');
+      const response = await fetch('/api/vocab');
       if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          currentVocab = data;
-          setVocab(data);
-          storage.setVocab(data);
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          if (Array.isArray(data)) {
+            currentVocab = data;
+            setVocab(data);
+            storage.setVocab(data);
+          }
+        } else {
+          console.warn('Expected JSON from /api/vocab during translate but received non-JSON response');
         }
       } else {
         console.warn(`Vocabulary fetch failed with status: ${response.status}. Falling back to empty list.`);
@@ -721,24 +736,8 @@ export default function App() {
   };
 
   const handleCompose = async () => {
-    if (!composeReq) {
+    if (!composeReq.trim()) {
       showToast('Please provide requirements', 'error');
-      return;
-    }
-
-    // Pull context
-    const currentContext = context;
-    if (!currentContext || (!currentContext.sourceText && !currentContext.translatedText)) {
-      showToast('No message context found. Please translate or paste a message first.', 'error');
-      return;
-    }
-
-    const contextText = state.lastOutputs.contextSource === 'original' 
-      ? currentContext.sourceText 
-      : currentContext.translatedText;
-
-    if (!contextText) {
-      showToast(`Selected context source (${state.lastOutputs.contextSource}) is empty.`, 'error');
       return;
     }
 
@@ -746,14 +745,25 @@ export default function App() {
     try {
       const ai = new AIService(state.settings);
       
-      // Check if structured summary is missing or stale
-      let currentStructuredSummary = state.structuredSummary;
-      const isStale = !currentStructuredSummary || 
-        new Date(currentContext.lastUpdatedIso) > new Date(currentStructuredSummary.meta.extractedAtIso);
-      
-      if (isStale) {
-        const sourceLang = currentContext.targetTranslationLanguage || 'Auto';
-        currentStructuredSummary = await handleExtract(contextText, sourceLang, state.lastOutputs.contextSource || 'translated');
+      // Pull context if available
+      const currentContext = context;
+      let contextText = '';
+      let currentStructuredSummary = null;
+
+      if (currentContext && (currentContext.sourceText || currentContext.translatedText)) {
+        contextText = state.lastOutputs.contextSource === 'original' 
+          ? currentContext.sourceText 
+          : currentContext.translatedText;
+        
+        // Check if structured summary is missing or stale
+        currentStructuredSummary = state.structuredSummary;
+        const isStale = !currentStructuredSummary || 
+          new Date(currentContext.lastUpdatedIso) > new Date(currentStructuredSummary.meta.extractedAtIso);
+        
+        if (isStale) {
+          const sourceLang = currentContext.targetTranslationLanguage || 'Auto';
+          currentStructuredSummary = await handleExtract(contextText, sourceLang, state.lastOutputs.contextSource || 'translated');
+        }
       }
 
       const result = await ai.compose(
@@ -766,7 +776,7 @@ export default function App() {
           format: composeParams.format
         }, 
         vocab,
-        currentStructuredSummary
+        currentStructuredSummary || undefined
       );
 
       // Extract subject if format is Email
@@ -1323,8 +1333,8 @@ export default function App() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleCompose}
-                  disabled={loading}
-                  className="cyber-button w-full py-3 bg-neon-cyan text-[var(--btn-text)] font-bold rounded-lg flex items-center justify-center gap-2"
+                  disabled={loading || !composeReq.trim()}
+                  className="cyber-button w-full py-3 bg-neon-cyan text-[var(--btn-text)] font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? <Loader2 className="animate-spin" size={20} /> : <PenTool size={20} />}
                   {t('generateReply')}
