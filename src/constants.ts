@@ -33,6 +33,8 @@ export const LANGUAGES = [
   'English',
   'Chinese (Simplified)',
   'Chinese (Traditional)',
+  'Indonesian',
+  'Burmese',
 ];
 
 export const AUDIENCES = ['Internal-Team', 'Taiwan-Manager', 'Foreigner-Manager', 'Customer'];

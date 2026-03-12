@@ -1,4 +1,4 @@
-export type Language = 'Auto' | 'Vietnamese' | 'English' | 'Chinese (Simplified)' | 'Chinese (Traditional)';
+export type Language = 'Auto' | 'Vietnamese' | 'English' | 'Chinese (Simplified)' | 'Chinese (Traditional)' | 'Indonesian' | 'Burmese';
 
 export type Audience = 'Internal-Team' | 'Taiwan-Manager' | 'Foreigner-Manager' | 'Customer';
 export type Tone = 'Professional' | 'Polite' | 'Firm' | 'Friendly' | 'Apologetic';
@@ -39,7 +39,7 @@ export interface ConversationContext {
 
 export type ThemeMode = 'dark' | 'light' | 'system';
 export type Theme = 'dark' | 'light';
-export type GlobalLanguage = 'en' | 'vi' | 'ja';
+export type GlobalLanguage = 'en' | 'vi' | 'ja' | 'zh-CN' | 'zh-TW';
 
 export interface StructuredSummary {
   meta: {

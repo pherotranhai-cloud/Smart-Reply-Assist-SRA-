@@ -919,13 +919,22 @@ export default function App() {
                 const lang = e.target.value as GlobalLanguage;
                 await storage.setGlobalLanguage(lang);
                 setState(prev => ({ ...prev, globalLanguage: lang }));
-                showToast(`Language set to ${lang === 'en' ? 'English' : lang === 'vi' ? 'Tiếng Việt' : '日本語'}`, 'info');
+                const langNames: Record<GlobalLanguage, string> = {
+                  en: 'English',
+                  vi: 'Tiếng Việt',
+                  ja: '日本語',
+                  'zh-CN': '简体中文',
+                  'zh-TW': '繁體中文'
+                };
+                showToast(`Language set to ${langNames[lang]}`, 'info');
               }}
               className="bg-transparent text-[10px] sm:text-xs font-bold text-primary border-none focus:ring-0 cursor-pointer uppercase p-0 ml-1"
             >
               <option value="en" className="bg-slate-900">EN</option>
               <option value="vi" className="bg-slate-900">VI</option>
               <option value="ja" className="bg-slate-900">JA</option>
+              <option value="zh-CN" className="bg-slate-900">ZH-CN</option>
+              <option value="zh-TW" className="bg-slate-900">ZH-TW</option>
             </select>
           </div>
 
