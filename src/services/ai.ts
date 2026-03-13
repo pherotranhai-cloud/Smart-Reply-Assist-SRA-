@@ -47,7 +47,7 @@ export class AIService {
       if (!isEnabled) return;
 
       const targetValue = v[targetKey];
-      if (!targetValue || typeof targetValue !== 'string') return;
+      if (!targetValue || typeof targetValue !== 'string' || !targetValue.trim()) return;
 
       // Check all three columns for matches in source text
       const candidates = [
@@ -57,12 +57,12 @@ export class AIService {
       ];
 
       candidates.forEach(cand => {
-        if (!cand.value || typeof cand.value !== 'string') return;
+        if (!cand.value || typeof cand.value !== 'string' || !cand.value.trim()) return;
         
         if (lowerText.includes(cand.value.toLowerCase())) {
           // Prevent self-mapping
           if (cand.value.toLowerCase() !== targetValue.toLowerCase()) {
-            mappings.push(`- "${cand.value}" -> "${targetValue}"`);
+            mappings.push(`${cand.value} MUST strictly be translated as ${targetValue}`);
           }
         }
       });
@@ -74,7 +74,8 @@ export class AIService {
     const uniqueMappings = Array.from(new Set(mappings));
 
     return `
-IMPORTANT: You must use the following glossary for specific terms. Do not translate them differently:
+CRITICAL INSTRUCTION: You MUST use the following exact terminology replacements. Do not use synonyms. 
+Glossary:
 ${uniqueMappings.join('\n')}
 `;
   }
