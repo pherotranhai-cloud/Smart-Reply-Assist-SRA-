@@ -1,20 +1,23 @@
 [build]
   command = "npm run build"
-  publish = "dist" # (Hoặc thư mục build tương ứng của bạn)
+  publish = "dist" 
 
-# --- BỔ SUNG ĐOẠN NÀY ĐỂ CỨU THƯ VIỆN PG ---
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["pg"]
-# ------------------------------------------
 
-# Chuyển hướng API
+# Trỏ api/vocab về file vocab.ts
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  from = "/api/vocab"
+  to = "/.netlify/functions/vocab"
   status = 200
 
-# Bắt lỗi 404 cho PWA
+# Trỏ api/import-vocab về file import-vocab.ts
+[[redirects]]
+  from = "/api/import-vocab"
+  to = "/.netlify/functions/import-vocab"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
