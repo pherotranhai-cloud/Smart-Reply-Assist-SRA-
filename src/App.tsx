@@ -124,7 +124,16 @@ const VocabularyModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose
 
       if (file.name.endsWith('.json')) {
         const text = await file.text();
-        imported = JSON.parse(text);
+        const rawImported = JSON.parse(text);
+        if (Array.isArray(rawImported)) {
+          imported = rawImported.map((item: any) => ({
+            ...item,
+            meaning_vi: item.meaning_vi || item.meaningVi || '',
+            target_en: item.target_en || item.targetEn || '',
+            target_zh: item.target_zh || item.targetZh || '',
+            enabled: item.enabled !== undefined ? item.enabled : true
+          }));
+        }
       } else if (file.name.endsWith('.csv')) {
         const text = await file.text();
         const results = Papa.parse(text, { header: true, skipEmptyLines: true });

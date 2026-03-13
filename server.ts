@@ -82,12 +82,12 @@ async function startServer() {
       }
 
       const sanitizedData = data.filter(item => 
-        item && typeof item === 'object' && item.term && item.meaningVi
+        item && typeof item === 'object' && item.term && (item.meaning_vi || item.meaningVi)
       ).map(item => ({
         term: item.term.trim(),
-        meaning_vi: item.meaningVi.trim(),
-        target_en: item.targetEn?.trim() || '',
-        target_zh: item.targetZh?.trim() || '',
+        meaning_vi: (item.meaning_vi || item.meaningVi || '').trim(),
+        target_en: (item.target_en || item.targetEn || '').trim(),
+        target_zh: (item.target_zh || item.targetZh || '').trim(),
         enabled: item.enabled !== undefined ? item.enabled : true,
         id: item.id || crypto.randomUUID()
       }));
@@ -162,9 +162,9 @@ async function startServer() {
         const mapped = result.rows.map(row => ({
           id: row.id,
           term: row.term,
-          meaningVi: row.meaning_vi,
-          targetEn: row.target_en,
-          targetZh: row.target_zh,
+          meaning_vi: row.meaning_vi,
+          target_en: row.target_en,
+          target_zh: row.target_zh,
           enabled: row.enabled
         }));
         res.json(mapped);

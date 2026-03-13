@@ -24,37 +24,58 @@ export class AIService {
   }
 
   private buildGlossaryPrompt(vocab: VocabItem[], targetLang: string, sourceText?: string): string {
+    if (!sourceText) return '';
+    
     const langLower = targetLang.toLowerCase();
-    const isEnglish = langLower.includes('en') || langLower.includes('english');
-    const isChinese = langLower.includes('zh') || langLower.includes('chinese');
+    let targetKey: 'meaning_vi' | 'target_en' | 'target_zh';
+    
+    if (langLower.includes('vi') || langLower.includes('vietnamese')) {
+      targetKey = 'meaning_vi';
+    } else if (langLower.includes('en') || langLower.includes('english')) {
+      targetKey = 'target_en';
+    } else if (langLower.includes('zh') || langLower.includes('chinese')) {
+      targetKey = 'target_zh';
+    } else {
+      return ''; // Unsupported target language for glossary
+    }
 
-    if (!isEnglish && !isChinese) return '';
+    const lowerText = sourceText.toLowerCase();
+    const mappings: string[] = [];
 
-    const matched = vocab.filter(v => {
-      // 1. Filtering: enabled must be true or "true"
+    vocab.forEach(v => {
       const isEnabled = v.enabled === true || v.enabled === 'true';
-      if (!isEnabled) return false;
+      if (!isEnabled) return;
 
-      // 2. Filtering: source text must include meaning_vi (case-insensitive)
-      if (sourceText) {
-        if (!sourceText.toLowerCase().includes(v.meaning_vi.toLowerCase())) return false;
-      }
+      const targetValue = v[targetKey];
+      if (!targetValue || typeof targetValue !== 'string') return;
 
-      // 3. Filtering: target translation must not be empty or null
-      const targetValue = isEnglish ? v.target_en : v.target_zh;
-      if (!targetValue) return false;
+      // Check all three columns for matches in source text
+      const candidates = [
+        { value: v.meaning_vi },
+        { value: v.target_en },
+        { value: v.target_zh }
+      ];
 
-      return true;
+      candidates.forEach(cand => {
+        if (!cand.value || typeof cand.value !== 'string') return;
+        
+        if (lowerText.includes(cand.value.toLowerCase())) {
+          // Prevent self-mapping
+          if (cand.value.toLowerCase() !== targetValue.toLowerCase()) {
+            mappings.push(`- "${cand.value}" -> "${targetValue}"`);
+          }
+        }
+      });
     });
 
-    if (matched.length === 0) return '';
+    if (mappings.length === 0) return '';
+
+    // De-duplicate mappings
+    const uniqueMappings = Array.from(new Set(mappings));
 
     return `
 IMPORTANT: You must use the following glossary for specific terms. Do not translate them differently:
-${matched.map(v => {
-  const targetValue = isEnglish ? v.target_en : v.target_zh;
-  return `- "${v.meaning_vi}" -> "${targetValue}"`;
-}).join('\n')}
+${uniqueMappings.join('\n')}
 `;
   }
 
