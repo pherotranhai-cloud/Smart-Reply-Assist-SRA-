@@ -92,11 +92,6 @@ ABSOLUTE RULES:
 2. Do not translate the glossary terms literally. Use the exact right-side (===>) value.
 3. Output ONLY the final translated text. Do not output any notes, JSON, or explanations.`;
 
-    // DEBUGGING TOOL: Print the prompt to the browser console so we can verify if the glossary is actually injected
-    console.log("===== DEBUG: FINAL SYSTEM PROMPT SENT TO AI =====");
-    console.log(systemPrompt);
-    console.log("=================================================");
-
     const content: any[] = [{ type: 'text', text }];
     if (image) {
       content.push({
