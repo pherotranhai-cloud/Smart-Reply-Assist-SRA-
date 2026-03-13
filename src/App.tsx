@@ -27,7 +27,8 @@ import {
   User,
   BarChart3,
   HelpCircle,
-  Flag
+  Flag,
+  Plus
 } from 'lucide-react';
 import { storage } from './services/storage';
 import { AIService } from './services/ai';
@@ -60,6 +61,11 @@ import {
 } from './constants';
 
 // --- Components ---
+import { Layout } from './components/Layout';
+import { VocabChipBar } from './components/VocabChipBar';
+import { Skeleton, VocabSkeleton } from './components/Skeleton';
+import { VocabManager } from './components/VocabManager';
+import { SettingsPanel } from './components/SettingsPanel';
 
 const Toast = ({ message, type = 'info', onClose }: { message: string, type?: 'info' | 'error' | 'success', onClose: () => void }) => (
   <motion.div
@@ -343,7 +349,7 @@ const VocabularyModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose
   );
 };
 
-const SettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings; onSave: (s: AISettings) => void; onTest: () => Promise<boolean>; t: any }) => {
+const AISettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings; onSave: (s: AISettings) => void; onTest: () => Promise<boolean>; t: any }) => {
   const [localSettings, setLocalSettings] = useState(settings);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
@@ -504,12 +510,14 @@ const SettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings; 
 // --- Main App ---
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'translate' | 'compose' | 'review' | 'analyze'>('translate');
+  const [activeTab, setActiveTab] = useState<'translate' | 'compose' | 'vocab' | 'settings'>('translate');
   const [state, setState] = useState<AppState>(DEFAULT_STATE);
   const [vocab, setVocab] = useState<VocabItem[]>([]);
   const [isVocabOpen, setIsVocabOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isAppLoading, setIsAppLoading] = useState(true);
+  const [showFileAnalyzer, setShowFileAnalyzer] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'info' | 'error' | 'success' } | null>(null);
   const [context, setContext] = useState<ConversationContext | null>(null);
   const [isContextExpanded, setIsContextExpanded] = useState(false);
@@ -627,6 +635,8 @@ export default function App() {
         console.error('Hydration failed:', err);
       } finally {
         setHydrated(true);
+        // Artificial delay for splash screen feel
+        setTimeout(() => setIsAppLoading(false), 1500);
       }
     };
     init();
@@ -904,732 +914,446 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col p-4 md:p-8 max-w-6xl mx-auto gap-6 pb-24 sm:pb-0">
-      {/* Header */}
-      <header className="flex justify-between items-center glass-panel py-2 px-3 sm:p-4 neon-border shrink-0">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-lg flex items-center justify-center shadow-[0_0_15px_var(--glow)] shrink-0">
-            <Languages className="text-black" size={18} />
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
-            <h1 className="text-sm sm:text-xl font-bold text-primary drop-shadow-[0_0_5px_var(--glow)] tracking-tight leading-tight">SMART REPLY ASSIST</h1>
-            <p className="text-[10px] text-[var(--muted)] uppercase tracking-widest hidden sm:block">Cybernetic Communication Interface</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-0 sm:gap-2">
-          <div className="flex items-center justify-center min-w-[44px] min-h-[44px] border-r border-white/10 pr-1 sm:pr-2">
-            <Monitor size={14} className="text-primary sm:size-4" />
-            <select 
-              value={currentTheme}
-              onChange={(e) => setCurrentTheme(e.target.value)}
-              className="bg-transparent text-[10px] sm:text-xs font-bold text-primary border-none focus:ring-0 cursor-pointer uppercase p-0 ml-1"
-            >
-              <option value="cyberpunk" className="bg-slate-900">CYBER</option>
-              <option value="matrix" className="bg-slate-900">MATRIX</option>
-              <option value="synthwave" className="bg-slate-900">SYNTH</option>
-            </select>
-          </div>
+    <Layout
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      isLoading={isAppLoading}
+      toast={toast}
+      onCloseToast={() => setToast(null)}
+    >
+      <AnimatePresence mode="wait">
+        {activeTab === 'translate' && (
+          <motion.div 
+            key="translate"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
+          >
+            <div className="premium-card p-6 space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-bold text-white/30 uppercase tracking-widest">{t('inputSource')}</h3>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setTranslateImage(null)}
+                    className={`text-[10px] px-3 py-1 rounded-full border transition-all ${translateImage ? 'border-accent text-accent bg-accent/10' : 'border-white/10 text-white/30 hover:text-white/50'}`}
+                  >
+                    {translateImage ? t('imageAttached') : t('textOnly')}
+                  </button>
+                </div>
+              </div>
 
-          <div className="flex items-center justify-center min-w-[44px] min-h-[44px] border-r border-white/10 pr-1 sm:pr-2">
-            <Flag size={14} className="text-primary sm:size-4" />
-            <select 
-              value={state.globalLanguage}
-              onChange={async (e) => {
-                const lang = e.target.value as GlobalLanguage;
-                await storage.setGlobalLanguage(lang);
-                setState(prev => ({ ...prev, globalLanguage: lang }));
-                const langNames: Record<GlobalLanguage, string> = {
-                  en: 'English',
-                  vi: 'Tiếng Việt',
-                  ja: '日本語',
-                  'zh-CN': '简体中文',
-                  'zh-TW': '繁體中文'
-                };
-                showToast(`Language set to ${langNames[lang]}`, 'info');
-              }}
-              className="bg-transparent text-[10px] sm:text-xs font-bold text-primary border-none focus:ring-0 cursor-pointer uppercase p-0 ml-1"
-            >
-              <option value="en" className="bg-slate-900">EN</option>
-              <option value="vi" className="bg-slate-900">VI</option>
-              <option value="ja" className="bg-slate-900">JA</option>
-              <option value="zh-CN" className="bg-slate-900">ZH-CN</option>
-              <option value="zh-TW" className="bg-slate-900">ZH-TW</option>
-            </select>
-          </div>
+              <div className="relative">
+                <textarea 
+                  className="saas-input w-full h-40 min-h-[120px] resize-none text-base"
+                  placeholder={t('inputPlaceholder')}
+                  value={translateInput}
+                  onChange={e => setTranslateInput(e.target.value)}
+                  onPaste={handlePaste}
+                />
+                <div className="absolute bottom-3 right-3 flex gap-2">
+                  <button 
+                    onClick={handleClearInput}
+                    className="p-2 glass-panel rounded-xl text-white/30 hover:text-red-400 transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                  <button 
+                    onClick={() => setShowFileAnalyzer(!showFileAnalyzer)}
+                    className={`p-2 glass-panel rounded-xl transition-colors ${showFileAnalyzer ? 'text-accent border-accent/50' : 'text-white/30 hover:text-accent'}`}
+                    title="Upload & Analyze File"
+                  >
+                    <Upload size={18} />
+                  </button>
+                  <button 
+                    onClick={handlePasteFromClipboard}
+                    className="p-2 glass-panel rounded-xl text-white/30 hover:text-accent transition-colors"
+                  >
+                    <ClipboardCheck size={18} />
+                  </button>
+                </div>
+              </div>
 
-          <motion.button 
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={handleReset}
-            title="Clear all context and outputs"
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-[var(--accent)]/10 transition-colors text-[var(--muted)]"
-          >
-            <RotateCcw size={18} className="sm:size-5" />
-          </motion.button>
-          {IS_PWA && deferredPrompt && (
-            <motion.button 
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={handleInstallPWA}
-              title="Install App"
-              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-neon-magenta/20 text-neon-magenta border border-neon-magenta/30 transition-colors"
-            >
-              <Download size={18} className="sm:size-5" />
-            </motion.button>
-          )}
-          <motion.button 
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => {
-              const modes: ThemeMode[] = ['system', 'light', 'dark'];
-              const currentIndex = modes.indexOf(state.themeMode);
-              const nextMode = modes[(currentIndex + 1) % modes.length];
-              
-              storage.setTheme(nextMode);
-              setState(prev => ({ ...prev, themeMode: nextMode }));
-              
-              const resolved = resolveTheme(nextMode);
-              applyTheme(resolved);
-              
-              showToast(`Theme set to ${nextMode}`, 'info');
-            }}
-            title={`Current theme: ${state.themeMode}`}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-white/5 transition-colors text-slate-400 gap-1 sm:gap-2"
-          >
-            {state.themeMode === 'system' && <Monitor size={18} className="sm:size-5" />}
-            {state.themeMode === 'dark' && <Moon size={18} className="sm:size-5" />}
-            {state.themeMode === 'light' && <Sun size={18} className="sm:size-5" />}
-            <span className="text-[10px] font-bold uppercase hidden sm:inline">{state.themeMode}</span>
-          </motion.button>
-          <motion.button 
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-            className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg transition-colors ${isSettingsOpen ? 'bg-neon-cyan/20 text-neon-cyan' : 'hover:bg-[var(--accent)]/10 text-[var(--muted)]'}`}
-          >
-            <Settings size={18} className="sm:size-5" />
-          </motion.button>
-        </div>
-      </header>
+              {showFileAnalyzer && (
+                <div className="premium-card p-0 overflow-hidden border-accent/30">
+                  <div className="bg-accent/10 p-4 flex justify-between items-center border-b border-white/5">
+                    <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                      <Upload size={14} /> {t('analyzeDocument')}
+                    </h3>
+                    <button onClick={() => setShowFileAnalyzer(false)} className="text-white/30 hover:text-white">
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div className="p-6">
+                    <FileAnalyzer 
+                      settings={state.settings}
+                      globalLanguage={state.globalLanguage}
+                      onAnalyzeComplete={(summary) => {
+                        if (activeTab === 'translate') {
+                          setTranslateInput(summary);
+                        } else {
+                          setComposeReq(summary);
+                        }
+                        setShowFileAnalyzer(false);
+                        showToast('Context updated from file', 'success');
+                      }}
+                      t={t}
+                    />
+                  </div>
+                </div>
+              )}
 
-      {/* Settings Panel (Collapsible) */}
-      <AnimatePresence>
-        {isSettingsOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <SettingsPanel 
-              settings={state.settings} 
-              t={t}
-              onSave={s => {
-                storage.setSettings(s);
-                setState(prev => ({ ...prev, settings: s }));
-                showToast(t('saveSettings'), 'success');
-              }}
-              onTest={async () => {
-                const ai = new AIService(state.settings);
-                return await ai.testConnection();
-              }}
-            />
+              {translateImage && (
+                <div className="relative inline-block group">
+                  <img src={translateImage} className="max-h-32 rounded-xl border border-white/10" alt="Pasted" />
+                  <button 
+                    onClick={() => setTranslateImage(null)}
+                    className="absolute -top-2 -right-2 p-1.5 bg-red-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
+                <div className="flex-1 space-y-2">
+                  <label className="text-[10px] text-white/30 uppercase font-bold tracking-wider">{t('targetLanguage')}</label>
+                  <select 
+                    className="saas-input w-full"
+                    value={targetLang}
+                    onChange={e => setTargetLang(e.target.value as Language)}
+                  >
+                    {LANGUAGES.map(l => <option key={l} className="bg-slate-900">{l}</option>)}
+                  </select>
+                </div>
+                <button 
+                  onClick={handleTranslate}
+                  disabled={loading || !translateInput.trim()}
+                  className="saas-button primary-button flex-1 sm:flex-none flex items-center justify-center gap-2"
+                >
+                  {loading ? <Loader2 className="animate-spin" size={20} /> : <Languages size={20} />}
+                  <span>{t('translate')}</span>
+                </button>
+              </div>
+            </div>
+
+            <div ref={outputRef} className="premium-card p-6 flex flex-col gap-4 bg-white/[0.02]">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-bold text-white/30 uppercase tracking-widest">{t('translatedOutput')}</h3>
+                {state.lastOutputs.translatedText && (
+                  <button 
+                    onClick={() => handleCopy(state.lastOutputs.translatedText)}
+                    className="p-2 text-white/30 hover:text-accent transition-colors"
+                  >
+                    {isCopied ? <Check size={18} className="text-emerald-400" /> : <Copy size={18} />}
+                  </button>
+                )}
+              </div>
+              <div className="flex-1 min-h-[100px] text-lg leading-relaxed text-white/90 whitespace-pre-wrap">
+                {state.lastOutputs.translatedText || <span className="text-white/20 italic">{t('translationPlaceholder')}</span>}
+              </div>
+            </div>
           </motion.div>
         )}
-      </AnimatePresence>
 
-      {/* Navigation */}
-      <nav className="fixed bottom-0 left-0 w-full z-50 bg-background/90 backdrop-blur-md border-t border-primary/50 shadow-[0_-4px_15px_var(--glow)] flex justify-around items-center h-16 sm:relative sm:bottom-auto sm:left-auto sm:w-auto sm:z-auto sm:bg-transparent sm:backdrop-blur-none sm:border-t-0 sm:shadow-none sm:h-auto sm:gap-2 sm:p-1 sm:glass-panel sm:neon-border sm:self-center">
-        {(['translate', 'compose', 'review', 'analyze'] as const).map(tab => {
-          const Icon = tab === 'translate' ? Languages : 
-                       tab === 'compose' ? PenTool : 
-                       tab === 'review' ? ClipboardCheck : BarChart3;
-          return (
-            <motion.button
-              key={tab}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setActiveTab(tab)}
-              className={`min-w-[64px] min-h-[44px] flex flex-col items-center justify-center transition-all sm:px-8 sm:py-2 sm:rounded-lg sm:text-sm sm:font-bold sm:uppercase sm:tracking-wider ${
-                activeTab === tab 
-                  ? 'text-primary drop-shadow-[0_0_8px_var(--glow)] sm:bg-primary sm:text-black sm:shadow-[0_0_15px_var(--glow)] sm:drop-shadow-none' 
-                  : 'text-primary/40 sm:text-[var(--muted)] sm:hover:text-[var(--text)]'
-              }`}
-            >
-              <Icon size={20} className="sm:hidden" />
-              <span className="text-[10px] sm:text-sm font-bold uppercase tracking-wider mt-1 sm:mt-0">{t(tab)}</span>
-            </motion.button>
-          );
-        })}
-      </nav>
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col gap-6">
-        <AnimatePresence mode="wait">
-          {activeTab === 'translate' && (
-            <motion.div 
-              key="translate"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
-              transition={{ duration: 0.2 }}
-              className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-            >
-              <div className="glass-panel p-6 space-y-4 scanline relative">
+        {activeTab === 'compose' && (
+          <motion.div 
+            key="compose"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
+          >
+            <div className="premium-card p-6 space-y-6">
+              {/* Context Preview */}
+              <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-widest">{t('inputSource')}</h3>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => setTranslateImage(null)}
-                      className={`text-[10px] px-2 py-1 rounded border transition-colors ${translateImage ? 'border-neon-magenta text-neon-magenta' : 'border-[var(--border)] text-[var(--muted)]'}`}
-                    >
-                      {translateImage ? t('imageAttached') : t('textOnly')}
-                    </button>
-                  </div>
-                </div>
-                <div className="relative group">
-                  <textarea 
-                    className="cyber-input w-full h-48 min-h-[120px] resize-none font-mono text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
-                    placeholder={t('inputPlaceholder')}
-                    value={translateInput}
-                    onChange={e => setTranslateInput(e.target.value)}
-                    onPaste={handlePaste}
-                  />
-                  <div className="absolute bottom-3 right-3 flex gap-2">
-                    <button 
-                      onClick={handleClearInput}
-                      title="Clear"
-                      className="p-2 bg-black/40 backdrop-blur-md rounded-lg border border-white/10 text-[var(--muted)] hover:text-red-400 transition-colors"
-                    >
-                      <X size={16} />
-                    </button>
-                    <button 
-                      onClick={handlePasteFromClipboard}
-                      title="Paste"
-                      className="p-2 bg-black/40 backdrop-blur-md rounded-lg border border-white/10 text-[var(--muted)] hover:text-primary transition-colors"
-                    >
-                      <ClipboardCheck size={16} />
-                    </button>
-                  </div>
-                </div>
-                {translateImage && (
-                  <div className="relative group">
-                    <img src={translateImage} className="max-h-32 rounded border border-neon-magenta/50" alt="Pasted" />
-                    <button 
-                      onClick={() => setTranslateImage(null)}
-                      className="absolute top-1 right-1 p-1 bg-black/80 rounded-full text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                )}
-                <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
-                  <div className="flex-1 space-y-1">
-                    <label className="text-[10px] text-[var(--muted)] uppercase">{t('targetLanguage')}</label>
-                    <select 
-                      className="cyber-input w-full min-h-[48px] py-3"
-                      value={targetLang}
-                      onChange={e => setTargetLang(e.target.value as Language)}
-                    >
-                      {LANGUAGES.map(l => <option key={l}>{l}</option>)}
-                    </select>
-                  </div>
-                  <motion.button 
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleTranslate}
-                    disabled={loading}
-                    className="cyber-button px-8 py-3 min-h-[48px] bg-primary text-black font-bold rounded-lg flex items-center justify-center gap-2"
-                  >
-                    {loading ? <Loader2 className="animate-spin" size={18} /> : <Languages size={18} />}
-                    {t('translate')}
-                  </motion.button>
-                </div>
-              </div>
-
-              <div ref={outputRef} className="glass-panel p-6 flex flex-col gap-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-widest">{t('translatedOutput')}</h3>
-                </div>
-                <div className="flex-1 bg-[var(--input-bg)] rounded-lg p-4 font-mono text-base leading-relaxed border border-cyber-border overflow-auto whitespace-pre-wrap">
-                  {state.lastOutputs.translatedText || <span className="text-[var(--muted)] italic">{t('translationPlaceholder')}</span>}
-                </div>
-                {state.lastOutputs.translatedText && (
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleCopy(state.lastOutputs.translatedText)}
-                    className={`w-full min-h-[48px] mt-4 flex justify-center items-center gap-2 rounded-lg font-bold transition-all border ${
-                      isCopied 
-                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]' 
-                        : 'bg-primary/10 border-primary text-primary hover:bg-primary/20'
-                    }`}
-                  >
-                    {isCopied ? (
-                      <>
-                        <Check size={20} />
-                        <span>COPIED!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy size={20} />
-                        <span>COPY TRANSLATION</span>
-                      </>
-                    )}
-                  </motion.button>
-                )}
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'compose' && (
-            <motion.div 
-              key="compose"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
-              transition={{ duration: 0.2 }}
-              className="grid grid-cols-1 lg:grid-cols-5 gap-6"
-            >
-              <div className="lg:col-span-3 glass-panel p-6 space-y-4">
-                {/* Context Preview Box */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-widest">{t('messageContext')}</h3>
-                      {context ? (
-                        <span className="flex items-center gap-1 text-[10px] text-green-500 font-bold">
-                          <Link2 size={12} /> {t('linked')}
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-[10px] text-amber-500 font-bold">
-                          <Link2Off size={12} /> {t('noLinked')}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex p-0.5 bg-[var(--input-bg)] rounded border border-cyber-border">
-                      <button 
-                        onClick={() => {
-                          const newOutputs = { ...state.lastOutputs, contextSource: 'translated' as const };
-                          setState(prev => ({ ...prev, lastOutputs: newOutputs }));
-                          storage.setLastOutputs(newOutputs);
-                        }}
-                        className={`px-2 py-0.5 text-[9px] font-bold rounded transition-colors ${state.lastOutputs.contextSource === 'translated' ? 'bg-neon-cyan text-[var(--btn-text)]' : 'text-[var(--muted)]'}`}
-                      >
-                        {t('translate')}
-                      </button>
-                      <button 
-                        onClick={() => {
-                          const newOutputs = { ...state.lastOutputs, contextSource: 'original' as const };
-                          setState(prev => ({ ...prev, lastOutputs: newOutputs }));
-                          storage.setLastOutputs(newOutputs);
-                        }}
-                        className={`px-2 py-0.5 text-[9px] font-bold rounded transition-colors ${state.lastOutputs.contextSource === 'original' ? 'bg-neon-cyan text-[var(--btn-text)]' : 'text-[var(--muted)]'}`}
-                      >
-                        {t('source')}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="relative bg-[var(--input-bg)] rounded-lg border border-cyber-border p-3">
-                    <div className={`text-xs font-mono text-[var(--text)] overflow-hidden transition-all ${isContextExpanded ? 'max-h-[500px] overflow-auto' : 'max-h-20'}`}>
-                      {context ? (
-                        state.lastOutputs.contextSource === 'original' ? context.sourceText : context.translatedText
-                      ) : (
-                        <span className="text-[var(--muted)] italic">{t('noContext')}</span>
-                      )}
-                    </div>
-                    {context && (
-                      <button 
-                        onClick={() => setIsContextExpanded(!isContextExpanded)}
-                        className="w-full mt-2 flex items-center justify-center gap-1 text-[10px] text-neon-cyan hover:underline border-t border-cyber-border/30 pt-2"
-                      >
-                        {isContextExpanded ? <><ChevronUp size={12} /> {t('showLess')}</> : <><ChevronDown size={12} /> {t('expandContext')}</>}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-widest">{t('compositionParameters')}</h3>
-                    <div className="flex items-center gap-2 px-2 py-0.5 rounded bg-[var(--accent)]/10 border border-[var(--accent)]/20">
-                      <span className="text-[9px] font-bold uppercase text-neon-cyan flex items-center gap-1">
-                        {extracting ? (
-                          <><Loader2 size={10} className="animate-spin" /> {t('epeExtracting')}</>
-                        ) : state.structuredSummary ? (
-                          <><CheckCircle2 size={10} /> {t('epeReady')}</>
-                        ) : (
-                          <><AlertCircle size={10} /> {t('epeMissing')}</>
-                        )}
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xs font-bold text-white/30 uppercase tracking-widest">{t('messageContext')}</h3>
+                    {context ? (
+                      <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
+                        <CheckCircle2 size={12} /> {t('linked')}
                       </span>
-                      {context && (
-                        <button 
-                          onClick={() => {
-                            const contextText = state.lastOutputs.contextSource === 'original' ? context.sourceText : context.translatedText;
-                            const sourceLang = context.targetTranslationLanguage || 'Auto';
-                            handleExtract(contextText, sourceLang, state.lastOutputs.contextSource || 'translated');
-                          }}
-                          disabled={extracting}
-                          className="text-[9px] text-[var(--muted)] hover:text-neon-cyan underline"
-                        >
-                          {t('reExtract')}
-                        </button>
-                      )}
-                    </div>
+                    ) : (
+                      <span className="flex items-center gap-1 text-[10px] text-amber-400 font-bold uppercase tracking-wider">
+                        <AlertCircle size={12} /> {t('noLinked')}
+                      </span>
+                    )}
                   </div>
-                  <motion.button 
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setIsVocabOpen(true)}
-                    className="flex items-center gap-2 text-xs text-neon-cyan hover:underline"
-                  >
-                    <BookOpen size={14} /> {t('manageVocabulary')}
-                  </motion.button>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-[var(--muted)] uppercase">{t('audience')}</label>
-                    <select 
-                      className="cyber-input w-full text-xs"
-                      value={composeParams.audience}
-                      onChange={e => setComposeParams({ ...composeParams, audience: e.target.value as Audience })}
+                  <div className="flex p-1 glass-panel rounded-full text-[10px] font-bold">
+                    <button 
+                      onClick={() => {
+                        const newOutputs = { ...state.lastOutputs, contextSource: 'translated' as const };
+                        setState(prev => ({ ...prev, lastOutputs: newOutputs }));
+                        storage.setLastOutputs(newOutputs);
+                      }}
+                      className={`px-3 py-1 rounded-full transition-all ${state.lastOutputs.contextSource === 'translated' ? 'bg-accent text-white shadow-lg' : 'text-white/30'}`}
                     >
-                      {AUDIENCES.map(a => <option key={a}>{a}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-[var(--muted)] uppercase">{t('tone')}</label>
-                    <select 
-                      className="cyber-input w-full text-xs"
-                      value={composeParams.tone}
-                      onChange={e => setComposeParams({ ...composeParams, tone: e.target.value as Tone })}
+                      {t('translate')}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const newOutputs = { ...state.lastOutputs, contextSource: 'original' as const };
+                        setState(prev => ({ ...prev, lastOutputs: newOutputs }));
+                        storage.setLastOutputs(newOutputs);
+                      }}
+                      className={`px-3 py-1 rounded-full transition-all ${state.lastOutputs.contextSource === 'original' ? 'bg-accent text-white shadow-lg' : 'text-white/30'}`}
                     >
-                      {TONES.map(t => <option key={t}>{t}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-[var(--muted)] uppercase">{t('language')}</label>
-                    <select 
-                      className="cyber-input w-full text-xs"
-                      value={composeParams.lang}
-                      onChange={e => setComposeParams({ ...composeParams, lang: e.target.value as Language })}
-                    >
-                      {LANGUAGES.filter(l => l !== 'Auto').map(l => <option key={l}>{l}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-[var(--muted)] uppercase">{t('format')}</label>
-                    <select 
-                      className="cyber-input w-full text-xs"
-                      value={composeParams.format}
-                      onChange={e => setComposeParams({ ...composeParams, format: e.target.value as Format })}
-                    >
-                      {FORMATS.map(f => <option key={f}>{f}</option>)}
-                    </select>
+                      {t('source')}
+                    </button>
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] text-[var(--muted)] uppercase">{t('replyRequirements')}</label>
-                  <textarea 
-                    className="cyber-input w-full h-32 resize-none text-sm"
-                    placeholder={t('replyPlaceholder')}
-                    value={composeReq}
-                    onChange={e => setComposeReq(e.target.value)}
-                  />
+                <div className="relative glass-panel rounded-2xl p-4 bg-white/[0.02]">
+                  <div className={`text-sm leading-relaxed text-white/70 overflow-hidden transition-all ${isContextExpanded ? 'max-h-[500px] overflow-auto' : 'max-h-20'}`}>
+                    {context ? (
+                      state.lastOutputs.contextSource === 'original' ? context.sourceText : context.translatedText
+                    ) : (
+                      <span className="text-white/20 italic">{t('noContext')}</span>
+                    )}
+                  </div>
+                  {context && (
+                    <button 
+                      onClick={() => setIsContextExpanded(!isContextExpanded)}
+                      className="w-full mt-3 flex items-center justify-center gap-1 text-[10px] font-bold text-accent uppercase tracking-widest border-t border-white/5 pt-3"
+                    >
+                      {isContextExpanded ? <><ChevronUp size={14} /> {t('showLess')}</> : <><ChevronDown size={14} /> {t('expandContext')}</>}
+                    </button>
+                  )}
                 </div>
-                <motion.button 
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleCompose}
-                  disabled={loading || !composeReq.trim()}
-                  className="cyber-button w-full py-3 bg-neon-cyan text-[var(--btn-text)] font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? <Loader2 className="animate-spin" size={20} /> : <PenTool size={20} />}
-                  {t('generateReply')}
-                </motion.button>
               </div>
 
-              <div className="lg:col-span-2 glass-panel p-6 flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] text-white/30 uppercase font-bold tracking-wider">{t('audience')}</label>
+                  <select 
+                    className="saas-input w-full"
+                    value={composeParams.audience}
+                    onChange={e => setComposeParams({ ...composeParams, audience: e.target.value as Audience })}
+                  >
+                    {AUDIENCES.map(a => <option key={a} className="bg-slate-900">{a}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] text-white/30 uppercase font-bold tracking-wider">{t('tone')}</label>
+                  <select 
+                    className="saas-input w-full"
+                    value={composeParams.tone}
+                    onChange={e => setComposeParams({ ...composeParams, tone: e.target.value as Tone })}
+                  >
+                    {TONES.map(t => <option key={t} className="bg-slate-900">{t}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] text-white/30 uppercase font-bold tracking-wider">{t('language')}</label>
+                  <select 
+                    className="saas-input w-full"
+                    value={composeParams.lang}
+                    onChange={e => setComposeParams({ ...composeParams, lang: e.target.value as Language })}
+                  >
+                    {LANGUAGES.filter(l => l !== 'Auto').map(l => <option key={l} className="bg-slate-900">{l}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] text-white/30 uppercase font-bold tracking-wider">{t('format')}</label>
+                  <select 
+                    className="saas-input w-full"
+                    value={composeParams.format}
+                    onChange={e => setComposeParams({ ...composeParams, format: e.target.value as Format })}
+                  >
+                    {FORMATS.map(f => <option key={f} className="bg-slate-900">{f}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-bold text-[var(--muted)] uppercase tracking-widest">{t('generatedOutput')}</h3>
-                  <div className="flex gap-2">
-                    {state.lastOutputs.subject && (
-                      <button 
-                        onClick={() => copyToClipboard(state.lastOutputs.subject!)}
-                        className="text-[10px] text-neon-cyan hover:underline"
-                      >
-                        {t('copySubject')}
-                      </button>
-                    )}
+                  <label className="text-[10px] text-white/30 uppercase font-bold tracking-wider">{t('replyRequirements')}</label>
+                  <button 
+                    onClick={() => setShowFileAnalyzer(!showFileAnalyzer)}
+                    className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${showFileAnalyzer ? 'text-accent' : 'text-white/30 hover:text-accent'}`}
+                  >
+                    <Upload size={12} /> {t('analyzeDocument')}
+                  </button>
+                </div>
+                <textarea 
+                  className="saas-input w-full h-32 resize-none text-sm"
+                  placeholder={t('replyPlaceholder')}
+                  value={composeReq}
+                  onChange={e => setComposeReq(e.target.value)}
+                />
+              </div>
+
+              {showFileAnalyzer && (
+                <div className="premium-card p-0 overflow-hidden border-accent/30">
+                  <div className="bg-accent/10 p-4 flex justify-between items-center border-b border-white/5">
+                    <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                      <Upload size={14} /> {t('analyzeDocument')}
+                    </h3>
+                    <button onClick={() => setShowFileAnalyzer(false)} className="text-white/30 hover:text-white">
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div className="p-6">
+                    <FileAnalyzer 
+                      settings={state.settings}
+                      globalLanguage={state.globalLanguage}
+                      onAnalyzeComplete={(summary) => {
+                        setComposeReq(summary);
+                        setShowFileAnalyzer(false);
+                        showToast('Context updated from file', 'success');
+                      }}
+                      t={t}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <button 
+                onClick={handleCompose}
+                disabled={loading || !composeReq.trim()}
+                className="saas-button primary-button w-full flex items-center justify-center gap-2"
+              >
+                {loading ? <Loader2 className="animate-spin" size={20} /> : <PenTool size={20} />}
+                <span>{t('generateReply')}</span>
+              </button>
+            </div>
+
+            <div className="premium-card p-6 space-y-4 bg-white/[0.02]">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-bold text-white/30 uppercase tracking-widest">{t('generatedOutput')}</h3>
+                <div className="flex gap-2">
+                  {state.lastOutputs.generatedReply && (
                     <button 
                       onClick={() => copyToClipboard(state.lastOutputs.generatedReply)}
-                      className="p-2 hover:bg-[var(--accent)]/10 rounded-lg text-neon-cyan"
+                      className="p-2 text-white/30 hover:text-accent transition-colors"
                     >
                       <Copy size={18} />
                     </button>
-                  </div>
-                </div>
-                <div className="flex-1 bg-[var(--input-bg)] rounded-lg p-4 font-mono text-sm border border-cyber-border overflow-auto">
-                  {state.lastOutputs.subject && (
-                    <div className="mb-4 pb-4 border-b border-cyber-border">
-                      <span className="text-neon-magenta text-[10px] uppercase block mb-1">Subject</span>
-                      <div className="text-[var(--text)] font-bold">{state.lastOutputs.subject}</div>
-                    </div>
                   )}
-                  <div className="whitespace-pre-wrap">
-                    {state.lastOutputs.generatedReply || <span className="text-[var(--muted)] italic">Generated reply will appear here...</span>}
-                  </div>
                 </div>
               </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'review' && (
-            <motion.div 
-              key="review"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
-              transition={{ duration: 0.2 }}
-              className="flex flex-col gap-6"
-            >
-              <div className="flex justify-center">
-                <div className="flex p-1 glass-panel neon-border">
-                  <button 
-                    onClick={() => setReviewToggle('reply')}
-                    className={`px-6 py-1.5 rounded-lg text-xs font-bold transition-all ${reviewToggle === 'reply' ? 'bg-neon-cyan text-[var(--btn-text)]' : 'text-[var(--muted)]'}`}
-                  >
-                    {t('reply')}
-                  </button>
-                  <button 
-                    onClick={() => setReviewToggle('summary')}
-                    className={`px-6 py-1.5 rounded-lg text-xs font-bold transition-all ${reviewToggle === 'summary' ? 'bg-neon-magenta text-[var(--btn-text)]' : 'text-[var(--muted)]'}`}
-                  >
-                    {t('summary')}
-                  </button>
-                </div>
-              </div>
-
-              <div className="glass-panel p-8 min-h-[400px]">
-                {reviewToggle === 'reply' ? (
-                  <div className="space-y-6">
-                    <div className="flex justify-between items-center border-b border-cyber-border pb-4">
-                      <div className="flex flex-col gap-1">
-                        <h3 className="text-lg font-bold neon-text-cyan">{t('lastGeneratedReply')}</h3>
-                        {state.lastOutputs.contextSource && (
-                          <span className="text-[10px] text-[var(--muted)] uppercase tracking-widest">
-                            {t('source')}: <span className="text-neon-cyan">{t(state.lastOutputs.contextSource as any)}</span>
-                          </span>
-                        )}
-                      </div>
-                      <motion.button 
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => copyToClipboard(state.lastOutputs.generatedReply)}
-                        className="flex items-center gap-2 px-4 py-2 bg-neon-cyan/10 border border-neon-cyan/30 rounded-lg text-neon-cyan hover:bg-neon-cyan/20 transition-all text-sm"
-                      >
-                        <Copy size={16} /> {t('copyAll')}
-                      </motion.button>
-                    </div>
-                    <div className="font-mono text-sm leading-relaxed whitespace-pre-wrap">
-                      {state.lastOutputs.subject && (
-                        <div className="mb-6 p-4 bg-neon-cyan/5 rounded border-l-4 border-neon-cyan">
-                          <span className="text-[10px] text-neon-cyan uppercase block mb-1">{t('subject')}</span>
-                          <div className="text-lg text-[var(--text)]">{state.lastOutputs.subject}</div>
-                        </div>
-                      )}
-                      {state.lastOutputs.generatedReply || <div className="text-center py-20 text-[var(--muted)] italic">{t('noReplyGenerated')}</div>}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    <div className="flex justify-between items-center border-b border-neon-magenta/20 pb-4">
-                      <h3 className="text-lg font-bold neon-text-magenta">{t('contextSummary')}</h3>
-                      <motion.button 
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => copyToClipboard(state.lastOutputs.summary)}
-                        className="flex items-center gap-2 px-4 py-2 bg-neon-magenta/10 border border-neon-magenta/30 rounded-lg text-neon-magenta hover:bg-neon-magenta/20 transition-all text-sm"
-                      >
-                        <Copy size={16} /> {t('copySummary')}
-                      </motion.button>
-                    </div>
-                    <div className="space-y-6">
-                      {state.structuredSummary ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {/* Priority Requests */}
-                          <div className="glass-panel p-4 border-l-4 border-red-500/50">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Flag className="text-red-500" size={16} />
-                              <h4 className="text-xs font-bold uppercase tracking-widest text-red-500">{t('priorityRequests')}</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {state.structuredSummary.requests_and_directions
-                                .sort((a, b) => a.priority.localeCompare(b.priority))
-                                .map((req, idx) => (
-                                  <div key={idx} className="p-2 bg-red-500/5 rounded border border-red-500/10">
-                                    <div className="flex justify-between items-start gap-2">
-                                      <span className="text-[10px] font-bold text-red-400">{req.priority}</span>
-                                      <span className="text-[9px] uppercase text-red-500/70">{req.type}</span>
-                                    </div>
-                                    <p className="text-xs text-[var(--text)] mt-1">{req.content}</p>
-                                    {req.due && <div className="text-[9px] text-[var(--muted)] mt-1">Due: {req.due}</div>}
-                                  </div>
-                                ))}
-                              {state.structuredSummary.requests_and_directions.length === 0 && (
-                                <div className="text-[10px] text-[var(--muted)] italic">{t('noRequests')}</div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* People & Titles */}
-                          <div className="glass-panel p-4 border-l-4 border-blue-500/50">
-                            <div className="flex items-center gap-2 mb-3">
-                              <User className="text-blue-500" size={16} />
-                              <h4 className="text-xs font-bold uppercase tracking-widest text-blue-500">{t('peopleAndRoles')}</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {state.structuredSummary.people_and_roles.slice(0, 3).map((person, idx) => (
-                                <div key={idx} className="flex items-center gap-3 p-2 bg-blue-500/5 rounded border border-blue-500/10">
-                                  <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold text-xs">
-                                    {person.name[0]}
-                                  </div>
-                                  <div>
-                                    <div className="text-xs font-bold text-[var(--text)]">{person.honorific} {person.name}</div>
-                                    <div className="text-[10px] text-[var(--muted)]">{person.role_title} {person.organization && `@ ${person.organization}`}</div>
-                                  </div>
-                                </div>
-                              ))}
-                              {state.structuredSummary.people_and_roles.length === 0 && (
-                                <div className="text-[10px] text-[var(--muted)] italic">{t('noPeople')}</div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Key Metrics */}
-                          <div className="glass-panel p-4 border-l-4 border-emerald-500/50">
-                            <div className="flex items-center gap-2 mb-3">
-                              <BarChart3 className="text-emerald-500" size={16} />
-                              <h4 className="text-xs font-bold uppercase tracking-widest text-emerald-500">{t('keyMetrics')}</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {state.structuredSummary.production_data.map((data, idx) => (
-                                <div key={idx} className="flex justify-between items-center p-2 bg-emerald-500/5 rounded border border-emerald-500/10">
-                                  <div>
-                                    <div className="text-[10px] text-emerald-400 font-bold">{data.item}</div>
-                                    <div className="text-[9px] text-[var(--muted)] uppercase">{data.metric}</div>
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="text-xs font-bold text-[var(--text)]">{data.value}{data.unit}</div>
-                                    <div className="text-[9px] text-[var(--muted)]">{data.timeframe}</div>
-                                  </div>
-                                </div>
-                              ))}
-                              {state.structuredSummary.production_data.length === 0 && (
-                                <div className="text-[10px] text-[var(--muted)] italic">{t('noMetrics')}</div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Questions / Gaps */}
-                          <div className="glass-panel p-4 border-l-4 border-amber-500/50">
-                            <div className="flex items-center gap-2 mb-3">
-                              <HelpCircle className="text-amber-500" size={16} />
-                              <h4 className="text-xs font-bold uppercase tracking-widest text-amber-500">{t('questionsGaps')}</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {state.structuredSummary.risks_gaps_questions.map((q, idx) => (
-                                <div key={idx} className="p-2 bg-amber-500/5 rounded border border-amber-500/10">
-                                  <div className="text-[9px] font-bold text-amber-400 uppercase">{q.priority} // {q.gap}</div>
-                                  <p className="text-xs text-[var(--text)] mt-1 italic">"{q.question}"</p>
-                                </div>
-                              ))}
-                              {state.structuredSummary.risks_gaps_questions.length === 0 && (
-                                <div className="text-[10px] text-[var(--muted)] italic">{t('noQuestions')}</div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ) : null}
-
-                      <div className="font-sans text-sm leading-relaxed whitespace-pre-wrap border-t border-cyber-border/30 pt-6">
-                        {state.lastOutputs.summary || <div className="text-center py-20 text-slate-700 italic">{t('summaryPlaceholder')}</div>}
-                      </div>
-                    </div>
+              <div className="flex-1 min-h-[100px] text-base leading-relaxed text-white/90 whitespace-pre-wrap">
+                {state.lastOutputs.subject && (
+                  <div className="mb-4 pb-4 border-b border-white/5">
+                    <span className="text-[10px] text-accent uppercase font-bold block mb-1">Subject</span>
+                    <div className="text-white font-bold">{state.lastOutputs.subject}</div>
                   </div>
                 )}
+                {state.lastOutputs.generatedReply || <span className="text-white/20 italic">Generated reply will appear here...</span>}
               </div>
-            </motion.div>
-          )}
+            </div>
+          </motion.div>
+        )}
 
-          {activeTab === 'analyze' && (
-            <motion.div
-              key="analyze"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
-              transition={{ duration: 0.2 }}
-            >
-              <FileAnalyzer 
-                settings={state.settings} 
-                globalLanguage={state.globalLanguage === 'vi' ? 'Vietnamese' : state.globalLanguage === 'ja' ? 'Japanese' : 'English'}
-                t={t}
-                onAnalyzeComplete={async (summary) => {
-                  // Save summary to context and switch to compose tab
-                  const newContext: ConversationContext = {
-                    sourceText: summary,
-                    translatedText: summary,
-                    summaryText: summary,
-                    targetTranslationLanguage: 'Auto',
-                    lastUpdatedIso: new Date().toISOString(),
-                    contextSource: 'original'
-                  };
-                  
-                  setContext(newContext);
-                  await storage.setContext(newContext);
-                  
-                  const newOutputs = { 
-                    ...state.lastOutputs, 
-                    summary, 
-                    contextSource: 'original' as const 
-                  };
-                  setState(prev => ({ ...prev, lastOutputs: newOutputs }));
-                  await storage.setLastOutputs(newOutputs);
-                  
-                  // Trigger EPE Extraction silently
-                  handleExtract(summary, 'Auto', 'original');
-                  
-                  setActiveTab('compose');
-                  showToast('Context loaded. Ready to compose.', 'success');
-                }}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </main>
+        {activeTab === 'vocab' && (
+          <motion.div 
+            key="vocab"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="h-full"
+          >
+            <VocabManager onSave={setVocab} t={t} />
+          </motion.div>
+        )}
 
-      {/* Modals */}
-      <VocabularyModal 
-        isOpen={isVocabOpen} 
-        onClose={() => setIsVocabOpen(false)} 
-        onSave={v => setVocab(v)}
-      />
+        {activeTab === 'settings' && (
+          <motion.div 
+            key="settings"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
+          >
+            <div className="premium-card p-6 space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <Settings className="text-accent" />
+                  {t('settings')}
+                </h2>
+                <button 
+                  onClick={handleReset}
+                  className="saas-button secondary-button text-red-400 border-red-500/20 hover:bg-red-500/10 flex items-center gap-2"
+                >
+                  <RotateCcw size={16} />
+                  <span>{t('resetApp')}</span>
+                </button>
+              </div>
 
-      <AnimatePresence>
-        {toast && (
-          <Toast 
-            message={toast.message} 
-            type={toast.type} 
-            onClose={() => setToast(null)} 
-          />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] text-white/30 uppercase font-bold tracking-wider">{t('interfaceLanguage')}</label>
+                  <select 
+                    value={state.globalLanguage}
+                    onChange={async (e) => {
+                      const lang = e.target.value as GlobalLanguage;
+                      await storage.setGlobalLanguage(lang);
+                      setState(prev => ({ ...prev, globalLanguage: lang }));
+                      showToast(`Language set to ${lang}`, 'info');
+                    }}
+                    className="saas-input w-full"
+                  >
+                    <option value="en" className="bg-slate-900">English</option>
+                    <option value="vi" className="bg-slate-900">Tiếng Việt</option>
+                    <option value="ja" className="bg-slate-900">日本語</option>
+                    <option value="zh-CN" className="bg-slate-900">简体中文</option>
+                    <option value="zh-TW" className="bg-slate-900">繁體中文</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] text-white/30 uppercase font-bold tracking-wider">{t('themeMode')}</label>
+                  <div className="flex p-1 glass-panel rounded-full">
+                    {(['system', 'light', 'dark'] as ThemeMode[]).map(mode => (
+                      <button
+                        key={mode}
+                        onClick={() => {
+                          storage.setTheme(mode);
+                          setState(prev => ({ ...prev, themeMode: mode }));
+                          applyTheme(resolveTheme(mode));
+                          showToast(`Theme: ${mode}`, 'info');
+                        }}
+                        className={`flex-1 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-2 ${state.themeMode === mode ? 'bg-accent text-white shadow-lg' : 'text-white/30'}`}
+                      >
+                        {mode === 'system' && <Monitor size={12} />}
+                        {mode === 'light' && <Sun size={12} />}
+                        {mode === 'dark' && <Moon size={12} />}
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-white/5 pt-6">
+                <AISettingsPanel 
+                  settings={state.settings} 
+                  t={t}
+                  onSave={s => {
+                    storage.setSettings(s);
+                    setState(prev => ({ ...prev, settings: s }));
+                    showToast(t('saveSettings'), 'success');
+                  }}
+                  onTest={async () => {
+                    const ai = new AIService(state.settings);
+                    return await ai.testConnection();
+                  }}
+                />
+              </div>
+
+              {IS_PWA && deferredPrompt && (
+                <button 
+                  onClick={handleInstallPWA}
+                  className="saas-button primary-button w-full flex items-center justify-center gap-2"
+                >
+                  <Download size={20} />
+                  <span>{t('installPWA')}</span>
+                </button>
+              )}
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Footer */}
-      <footer className="text-center text-[10px] text-slate-600 uppercase tracking-[0.2em] py-4">
-        Smart Reply Assist v1.0.0 // Neural Link Established
-      </footer>
-    </div>
+    </Layout>
   );
 }
