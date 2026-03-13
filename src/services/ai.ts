@@ -26,7 +26,6 @@ export class AIService {
   private buildGlossaryPrompt(vocab: VocabItem[], targetLang: string, sourceText?: string): string {
     if (!sourceText) return '';
     
-    let glossaryString = "";
     const lowerInput = sourceText.toLowerCase().trim();
 
     // 1. Target column selection
@@ -35,11 +34,12 @@ export class AIService {
     if (targetLangLower.includes('vi')) targetKey = 'meaning_vi';
     else if (targetLangLower.includes('zh')) targetKey = 'target_zh';
 
-    // 2. Robust matching with .trim()
+    // 2. Sử dụng Map để LỌC TRÙNG LẶP (Deduplication)
+    const glossaryMap = new Map<string, string>();
+
     vocab.forEach(item => {
         if (String(item.enabled).toLowerCase() !== 'true') return;
 
-        // Safely get variations and trim spaces
         const vi = item.meaning_vi ? String(item.meaning_vi).toLowerCase().trim() : '';
         const en = item.target_en ? String(item.target_en).toLowerCase().trim() : '';
         const zh = item.target_zh ? String(item.target_zh).toLowerCase().trim() : '';
@@ -57,16 +57,22 @@ export class AIService {
         const targetTranslatedWord = item[targetKey] ? String(item[targetKey]).trim() : '';
 
         if (matchedSourceWord && targetTranslatedWord && matchedSourceWord.toLowerCase() !== targetTranslatedWord.toLowerCase()) {
-            glossaryString += `* "${matchedSourceWord}" ===> "${targetTranslatedWord}"\n`;
+            const matchKey = matchedSourceWord.toLowerCase();
+            // CHỈ lấy từ dịch đầu tiên tìm thấy, chặn các từ trùng lặp gây nhiễu LLM
+            if (!glossaryMap.has(matchKey)) {
+                glossaryMap.set(matchKey, `* "${matchedSourceWord}" ===> "${targetTranslatedWord}"`);
+            }
         }
     });
 
-    if (!glossaryString) return '';
+    if (glossaryMap.size === 0) return '';
+
+    const glossaryString = Array.from(glossaryMap.values()).join('\n');
 
     return `
-CRITICAL CORPORATE GLOSSARY:
-You are acting as an enterprise translator. You MUST use the exact terminology provided in the glossary below. 
-If a word on the left side of the arrow (===>) appears in the source text, you MUST translate it EXACTLY as the word on the right side. Do NOT use synonyms.
+CRITICAL GLOSSARY OVERRIDE:
+You MUST apply the following exact terminology replacements. 
+If a word on the left (===>) is in the source text, translate it EXACTLY as the word on the right. Do NOT use synonyms.
 
 <glossary>
 ${glossaryString}
@@ -76,10 +82,20 @@ ${glossaryString}
 
   async translate(text: string, targetLang: string, vocab: VocabItem[], image?: string) {
     const glossaryPrompt = this.buildGlossaryPrompt(vocab, targetLang, text);
-    const systemPrompt = `You are a professional translator. Translate the following content to ${targetLang}. 
-Keep the tone natural but professional. 
+    
+    const systemPrompt = `You are a strict enterprise translation engine. Translate the user's text to ${targetLang}.
+
 ${glossaryPrompt}
-Output ONLY the translated text. Do not include any explanations or JSON.`;
+
+ABSOLUTE RULES:
+1. You MUST use the exact words from the glossary. 
+2. Do not translate the glossary terms literally. Use the exact right-side (===>) value.
+3. Output ONLY the final translated text. Do not output any notes, JSON, or explanations.`;
+
+    // DEBUGGING TOOL: Print the prompt to the browser console so we can verify if the glossary is actually injected
+    console.log("===== DEBUG: FINAL SYSTEM PROMPT SENT TO AI =====");
+    console.log(systemPrompt);
+    console.log("=================================================");
 
     const content: any[] = [{ type: 'text', text }];
     if (image) {
