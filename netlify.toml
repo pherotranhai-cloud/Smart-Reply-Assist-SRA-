@@ -1,13 +1,20 @@
 [build]
   command = "npm run build"
-  publish = "dist"
+  publish = "dist" # (Hoặc thư mục build tương ứng của bạn)
 
+# --- BỔ SUNG ĐOẠN NÀY ĐỂ CỨU THƯ VIỆN PG ---
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["pg"]
+# ------------------------------------------
 
+# Chuyển hướng API
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
 
+# Bắt lỗi 404 cho PWA
 [[redirects]]
   from = "/*"
   to = "/index.html"
