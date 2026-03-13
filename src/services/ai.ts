@@ -26,57 +26,51 @@ export class AIService {
   private buildGlossaryPrompt(vocab: VocabItem[], targetLang: string, sourceText?: string): string {
     if (!sourceText) return '';
     
-    const langLower = targetLang.toLowerCase();
-    let targetKey: 'meaning_vi' | 'target_en' | 'target_zh';
-    
-    if (langLower.includes('vi') || langLower.includes('vietnamese')) {
-      targetKey = 'meaning_vi';
-    } else if (langLower.includes('en') || langLower.includes('english')) {
-      targetKey = 'target_en';
-    } else if (langLower.includes('zh') || langLower.includes('chinese')) {
-      targetKey = 'target_zh';
-    } else {
-      return ''; // Unsupported target language for glossary
-    }
+    let glossaryString = "";
+    const lowerInput = sourceText.toLowerCase().trim();
 
-    const lowerText = sourceText.toLowerCase();
-    const mappings: string[] = [];
+    // 1. Target column selection
+    let targetKey: 'meaning_vi' | 'target_en' | 'target_zh' = 'target_en'; 
+    const targetLangLower = targetLang.toLowerCase();
+    if (targetLangLower.includes('vi')) targetKey = 'meaning_vi';
+    else if (targetLangLower.includes('zh')) targetKey = 'target_zh';
 
-    vocab.forEach(v => {
-      const isEnabled = v.enabled === true || v.enabled === 'true';
-      if (!isEnabled) return;
+    // 2. Robust matching with .trim()
+    vocab.forEach(item => {
+        if (String(item.enabled).toLowerCase() !== 'true') return;
 
-      const targetValue = v[targetKey];
-      if (!targetValue || typeof targetValue !== 'string' || !targetValue.trim()) return;
+        // Safely get variations and trim spaces
+        const vi = item.meaning_vi ? String(item.meaning_vi).toLowerCase().trim() : '';
+        const en = item.target_en ? String(item.target_en).toLowerCase().trim() : '';
+        const zh = item.target_zh ? String(item.target_zh).toLowerCase().trim() : '';
 
-      // Check all three columns for matches in source text
-      const candidates = [
-        { value: v.meaning_vi },
-        { value: v.target_en },
-        { value: v.target_zh }
-      ];
+        let matchedSourceWord = null;
 
-      candidates.forEach(cand => {
-        if (!cand.value || typeof cand.value !== 'string' || !cand.value.trim()) return;
-        
-        if (lowerText.includes(cand.value.toLowerCase())) {
-          // Prevent self-mapping
-          if (cand.value.toLowerCase() !== targetValue.toLowerCase()) {
-            mappings.push(`${cand.value} MUST strictly be translated as ${targetValue}`);
-          }
+        if (zh && lowerInput.includes(zh)) {
+            matchedSourceWord = String(item.target_zh).trim();
+        } else if (en && lowerInput.includes(en)) {
+            matchedSourceWord = String(item.target_en).trim();
+        } else if (vi && lowerInput.includes(vi)) {
+            matchedSourceWord = String(item.meaning_vi).trim();
         }
-      });
+
+        const targetTranslatedWord = item[targetKey] ? String(item[targetKey]).trim() : '';
+
+        if (matchedSourceWord && targetTranslatedWord && matchedSourceWord.toLowerCase() !== targetTranslatedWord.toLowerCase()) {
+            glossaryString += `* "${matchedSourceWord}" ===> "${targetTranslatedWord}"\n`;
+        }
     });
 
-    if (mappings.length === 0) return '';
-
-    // De-duplicate mappings
-    const uniqueMappings = Array.from(new Set(mappings));
+    if (!glossaryString) return '';
 
     return `
-CRITICAL INSTRUCTION: You MUST use the following exact terminology replacements. Do not use synonyms. 
-Glossary:
-${uniqueMappings.join('\n')}
+CRITICAL CORPORATE GLOSSARY:
+You are acting as an enterprise translator. You MUST use the exact terminology provided in the glossary below. 
+If a word on the left side of the arrow (===>) appears in the source text, you MUST translate it EXACTLY as the word on the right side. Do NOT use synonyms.
+
+<glossary>
+${glossaryString}
+</glossary>
 `;
   }
 
