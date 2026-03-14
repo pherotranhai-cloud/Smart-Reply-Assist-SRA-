@@ -5,30 +5,20 @@ import {
   PenTool, 
   ClipboardCheck, 
   Settings, 
-  BookOpen, 
   Moon, 
   Sun, 
   Copy, 
   Check, 
   Loader2,
-  Trash2,
   Download,
   Upload,
-  Search,
   AlertCircle,
   CheckCircle2,
   X,
   ChevronDown,
   ChevronUp,
-  Link2,
-  Link2Off,
   RotateCcw,
-  Monitor,
-  User,
-  BarChart3,
-  HelpCircle,
-  Flag,
-  Plus
+  Monitor
 } from 'lucide-react';
 import { storage } from './services/storage';
 import { AIService } from './services/ai';
@@ -39,8 +29,6 @@ import { aiTransport } from './runtime/aiTransport';
 import { windowAdapter } from './runtime/window';
 import { FileAnalyzer } from './components/FileAnalyzer';
 import { translations } from './i18n';
-import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
 import { 
   VocabItem, 
   AISettings, 
@@ -62,7 +50,6 @@ import {
 
 // --- Components ---
 import { Layout } from './components/Layout';
-import { VocabChipBar } from './components/VocabChipBar';
 import { Skeleton, VocabSkeleton } from './components/Skeleton';
 import { VocabManager } from './components/VocabManager';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -83,271 +70,6 @@ const Toast = ({ message, type = 'info', onClose }: { message: string, type?: 'i
     <button onClick={onClose} className="ml-2 hover:opacity-70"><X size={14} /></button>
   </motion.div>
 );
-
-const VocabularyModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (vocab: VocabItem[]) => void }) => {
-  const [vocab, setVocab] = useState<VocabItem[]>([]);
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (isOpen) {
-      const loadVocab = async () => {
-        setLoading(true);
-        try {
-          const response = await fetch('/api/vocab');
-          if (response.ok) {
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-              const data = await response.json();
-              if (Array.isArray(data)) {
-                setVocab(data);
-                storage.setVocab(data);
-                setLoading(false);
-                return;
-              }
-            } else {
-              console.warn('Expected JSON from /api/vocab but received non-JSON response');
-            }
-          }
-        } catch (err) {
-          console.error('Failed to fetch vocab from backend:', err);
-        }
-
-        const v = await storage.getVocab();
-        setVocab(v);
-        setLoading(false);
-      };
-      loadVocab();
-    }
-  }, [isOpen]);
-
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      let imported: any[] = [];
-
-      if (file.name.endsWith('.json')) {
-        const text = await file.text();
-        const rawImported = JSON.parse(text);
-        if (Array.isArray(rawImported)) {
-          imported = rawImported.map((item: any) => ({
-            ...item,
-            meaning_vi: item.meaning_vi || item.meaningVi || '',
-            target_en: item.target_en || item.targetEn || '',
-            target_zh: item.target_zh || item.targetZh || '',
-            enabled: item.enabled !== undefined ? item.enabled : true
-          }));
-        }
-      } else if (file.name.endsWith('.csv')) {
-        const text = await file.text();
-        const results = Papa.parse(text, { header: true, skipEmptyLines: true });
-        imported = results.data.map((row: any) => ({
-          term: row.term || row.Term || '',
-          meaning_vi: row.meaning_vi || row.meaningVi || row.MeaningVi || row['Meaning (VI)'] || '',
-          target_en: row.target_en || row.targetEn || row.TargetEn || row['Target EN'] || '',
-          target_zh: row.target_zh || row.targetZh || row.TargetZh || row['Target ZH'] || '',
-          enabled: true
-        }));
-      } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        const data = await file.arrayBuffer();
-        const workbook = XLSX.read(data);
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-        imported = jsonData.map((row: any) => ({
-          term: row.term || row.Term || '',
-          meaning_vi: row.meaning_vi || row.meaningVi || row.MeaningVi || row['Meaning (VI)'] || '',
-          target_en: row.target_en || row.targetEn || row.TargetEn || row['Target EN'] || '',
-          target_zh: row.target_zh || row.targetZh || row.TargetZh || row['Target ZH'] || '',
-          enabled: true
-        }));
-      }
-
-      // Filter out empty rows and ensure required fields
-      const validImported = imported.filter(item => item && item.term && item.meaning_vi);
-
-      if (validImported.length === 0) {
-        alert('No valid vocabulary items found in file');
-        return;
-      }
-
-      // Send to Backend sync
-      try {
-        const response = await fetch('/api/import-vocab', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(validImported)
-        });
-        
-        let result: any = {};
-        try {
-          const text = await response.text();
-          try {
-            result = JSON.parse(text);
-          } catch (e) {
-            // Not JSON, use the raw text
-            if (!response.ok) throw new Error(`Server error (${response.status}): ${text || response.statusText}`);
-          }
-        } catch (e: any) {
-          if (!response.ok && !result.error) throw e;
-        }
-        
-        if (!response.ok) {
-          const errorMessage = result.details ? `${result.error}: ${result.details}` : (result.error || `Failed to sync with server (${response.status})`);
-          throw new Error(errorMessage);
-        }
-        
-        console.log('Server sync success:', result);
-      } catch (syncErr: any) {
-        console.error('Sync error (continuing locally):', syncErr);
-        // We continue locally even if sync fails
-      }
-
-      const newVocab = [...vocab];
-      validImported.forEach(item => {
-        const existing = newVocab.find(v => v.term === item.term);
-        if (existing) {
-          Object.assign(existing, item);
-        } else {
-          newVocab.push({ ...item, id: crypto.randomUUID(), enabled: true });
-        }
-      });
-      setVocab(newVocab);
-      alert(`Successfully imported ${validImported.length} items`);
-    } catch (err: any) {
-      console.error('Import error:', err);
-      alert('Failed to import file: ' + err.message);
-    }
-    
-    // Reset input
-    e.target.value = '';
-  };
-
-  const handleExport = () => {
-    const blob = new Blob([JSON.stringify(vocab, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'vocabulary.json';
-    a.click();
-  };
-
-  const filtered = vocab.filter(v => 
-    v.term.toLowerCase().includes(search.toLowerCase()) || 
-    v.meaning_vi.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          />
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            transition={{ duration: 0.2 }}
-            className="glass-panel w-full max-w-3xl max-h-[80vh] flex flex-col overflow-hidden relative z-10"
-          >
-        <div className="p-6 border-b border-cyber-border flex justify-between items-center">
-          <h2 className="text-xl font-bold neon-text-cyan flex items-center gap-2">
-            <BookOpen size={24} /> Vocabulary Library
-          </h2>
-          <button onClick={onClose} className="text-[var(--muted)] hover:text-[var(--text)]"><X size={24} /></button>
-        </div>
-
-        <div className="p-4 bg-[var(--input-bg)] flex gap-4 items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search terms..." 
-              className="cyber-input w-full pl-10"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
-          <label className="cyber-button bg-neon-cyan/10 border border-neon-cyan/30 px-4 py-2 rounded-lg cursor-pointer hover:bg-neon-cyan/20 flex items-center gap-2 text-neon-cyan">
-            <Upload size={16} /> Import
-            <input type="file" accept=".json,.csv,.xlsx,.xls" className="hidden" onChange={handleImport} />
-          </label>
-          <button onClick={handleExport} className="cyber-button bg-[var(--btn-secondary-bg)] border border-[var(--btn-secondary-border)] px-4 py-2 rounded-lg hover:opacity-80 flex items-center gap-2 text-[var(--btn-secondary-text)]">
-            <Download size={16} /> Export
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar min-h-[300px]">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="text-[var(--muted)] text-sm border-b border-cyber-border">
-                <th className="pb-2 font-medium">Term</th>
-                <th className="pb-2 font-medium">Meaning (VI)</th>
-                <th className="pb-2 font-medium">Target EN</th>
-                <th className="pb-2 font-medium">Target ZH</th>
-                <th className="pb-2 font-medium text-center">Enabled</th>
-                <th className="pb-2 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(item => (
-                <tr key={item.id} className="border-b border-cyber-border/50 hover:bg-[var(--accent)]/5 transition-colors">
-                  <td className="py-3 font-mono text-neon-cyan">{item.term}</td>
-                  <td className="py-3 text-sm">{item.meaning_vi}</td>
-                  <td className="py-3 text-sm">{item.target_en}</td>
-                  <td className="py-3 text-sm">{item.target_zh}</td>
-                  <td className="py-3 text-center">
-                    <input 
-                      type="checkbox" 
-                      checked={item.enabled === true || item.enabled === 'true'}
-                      onChange={e => {
-                        setVocab(vocab.map(v => v.id === item.id ? { ...v, enabled: e.target.checked } : v));
-                      }}
-                      className="w-4 h-4 accent-neon-cyan"
-                    />
-                  </td>
-                  <td className="py-3 text-right">
-                    <button 
-                      onClick={() => setVocab(vocab.filter(v => v.id !== item.id))}
-                      className="text-[var(--muted)] hover:text-red-400"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && !loading && (
-            <div className="text-center py-10 text-[var(--muted)] italic">No terms found.</div>
-          )}
-        </div>
-
-        <div className="p-6 border-t border-cyber-border flex justify-end gap-4">
-          <button onClick={onClose} className="px-6 py-2 rounded-lg border border-[var(--btn-secondary-border)] hover:bg-[var(--btn-secondary-bg)] transition-colors text-[var(--btn-secondary-text)]">Cancel</button>
-          <button 
-            onClick={() => {
-              storage.setVocab(vocab);
-              onSave(vocab);
-              onClose();
-            }} 
-            className="px-8 py-2 rounded-lg bg-neon-cyan text-[var(--btn-text)] font-bold hover:shadow-[0_0_20px_var(--glow)] transition-all"
-          >
-            Save Library
-          </button>
-        </div>
-      </motion.div>
-    </div>
-      )}
-    </AnimatePresence>
-  );
-};
 
 const AISettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings; onSave: (s: AISettings) => void; onTest: () => Promise<boolean>; t: any }) => {
   const [localSettings, setLocalSettings] = useState(settings);
@@ -387,18 +109,18 @@ const AISettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings
   };
 
   return (
-    <div className="space-y-4 p-4 glass-panel neon-border">
+    <div className="space-y-4 p-4 glass-panel border border-border-main/50">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold neon-text-cyan flex items-center gap-2">
+        <h3 className="text-lg font-bold text-accent flex items-center gap-2">
           <Settings size={20} /> {t('aiEngineConfig')}
         </h3>
-        <div className="flex p-1 bg-[var(--input-bg)] rounded-lg border border-cyber-border">
+        <div className="flex p-1 bg-surface rounded-lg border border-border-main/50">
           <button 
             onClick={() => {
               setLocalSettings({ ...localSettings, activeProvider: 'openai' });
               setAvailableModels([]);
             }}
-            className={`px-3 py-1 text-[10px] font-bold rounded transition-colors ${activeProvider === 'openai' ? 'bg-neon-cyan text-[var(--btn-text)]' : 'text-[var(--muted)]'}`}
+            className={`px-3 py-1 text-[10px] font-bold rounded transition-colors ${activeProvider === 'openai' ? 'bg-accent text-white' : 'text-muted'}`}
           >
             OpenAI
           </button>
@@ -407,7 +129,7 @@ const AISettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings
               setLocalSettings({ ...localSettings, activeProvider: 'gemini' });
               setAvailableModels([]);
             }}
-            className={`px-3 py-1 text-[10px] font-bold rounded transition-colors ${activeProvider === 'gemini' ? 'bg-neon-cyan text-[var(--btn-text)]' : 'text-[var(--muted)]'}`}
+            className={`px-3 py-1 text-[10px] font-bold rounded transition-colors ${activeProvider === 'gemini' ? 'bg-accent text-white' : 'text-muted'}`}
           >
             Gemini
           </button>
@@ -417,11 +139,11 @@ const AISettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1">
           <div className="flex justify-between items-center">
-            <label className="text-xs text-[var(--muted)] uppercase tracking-wider">{t('modelName')}</label>
+            <label className="text-xs text-muted uppercase tracking-wider">{t('modelName')}</label>
             <button 
               onClick={handleRefreshModels}
               disabled={testing}
-              className="text-[10px] text-neon-cyan hover:underline flex items-center gap-1"
+              className="text-[10px] text-accent hover:underline flex items-center gap-1"
             >
               {testing ? <Loader2 className="animate-spin" size={10} /> : <Check size={10} />} {t('refreshModels')}
             </button>
@@ -429,7 +151,7 @@ const AISettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings
           
           {!manualMode && availableModels.length > 0 ? (
             <select 
-              className="cyber-input w-full"
+              className="saas-input w-full"
               value={current.model}
               onChange={e => updateCurrent({ model: e.target.value })}
             >
@@ -439,7 +161,7 @@ const AISettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings
           ) : (
             <input 
               type="text" 
-              className="cyber-input w-full"
+              className="saas-input w-full"
               value={current.model}
               onChange={e => updateCurrent({ model: e.target.value })}
               placeholder={activeProvider === 'openai' ? 'e.g. gpt-4o' : 'e.g. models/gemini-1.5-flash'}
@@ -449,27 +171,27 @@ const AISettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings
           <div className="flex justify-end">
             <button 
               onClick={() => setManualMode(!manualMode)}
-              className="text-[10px] text-[var(--muted)] hover:text-[var(--text)] underline mt-1"
+              className="text-[10px] text-muted hover:text-text-main underline mt-1"
             >
               {manualMode ? t('useDropdown') : t('manualOverride')}
             </button>
           </div>
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-[var(--muted)] uppercase tracking-wider">{t('apiKey')}</label>
+          <label className="text-xs text-muted uppercase tracking-wider">{t('apiKey')}</label>
           <input 
             type="password" 
-            className="cyber-input w-full"
+            className="saas-input w-full"
             value={current.apiKey}
             onChange={e => updateCurrent({ apiKey: e.target.value })}
             placeholder={activeProvider === 'openai' ? 'sk-...' : 'Gemini API Key'}
           />
         </div>
         <div className="space-y-1 md:col-span-2">
-          <label className="text-xs text-[var(--muted)] uppercase tracking-wider">{t('baseUrl')}</label>
+          <label className="text-xs text-muted uppercase tracking-wider">{t('baseUrl')}</label>
           <input 
             type="text" 
-            className="cyber-input w-full"
+            className="saas-input w-full"
             value={current.baseUrl}
             onChange={e => updateCurrent({ baseUrl: e.target.value })}
             placeholder={activeProvider === 'openai' ? 'https://api.openai.com/v1' : 'https://generativelanguage.googleapis.com'}
@@ -489,7 +211,7 @@ const AISettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings
               setTesting(false);
             }}
             disabled={testing}
-            className="cyber-button px-4 py-2 rounded-lg bg-[var(--btn-secondary-bg)] border border-[var(--btn-secondary-border)] hover:opacity-80 flex items-center gap-2 text-sm text-[var(--btn-secondary-text)]"
+            className="saas-button secondary-button px-4 py-2 flex items-center gap-2 text-sm"
           >
             {testing ? <Loader2 className="animate-spin" size={16} /> : t('testConnection')}
           </button>
@@ -498,7 +220,7 @@ const AISettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings
         </div>
         <button 
           onClick={() => onSave(localSettings)}
-          className="cyber-button px-6 py-2 rounded-lg bg-neon-cyan text-[var(--btn-text)] font-bold text-sm hover:shadow-[0_0_15px_var(--glow)] transition-all"
+          className="saas-button primary-button px-6 py-2"
         >
           {t('saveSettings')}
         </button>
@@ -526,14 +248,8 @@ export default function App() {
   const [resetNonce, setResetNonce] = useState(0);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isCopied, setIsCopied] = useState(false);
-  const [currentTheme, setCurrentTheme] = useState<string>(() => localStorage.getItem('app-theme') || 'cyberpunk');
   
   const outputRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', currentTheme);
-    localStorage.setItem('app-theme', currentTheme);
-  }, [currentTheme]);
 
   // Tab States
   const [translateInput, setTranslateInput] = useState('');
@@ -932,11 +648,11 @@ export default function App() {
           >
             <div className="premium-card p-6 space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-xs font-bold text-white/30 uppercase tracking-widest">{t('inputSource')}</h3>
+                <h3 className="text-xs font-bold text-muted uppercase tracking-widest">{t('inputSource')}</h3>
                 <div className="flex gap-2">
                   <button 
                     onClick={() => setTranslateImage(null)}
-                    className={`text-[10px] px-3 py-1 rounded-full border transition-all ${translateImage ? 'border-accent text-accent bg-accent/10' : 'border-white/10 text-white/30 hover:text-white/50'}`}
+                    className={`text-[10px] px-3 py-1 rounded-full border transition-all ${translateImage ? 'border-accent text-accent bg-accent/10' : 'border-border-main text-muted hover:text-text-main'}`}
                   >
                     {translateImage ? t('imageAttached') : t('textOnly')}
                   </button>
@@ -954,20 +670,20 @@ export default function App() {
                 <div className="absolute bottom-3 right-3 flex gap-2">
                   <button 
                     onClick={handleClearInput}
-                    className="p-2 glass-panel rounded-xl text-white/30 hover:text-red-400 transition-colors"
+                    className="p-2 glass-panel rounded-xl text-muted hover:text-red-400 transition-colors"
                   >
                     <X size={18} />
                   </button>
                   <button 
                     onClick={() => setShowFileAnalyzer(!showFileAnalyzer)}
-                    className={`p-2 glass-panel rounded-xl transition-colors ${showFileAnalyzer ? 'text-accent border-accent/50' : 'text-white/30 hover:text-accent'}`}
+                    className={`p-2 glass-panel rounded-xl transition-colors ${showFileAnalyzer ? 'text-accent border-accent/50' : 'text-muted hover:text-accent'}`}
                     title="Upload & Analyze File"
                   >
                     <Upload size={18} />
                   </button>
                   <button 
                     onClick={handlePasteFromClipboard}
-                    className="p-2 glass-panel rounded-xl text-white/30 hover:text-accent transition-colors"
+                    className="p-2 glass-panel rounded-xl text-muted hover:text-accent transition-colors"
                   >
                     <ClipboardCheck size={18} />
                   </button>
@@ -1005,7 +721,7 @@ export default function App() {
 
               {translateImage && (
                 <div className="relative inline-block group">
-                  <img src={translateImage} className="max-h-32 rounded-xl border border-white/10" alt="Pasted" />
+                  <img src={translateImage} className="max-h-32 rounded-xl border border-border-main" alt="Pasted" />
                   <button 
                     onClick={() => setTranslateImage(null)}
                     className="absolute -top-2 -right-2 p-1.5 bg-red-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
@@ -1017,7 +733,7 @@ export default function App() {
 
               <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
                 <div className="flex-1 space-y-2">
-                  <label className="text-[10px] text-white/30 uppercase font-bold tracking-wider">{t('targetLanguage')}</label>
+                  <label className="text-[10px] text-muted uppercase font-bold tracking-wider">{t('targetLanguage')}</label>
                   <select 
                     className="saas-input w-full"
                     value={targetLang}
@@ -1037,20 +753,20 @@ export default function App() {
               </div>
             </div>
 
-            <div ref={outputRef} className="premium-card p-6 flex flex-col gap-4 bg-white/[0.02]">
+            <div ref={outputRef} className="premium-card p-8 flex flex-col gap-4 bg-surface/30">
               <div className="flex justify-between items-center">
-                <h3 className="text-xs font-bold text-white/30 uppercase tracking-widest">{t('translatedOutput')}</h3>
+                <h3 className="text-xs font-bold text-muted uppercase tracking-widest">{t('translatedOutput')}</h3>
                 {state.lastOutputs.translatedText && (
                   <button 
                     onClick={() => handleCopy(state.lastOutputs.translatedText)}
-                    className="p-2 text-white/30 hover:text-accent transition-colors"
+                    className="p-2 text-muted hover:text-accent transition-colors"
                   >
-                    {isCopied ? <Check size={18} className="text-emerald-400" /> : <Copy size={18} />}
+                    {isCopied ? <Check size={18} className="text-emerald-500" /> : <Copy size={18} />}
                   </button>
                 )}
               </div>
-              <div className="flex-1 min-h-[100px] text-lg leading-relaxed text-white/90 whitespace-pre-wrap">
-                {state.lastOutputs.translatedText || <span className="text-white/20 italic">{t('translationPlaceholder')}</span>}
+              <div className="flex-1 min-h-[100px] text-lg leading-relaxed text-text-main whitespace-pre-wrap">
+                {state.lastOutputs.translatedText || <span className="text-muted/40 italic">{t('translationPlaceholder')}</span>}
               </div>
             </div>
           </motion.div>
@@ -1069,13 +785,13 @@ export default function App() {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-xs font-bold text-white/30 uppercase tracking-widest">{t('messageContext')}</h3>
+                    <h3 className="text-xs font-bold text-muted uppercase tracking-widest">{t('messageContext')}</h3>
                     {context ? (
-                      <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
+                      <span className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold uppercase tracking-wider">
                         <CheckCircle2 size={12} /> {t('linked')}
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-[10px] text-amber-400 font-bold uppercase tracking-wider">
+                      <span className="flex items-center gap-1 text-[10px] text-amber-500 font-bold uppercase tracking-wider">
                         <AlertCircle size={12} /> {t('noLinked')}
                       </span>
                     )}
@@ -1087,7 +803,7 @@ export default function App() {
                         setState(prev => ({ ...prev, lastOutputs: newOutputs }));
                         storage.setLastOutputs(newOutputs);
                       }}
-                      className={`px-3 py-1 rounded-full transition-all ${state.lastOutputs.contextSource === 'translated' ? 'bg-accent text-white shadow-lg' : 'text-white/30'}`}
+                      className={`px-3 py-1 rounded-full transition-all ${state.lastOutputs.contextSource === 'translated' ? 'bg-accent text-white shadow-lg' : 'text-muted hover:text-text-main'}`}
                     >
                       {t('translate')}
                     </button>
@@ -1097,24 +813,24 @@ export default function App() {
                         setState(prev => ({ ...prev, lastOutputs: newOutputs }));
                         storage.setLastOutputs(newOutputs);
                       }}
-                      className={`px-3 py-1 rounded-full transition-all ${state.lastOutputs.contextSource === 'original' ? 'bg-accent text-white shadow-lg' : 'text-white/30'}`}
+                      className={`px-3 py-1 rounded-full transition-all ${state.lastOutputs.contextSource === 'original' ? 'bg-accent text-white shadow-lg' : 'text-muted hover:text-text-main'}`}
                     >
                       {t('source')}
                     </button>
                   </div>
                 </div>
-                <div className="relative glass-panel rounded-2xl p-4 bg-white/[0.02]">
-                  <div className={`text-sm leading-relaxed text-white/70 overflow-hidden transition-all ${isContextExpanded ? 'max-h-[500px] overflow-auto' : 'max-h-20'}`}>
+                <div className="relative glass-panel rounded-2xl p-4 bg-surface/30">
+                  <div className={`text-sm leading-relaxed text-text-main/80 overflow-hidden transition-all ${isContextExpanded ? 'max-h-[500px] overflow-auto' : 'max-h-20'}`}>
                     {context ? (
                       state.lastOutputs.contextSource === 'original' ? context.sourceText : context.translatedText
                     ) : (
-                      <span className="text-white/20 italic">{t('noContext')}</span>
+                      <span className="text-muted/40 italic">{t('noContext')}</span>
                     )}
                   </div>
                   {context && (
                     <button 
                       onClick={() => setIsContextExpanded(!isContextExpanded)}
-                      className="w-full mt-3 flex items-center justify-center gap-1 text-[10px] font-bold text-accent uppercase tracking-widest border-t border-white/5 pt-3"
+                      className="w-full mt-3 flex items-center justify-center gap-1 text-[10px] font-bold text-accent uppercase tracking-widest border-t border-border-main/50 pt-3"
                     >
                       {isContextExpanded ? <><ChevronUp size={14} /> {t('showLess')}</> : <><ChevronDown size={14} /> {t('expandContext')}</>}
                     </button>
@@ -1124,53 +840,53 @@ export default function App() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] text-white/30 uppercase font-bold tracking-wider">{t('audience')}</label>
+                  <label className="text-[10px] text-muted uppercase font-bold tracking-wider">{t('audience')}</label>
                   <select 
                     className="saas-input w-full"
                     value={composeParams.audience}
                     onChange={e => setComposeParams({ ...composeParams, audience: e.target.value as Audience })}
                   >
-                    {AUDIENCES.map(a => <option key={a} className="bg-slate-900">{a}</option>)}
+                    {AUDIENCES.map(a => <option key={a} className="bg-surface">{a}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] text-white/30 uppercase font-bold tracking-wider">{t('tone')}</label>
+                  <label className="text-[10px] text-muted uppercase font-bold tracking-wider">{t('tone')}</label>
                   <select 
                     className="saas-input w-full"
                     value={composeParams.tone}
                     onChange={e => setComposeParams({ ...composeParams, tone: e.target.value as Tone })}
                   >
-                    {TONES.map(t => <option key={t} className="bg-slate-900">{t}</option>)}
+                    {TONES.map(t => <option key={t} className="bg-surface">{t}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] text-white/30 uppercase font-bold tracking-wider">{t('language')}</label>
+                  <label className="text-[10px] text-muted uppercase font-bold tracking-wider">{t('language')}</label>
                   <select 
                     className="saas-input w-full"
                     value={composeParams.lang}
                     onChange={e => setComposeParams({ ...composeParams, lang: e.target.value as Language })}
                   >
-                    {LANGUAGES.filter(l => l !== 'Auto').map(l => <option key={l} className="bg-slate-900">{l}</option>)}
+                    {LANGUAGES.filter(l => l !== 'Auto').map(l => <option key={l} className="bg-surface">{l}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] text-white/30 uppercase font-bold tracking-wider">{t('format')}</label>
+                  <label className="text-[10px] text-muted uppercase font-bold tracking-wider">{t('format')}</label>
                   <select 
                     className="saas-input w-full"
                     value={composeParams.format}
                     onChange={e => setComposeParams({ ...composeParams, format: e.target.value as Format })}
                   >
-                    {FORMATS.map(f => <option key={f} className="bg-slate-900">{f}</option>)}
+                    {FORMATS.map(f => <option key={f} className="bg-surface">{f}</option>)}
                   </select>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <label className="text-[10px] text-white/30 uppercase font-bold tracking-wider">{t('replyRequirements')}</label>
+                  <label className="text-[10px] text-muted uppercase font-bold tracking-wider">{t('replyRequirements')}</label>
                   <button 
                     onClick={() => setShowFileAnalyzer(!showFileAnalyzer)}
-                    className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${showFileAnalyzer ? 'text-accent' : 'text-white/30 hover:text-accent'}`}
+                    className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${showFileAnalyzer ? 'text-accent' : 'text-muted hover:text-accent'}`}
                   >
                     <Upload size={12} /> {t('analyzeDocument')}
                   </button>
@@ -1185,11 +901,11 @@ export default function App() {
 
               {showFileAnalyzer && (
                 <div className="premium-card p-0 overflow-hidden border-accent/30">
-                  <div className="bg-accent/10 p-4 flex justify-between items-center border-b border-white/5">
-                    <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                  <div className="bg-accent/10 p-4 flex justify-between items-center border-b border-border-main">
+                    <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-text-main">
                       <Upload size={14} /> {t('analyzeDocument')}
                     </h3>
-                    <button onClick={() => setShowFileAnalyzer(false)} className="text-white/30 hover:text-white">
+                    <button onClick={() => setShowFileAnalyzer(false)} className="text-muted hover:text-text-main">
                       <X size={14} />
                     </button>
                   </div>
@@ -1218,28 +934,28 @@ export default function App() {
               </button>
             </div>
 
-            <div className="premium-card p-6 space-y-4 bg-white/[0.02]">
+            <div className="premium-card p-8 space-y-4 bg-surface/30">
               <div className="flex justify-between items-center">
-                <h3 className="text-xs font-bold text-white/30 uppercase tracking-widest">{t('generatedOutput')}</h3>
+                <h3 className="text-xs font-bold text-muted uppercase tracking-widest">{t('generatedOutput')}</h3>
                 <div className="flex gap-2">
                   {state.lastOutputs.generatedReply && (
                     <button 
                       onClick={() => copyToClipboard(state.lastOutputs.generatedReply)}
-                      className="p-2 text-white/30 hover:text-accent transition-colors"
+                      className="p-2 text-muted hover:text-accent transition-colors"
                     >
                       <Copy size={18} />
                     </button>
                   )}
                 </div>
               </div>
-              <div className="flex-1 min-h-[100px] text-base leading-relaxed text-white/90 whitespace-pre-wrap">
+              <div className="flex-1 min-h-[100px] text-base leading-relaxed text-text-main whitespace-pre-wrap">
                 {state.lastOutputs.subject && (
-                  <div className="mb-4 pb-4 border-b border-white/5">
+                  <div className="mb-4 pb-4 border-b border-border-main/50">
                     <span className="text-[10px] text-accent uppercase font-bold block mb-1">Subject</span>
-                    <div className="text-white font-bold">{state.lastOutputs.subject}</div>
+                    <div className="text-text-main font-bold">{state.lastOutputs.subject}</div>
                   </div>
                 )}
-                {state.lastOutputs.generatedReply || <span className="text-white/20 italic">Generated reply will appear here...</span>}
+                {state.lastOutputs.generatedReply || <span className="text-muted/40 italic">Generated reply will appear here...</span>}
               </div>
             </div>
           </motion.div>
@@ -1282,7 +998,7 @@ export default function App() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] text-white/30 uppercase font-bold tracking-wider">{t('interfaceLanguage')}</label>
+                  <label className="text-[10px] text-muted uppercase font-bold tracking-wider">{t('interfaceLanguage')}</label>
                   <select 
                     value={state.globalLanguage}
                     onChange={async (e) => {
@@ -1293,16 +1009,16 @@ export default function App() {
                     }}
                     className="saas-input w-full"
                   >
-                    <option value="en" className="bg-slate-900">English</option>
-                    <option value="vi" className="bg-slate-900">Tiếng Việt</option>
-                    <option value="ja" className="bg-slate-900">日本語</option>
-                    <option value="zh-CN" className="bg-slate-900">简体中文</option>
-                    <option value="zh-TW" className="bg-slate-900">繁體中文</option>
+                    <option value="en" className="bg-surface">English</option>
+                    <option value="vi" className="bg-surface">Tiếng Việt</option>
+                    <option value="ja" className="bg-surface">日本語</option>
+                    <option value="zh-CN" className="bg-surface">简体中文</option>
+                    <option value="zh-TW" className="bg-surface">繁體中文</option>
                   </select>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] text-white/30 uppercase font-bold tracking-wider">{t('themeMode')}</label>
+                  <label className="text-[10px] text-muted uppercase font-bold tracking-wider">{t('themeMode')}</label>
                   <div className="flex p-1 glass-panel rounded-full">
                     {(['system', 'light', 'dark'] as ThemeMode[]).map(mode => (
                       <button
@@ -1313,7 +1029,7 @@ export default function App() {
                           applyTheme(resolveTheme(mode));
                           showToast(`Theme: ${mode}`, 'info');
                         }}
-                        className={`flex-1 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-2 ${state.themeMode === mode ? 'bg-accent text-white shadow-lg' : 'text-white/30'}`}
+                        className={`flex-1 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-2 ${state.themeMode === mode ? 'bg-accent text-white shadow-lg' : 'text-muted/50'}`}
                       >
                         {mode === 'system' && <Monitor size={12} />}
                         {mode === 'light' && <Sun size={12} />}

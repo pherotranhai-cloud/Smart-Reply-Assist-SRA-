@@ -51,7 +51,7 @@ export const Layout: React.FC<LayoutProps> = ({
               </div>
             </motion.div>
             
-            <div className="absolute bottom-12 w-48 h-1 bg-white/5 rounded-full overflow-hidden">
+            <div className="absolute bottom-12 w-48 h-1 bg-muted/10 rounded-full overflow-hidden">
               <motion.div 
                 initial={{ x: "-100%" }}
                 animate={{ x: "100%" }}
@@ -121,7 +121,7 @@ export const Layout: React.FC<LayoutProps> = ({
               {toast.type === 'success' ? <CheckCircle2 size={18} /> : 
                toast.type === 'error' ? <AlertCircle size={18} /> : null}
               <span className="text-sm font-medium flex-1">{toast.message}</span>
-              <button onClick={onCloseToast} className="p-1 hover:bg-white/10 rounded-full transition-colors">
+              <button onClick={onCloseToast} className="p-1 hover:bg-muted/10 rounded-full transition-colors">
                 <X size={16} />
               </button>
             </div>
@@ -137,7 +137,7 @@ const NavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode, labe
     onClick={onClick}
     className={`bottom-nav-item ${active ? 'active' : ''}`}
   >
-    <div className={`p-2 rounded-xl transition-all duration-300 ${active ? 'bg-primary/10 scale-110' : 'hover:bg-white/5'}`}>
+    <div className={`p-2 rounded-xl transition-all duration-300 ${active ? 'bg-primary/10 scale-110' : 'hover:bg-muted/5'}`}>
       {icon}
     </div>
     <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>

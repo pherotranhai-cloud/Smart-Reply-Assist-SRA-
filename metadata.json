@@ -1,5 +1,5 @@
 {
   "name": "Smart Reply Assist",
-  "description": "A cyberpunk-themed AI assistant for translation, composition, and review of messages with glossary enforcement.",
+  "description": "A professional AI assistant for translation, composition, and review of messages with glossary enforcement.",
   "requestFramePermissions": ["clipboardRead", "clipboardWrite"]
 }

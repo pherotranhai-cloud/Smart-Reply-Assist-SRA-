@@ -169,7 +169,7 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ onSave, t }) => {
       </div>
 
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" size={18} />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted/50" size={18} />
         <input 
           type="text"
           placeholder={t('searchVocab')}
@@ -183,7 +183,7 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ onSave, t }) => {
         {loading ? (
           <VocabSkeleton />
         ) : filteredVocab.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-white/30 gap-4">
+          <div className="flex flex-col items-center justify-center py-20 text-muted/40 gap-4">
             <BookOpen size={48} strokeWidth={1} />
             <p>{t('noVocabFound')}</p>
           </div>
@@ -193,28 +193,28 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ onSave, t }) => {
               <div key={item.id} className="premium-card p-4 flex items-center justify-between gap-4 group">
                 <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div>
-                    <span className="text-[10px] uppercase text-white/30 block">VI</span>
+                    <span className="text-[10px] uppercase text-muted/50 block">VI</span>
                     <span className="text-sm font-medium">{item.meaning_vi}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase text-white/30 block">EN</span>
+                    <span className="text-[10px] uppercase text-muted/50 block">EN</span>
                     <span className="text-sm font-medium">{item.target_en}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase text-white/30 block">ZH</span>
+                    <span className="text-[10px] uppercase text-muted/50 block">ZH</span>
                     <span className="text-sm font-medium">{item.target_zh}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => handleToggle(item.id!)}
-                    className={`w-10 h-6 rounded-full transition-colors relative ${String(item.enabled).toLowerCase() === 'true' ? 'bg-accent' : 'bg-white/10'}`}
+                    className={`w-10 h-6 rounded-full transition-colors relative ${String(item.enabled).toLowerCase() === 'true' ? 'bg-accent' : 'bg-muted/20'}`}
                   >
                     <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${String(item.enabled).toLowerCase() === 'true' ? 'left-5' : 'left-1'}`} />
                   </button>
                   <button 
                     onClick={() => handleDelete(item.id!)}
-                    className="p-2 text-white/30 hover:text-red-400 transition-colors"
+                    className="p-2 text-muted/40 hover:text-red-400 transition-colors"
                   >
                     <Trash2 size={16} />
                   </button>

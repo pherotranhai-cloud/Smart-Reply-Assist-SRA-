@@ -58,7 +58,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               className={`flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all ${
                 themeMode === opt.mode
                   ? 'bg-primary/10 border-primary text-primary'
-                  : 'bg-white/5 border-white/5 text-muted hover:bg-white/10'
+                  : 'bg-muted/5 border-border-main/50 text-muted hover:bg-muted/10'
               }`}
             >
               {opt.icon}
@@ -79,9 +79,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               key={opt.lang}
               onClick={() => onLanguageChange(opt.lang)}
               className={`w-full flex items-center justify-between p-4 transition-colors ${
-                idx !== languageOptions.length - 1 ? 'border-b border-white/5' : ''
+                idx !== languageOptions.length - 1 ? 'border-b border-border-main/50' : ''
               } ${
-                globalLanguage === opt.lang ? 'bg-primary/5 text-primary' : 'hover:bg-white/5'
+                globalLanguage === opt.lang ? 'bg-primary/5 text-primary' : 'hover:bg-muted/5'
               }`}
             >
               <span className="text-sm font-medium">{opt.label}</span>

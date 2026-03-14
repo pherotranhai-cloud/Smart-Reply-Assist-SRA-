@@ -87,7 +87,7 @@ export const FileAnalyzer: React.FC<FileAnalyzerProps> = ({ settings, globalLang
     <div className="space-y-6">
       <div 
         className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
-          file ? 'border-neon-cyan/50 bg-neon-cyan/5' : 'border-cyber-border hover:border-neon-cyan/30 hover:bg-[var(--accent)]/5'
+          file ? 'border-accent/50 bg-accent/5' : 'border-border-main/50 hover:border-accent/30 hover:bg-accent/5'
         }`}
         onDragOver={(e) => e.preventDefault()}
         onDrop={onDrop}
@@ -101,18 +101,18 @@ export const FileAnalyzer: React.FC<FileAnalyzerProps> = ({ settings, globalLang
               exit={{ opacity: 0 }}
               className="flex flex-col items-center gap-4"
             >
-              <div className="w-16 h-16 rounded-full bg-[var(--input-bg)] flex items-center justify-center">
-                <Upload size={32} className="text-[var(--muted)]" />
+              <div className="w-16 h-16 rounded-full bg-surface flex items-center justify-center border border-border-main/50">
+                <Upload size={32} className="text-muted" />
               </div>
               <div>
                 <p className="text-lg font-medium">{t('dragDrop')}</p>
-                <p className="text-sm text-[var(--muted)] mt-1">
+                <p className="text-sm text-muted mt-1">
                   {t('supports')}
                 </p>
               </div>
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="cyber-button px-6 py-2 rounded-lg bg-[var(--btn-secondary-bg)] border border-[var(--btn-secondary-border)] text-[var(--btn-secondary-text)] hover:opacity-80"
+                className="saas-button secondary-button px-6 py-2"
               >
                 {t('selectFile')}
               </button>
@@ -127,8 +127,8 @@ export const FileAnalyzer: React.FC<FileAnalyzerProps> = ({ settings, globalLang
             >
               {getFileIcon(file.name)}
               <div>
-                <p className="text-lg font-medium text-neon-cyan">{file.name}</p>
-                <p className="text-sm text-[var(--muted)]">{(file.size / 1024).toFixed(1)} KB</p>
+                <p className="text-lg font-medium text-accent">{file.name}</p>
+                <p className="text-sm text-muted">{(file.size / 1024).toFixed(1)} KB</p>
               </div>
               <div className="flex gap-3">
                 <button 
@@ -141,7 +141,7 @@ export const FileAnalyzer: React.FC<FileAnalyzerProps> = ({ settings, globalLang
                 <button 
                   onClick={handleAnalyze}
                   disabled={analyzing}
-                  className="cyber-button px-8 py-2 rounded-lg bg-neon-cyan text-[var(--btn-text)] font-bold hover:shadow-[0_0_15px_var(--glow)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="saas-button primary-button px-8 py-2 flex items-center gap-2"
                 >
                   {analyzing ? <Loader2 className="animate-spin" size={18} /> : null}
                   {analyzing ? t('analyzing') : t('analyzeDocument')}
@@ -174,29 +174,29 @@ export const FileAnalyzer: React.FC<FileAnalyzerProps> = ({ settings, globalLang
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-panel p-6 neon-border"
+          className="glass-panel p-6 border border-border-main/50"
         >
-          <div className="flex justify-between items-center mb-4 border-b border-cyber-border pb-4">
-            <h3 className="text-xl font-bold neon-text-cyan flex items-center gap-2">
+          <div className="flex justify-between items-center mb-4 border-b border-border-main/30 pb-4">
+            <h3 className="text-xl font-bold text-accent flex items-center gap-2">
               <FileText size={24} /> {t('contextSummary')}
             </h3>
             <button 
               onClick={() => navigator.clipboard.writeText(result)}
-              className="text-xs text-[var(--muted)] hover:text-neon-cyan uppercase tracking-wider"
+              className="text-xs text-muted hover:text-accent uppercase tracking-wider"
             >
               {t('copy')}
             </button>
           </div>
-          <div className="markdown-body prose prose-invert max-w-none prose-headings:text-neon-cyan prose-a:text-neon-magenta">
+          <div className="markdown-body prose max-w-none prose-headings:text-accent prose-a:text-primary">
             <Markdown>{result}</Markdown>
           </div>
           
-          <div className="mt-6 pt-4 border-t border-cyber-border flex justify-end">
+          <div className="mt-6 pt-4 border-t border-border-main/30 flex justify-end">
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => onAnalyzeComplete(result)}
-              className="cyber-button px-6 py-3 bg-neon-magenta text-[var(--btn-text)] font-bold rounded-lg flex items-center gap-2 hover:shadow-[0_0_15px_var(--glow)] transition-all"
+              className="saas-button primary-button px-6 py-3 flex items-center gap-2"
             >
               {t('draftReply')}
             </motion.button>
