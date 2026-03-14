@@ -114,13 +114,13 @@ const AISettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings
         <h3 className="text-lg font-bold text-accent flex items-center gap-2">
           <Settings size={20} /> {t('aiEngineConfig')}
         </h3>
-        <div className="flex p-1 bg-surface rounded-lg border border-border-main/50">
+        <div className="flex p-1 bg-slate-900/50 rounded-lg border border-white/10 shadow-inner">
           <button 
             onClick={() => {
               setLocalSettings({ ...localSettings, activeProvider: 'openai' });
               setAvailableModels([]);
             }}
-            className={`px-3 py-1 text-[10px] font-bold rounded transition-colors ${activeProvider === 'openai' ? 'bg-accent text-white' : 'text-muted'}`}
+            className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all duration-200 ${activeProvider === 'openai' ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
           >
             OpenAI
           </button>
@@ -129,7 +129,7 @@ const AISettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings
               setLocalSettings({ ...localSettings, activeProvider: 'gemini' });
               setAvailableModels([]);
             }}
-            className={`px-3 py-1 text-[10px] font-bold rounded transition-colors ${activeProvider === 'gemini' ? 'bg-accent text-white' : 'text-muted'}`}
+            className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all duration-200 ${activeProvider === 'gemini' ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
           >
             Gemini
           </button>
@@ -796,14 +796,14 @@ export default function App() {
                       </span>
                     )}
                   </div>
-                  <div className="flex p-1 glass-panel rounded-full text-[10px] font-bold">
+                  <div className="flex p-1 bg-slate-900/50 rounded-full border border-white/10 shadow-inner text-[10px] font-bold">
                     <button 
                       onClick={() => {
                         const newOutputs = { ...state.lastOutputs, contextSource: 'translated' as const };
                         setState(prev => ({ ...prev, lastOutputs: newOutputs }));
                         storage.setLastOutputs(newOutputs);
                       }}
-                      className={`px-3 py-1 rounded-full transition-all ${state.lastOutputs.contextSource === 'translated' ? 'bg-accent text-white shadow-lg' : 'text-muted hover:text-text-main'}`}
+                      className={`px-4 py-1 rounded-full transition-all duration-200 ${state.lastOutputs.contextSource === 'translated' ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
                     >
                       {t('translate')}
                     </button>
@@ -813,7 +813,7 @@ export default function App() {
                         setState(prev => ({ ...prev, lastOutputs: newOutputs }));
                         storage.setLastOutputs(newOutputs);
                       }}
-                      className={`px-3 py-1 rounded-full transition-all ${state.lastOutputs.contextSource === 'original' ? 'bg-accent text-white shadow-lg' : 'text-muted hover:text-text-main'}`}
+                      className={`px-4 py-1 rounded-full transition-all duration-200 ${state.lastOutputs.contextSource === 'original' ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
                     >
                       {t('source')}
                     </button>

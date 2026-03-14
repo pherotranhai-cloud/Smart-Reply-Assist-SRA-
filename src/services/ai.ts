@@ -23,97 +23,65 @@ export class AIService {
     }
   }
 
+  private async executeAI(system: string, user: string | any[], responseMimeType?: 'application/json' | 'text/plain'): Promise<string> {
+    const result = await this.generate({
+      system: system.trim(),
+      messages: [
+        { role: 'system', content: system.trim() },
+        { role: 'user', content: typeof user === 'string' ? user.trim() : user }
+      ],
+      responseMimeType
+    });
+    return result.text;
+  }
+
   private buildGlossaryPrompt(vocab: VocabItem[], targetLang: string, sourceText?: string): string {
     if (!sourceText) return '';
-    
     const lowerInput = sourceText.toLowerCase().trim();
-
-    // 1. Target column selection
     let targetKey: 'meaning_vi' | 'target_en' | 'target_zh' = 'target_en'; 
     const targetLangLower = targetLang.toLowerCase();
     if (targetLangLower.includes('vi')) targetKey = 'meaning_vi';
     else if (targetLangLower.includes('zh')) targetKey = 'target_zh';
 
-    // 2. Sử dụng Map để LỌC TRÙNG LẶP (Deduplication)
-    const glossaryMap = new Map<string, string>();
+    const matches: string[] = [];
+    const seen = new Set<string>();
 
     vocab.forEach(item => {
-        if (String(item.enabled).toLowerCase() !== 'true') return;
+      if (String(item.enabled).toLowerCase() !== 'true') return;
+      const vi = item.meaning_vi ? String(item.meaning_vi).toLowerCase().trim() : '';
+      const en = item.target_en ? String(item.target_en).toLowerCase().trim() : '';
+      const zh = item.target_zh ? String(item.target_zh).toLowerCase().trim() : '';
 
-        const vi = item.meaning_vi ? String(item.meaning_vi).toLowerCase().trim() : '';
-        const en = item.target_en ? String(item.target_en).toLowerCase().trim() : '';
-        const zh = item.target_zh ? String(item.target_zh).toLowerCase().trim() : '';
+      let matched = null;
+      if (zh && lowerInput.includes(zh)) matched = String(item.target_zh).trim();
+      else if (en && lowerInput.includes(en)) matched = String(item.target_en).trim();
+      else if (vi && lowerInput.includes(vi)) matched = String(item.meaning_vi).trim();
 
-        let matchedSourceWord = null;
-
-        if (zh && lowerInput.includes(zh)) {
-            matchedSourceWord = String(item.target_zh).trim();
-        } else if (en && lowerInput.includes(en)) {
-            matchedSourceWord = String(item.target_en).trim();
-        } else if (vi && lowerInput.includes(vi)) {
-            matchedSourceWord = String(item.meaning_vi).trim();
-        }
-
-        const targetTranslatedWord = item[targetKey] ? String(item[targetKey]).trim() : '';
-
-        if (matchedSourceWord && targetTranslatedWord && matchedSourceWord.toLowerCase() !== targetTranslatedWord.toLowerCase()) {
-            const matchKey = matchedSourceWord.toLowerCase();
-            // CHỈ lấy từ dịch đầu tiên tìm thấy, chặn các từ trùng lặp gây nhiễu LLM
-            if (!glossaryMap.has(matchKey)) {
-                glossaryMap.set(matchKey, `* "${matchedSourceWord}" ===> "${targetTranslatedWord}"`);
-            }
-        }
+      const target = item[targetKey] ? String(item[targetKey]).trim() : '';
+      if (matched && target && matched.toLowerCase() !== target.toLowerCase() && !seen.has(matched.toLowerCase())) {
+        seen.add(matched.toLowerCase());
+        matches.push(`"${matched}"->"${target}"`);
+      }
     });
 
-    if (glossaryMap.size === 0) return '';
-
-    const glossaryString = Array.from(glossaryMap.values()).join('\n');
-
-    return `
-CRITICAL GLOSSARY OVERRIDE:
-You MUST apply the following exact terminology replacements. 
-If a word on the left (===>) is in the source text, translate it EXACTLY as the word on the right. Do NOT use synonyms.
-
-<glossary>
-${glossaryString}
-</glossary>
-`;
+    return matches.length > 0 ? `\nStrictly use glossary: ${matches.join(', ')}.` : '';
   }
 
   async translate(text: string, targetLang: string, vocab: VocabItem[], image?: string) {
-    const glossaryPrompt = this.buildGlossaryPrompt(vocab, targetLang, text);
-    
-    const systemPrompt = `You are a strict enterprise translation engine. Translate the user's text to ${targetLang}.
+    const glossary = this.buildGlossaryPrompt(vocab, targetLang, text);
+    const persona = `Act as a ${targetLang.toUpperCase()} Industry Translator.`;
+    const systemPrompt = `${persona} Strictly use glossary. Output ONLY translated text.${glossary}`;
 
-${glossaryPrompt}
-
-ABSOLUTE RULES:
-1. You MUST use the exact words from the glossary. 
-2. Do not translate the glossary terms literally. Use the exact right-side (===>) value.
-3. Output ONLY the final translated text. Do not output any notes, JSON, or explanations.`;
-
-    const content: any[] = [{ type: 'text', text }];
+    const content: any[] = [{ type: 'text', text: text.trim() }];
     if (image) {
-      content.push({
-        type: 'image_url',
-        image_url: { url: image }
-      });
+      content.push({ type: 'image_url', image_url: { url: image } });
     }
 
-    const result = await this.generate({
-      system: systemPrompt,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content }
-      ]
-    });
-
-    return result.text;
+    return this.executeAI(systemPrompt, content);
   }
 
   async extractStructuredSummary(text: string, sourceLang: string, contextSource: 'original' | 'translated'): Promise<any> {
-    const systemPrompt = `You are an expert data analyst. Extract a structured summary from the provided message context.
-Output MUST be a valid JSON object matching this schema:
+    const systemPrompt = `Expert analyst. Extract JSON:
 {
   "people_and_roles": [{"name": "...", "role_title": "...", "honorific": "...", "organization": "...", "confidence": 0-1}],
   "production_data": [{"item": "...", "metric": "...", "value": "...", "unit": "...", "timeframe": "...", "confidence": 0-1}],
@@ -123,25 +91,12 @@ Output MUST be a valid JSON object matching this schema:
   "risks_gaps_questions": [{"gap": "...", "question": "...", "priority": "P0|P1|P2"}],
   "short_summary": {"bullets": ["..."], "items_to_respond": ["..."]}
 }
+Rules: No markdown. Valid JSON only. Use "unknown" if missing.`;
 
-RULES:
-1. Do not invent facts. Use "unknown" if missing.
-2. Confidence is a number from 0 to 1.
-3. Priority is P0 (Critical), P1 (High), or P2 (Normal).
-4. Output ONLY the raw JSON. No markdown blocks.`;
-
-    const result = await this.generate({
-      system: systemPrompt,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: text }
-      ],
-      responseMimeType: 'application/json'
-    });
+    const resultText = await this.executeAI(systemPrompt, text, 'application/json');
 
     try {
-      let jsonText = result.text.trim();
-      // Remove markdown code blocks if present
+      let jsonText = resultText.trim();
       if (jsonText.startsWith('```json')) {
         jsonText = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
       } else if (jsonText.startsWith('```')) {
@@ -158,31 +113,16 @@ RULES:
         }
       };
     } catch (err) {
-      console.error('Failed to parse extraction JSON:', err);
-      // Attempt repair call
-      return this.repairJson(result.text, systemPrompt);
+      return this.repairJson(resultText, systemPrompt);
     }
   }
 
   private async repairJson(badJson: string, originalSystemPrompt: string): Promise<any> {
-    const repairPrompt = `The following text was supposed to be a JSON object but is invalid or contains extra text. 
-Please reformat it into a STRICT valid JSON object matching the requested schema. 
-Output ONLY the raw JSON.
-
-TEXT TO REPAIR:
-${badJson}`;
-
-    const result = await this.generate({
-      system: originalSystemPrompt,
-      messages: [
-        { role: 'system', content: originalSystemPrompt },
-        { role: 'user', content: repairPrompt }
-      ],
-      responseMimeType: 'application/json'
-    });
+    const repairPrompt = `Reformat to STRICT valid JSON. Output ONLY raw JSON:\n${badJson}`;
+    const resultText = await this.executeAI(originalSystemPrompt, repairPrompt, 'application/json');
 
     try {
-      let jsonText = result.text.trim();
+      let jsonText = resultText.trim();
       if (jsonText.startsWith('```json')) {
         jsonText = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
       }
@@ -200,115 +140,38 @@ ${badJson}`;
     structuredSummary?: any
   ) {
     const hasContext = contextText && contextText.trim().length > 0;
-    const glossaryPrompt = this.buildGlossaryPrompt(vocab, params.lang, hasContext ? contextText : undefined);
+    const glossary = this.buildGlossaryPrompt(vocab, params.lang, hasContext ? contextText : requirements);
     
-    // Truncation strategy: keep first 6,000 chars and last 2,000 chars
-    let truncatedContext = contextText;
-    if (hasContext && contextText.length > 8000) {
-      truncatedContext = contextText.substring(0, 6000) + 
-        '\n\n[...content truncated for brevity...]\n\n' + 
-        contextText.substring(contextText.length - 2000);
+    let truncatedContext = contextText.trim();
+    if (hasContext && truncatedContext.length > 8000) {
+      truncatedContext = truncatedContext.substring(0, 6000) + 
+        '\n[...truncated...]\n' + 
+        truncatedContext.substring(truncatedContext.length - 2000);
     }
 
     let summaryPrompt = '';
     if (hasContext && structuredSummary) {
-      summaryPrompt = `
-STRUCTURED CONTEXT INTELLIGENCE (EPE):
-${JSON.stringify(structuredSummary, null, 2)}
-
-MANDATORY GUIDELINES:
-1. Use titles/honorifics exactly as extracted in people_and_roles.
-2. Highlight P0/P1 requests and key metrics in the reply.
-3. Do not change numbers/units/dates from production_data.
-4. If role/title confidence < 0.6, use neutral phrasing and ask for clarification.
-5. If Audience is "Taiwan-Manager", use appropriate Traditional Chinese honorific style (e.g., 經理, 主任, 您).
-`;
+      summaryPrompt = `Context Intel: ${JSON.stringify(structuredSummary)}. Use titles/honorifics from people_and_roles. Highlight P0/P1.`;
     }
 
-    const systemPrompt = `You are an expert communicator. ${hasContext ? 'You are replying to the message provided in the CONTEXT.' : 'You are drafting a new message based on the provided requirements.'}
-Generate a message based on the following parameters:
-- Audience: ${params.audience}
-- Tone: ${params.tone}
-- Target Language: ${params.lang}
-- Format: ${params.format}
-
-${glossaryPrompt}
+    const systemPrompt = `Speak like a professional factory manager: Concise, clear, direct. No corporate fluff.
+Params: Audience: ${params.audience}, Tone: ${params.tone}, Lang: ${params.lang}, Format: ${params.format}.
+${glossary}
 ${summaryPrompt}
+Instructions: Output ONLY message body (Email includes Subject). Max 200 words. No filler.`;
 
-INSTRUCTIONS:
-1. ${hasContext ? 'You are replying to the message below.' : 'Draft a new message based entirely on the requirements provided.'}
-2. Do NOT invent missing facts.
-3. If essential details are missing, ask 2–3 clarifying questions in the message OR include a short ‘Need confirmation’ section (depends on Format).
-4. Output ONLY the generated message as plain text. 
-5. If the format is "Email", start with "Subject: [Subject Line]" followed by the body.
-6. Otherwise, output the message body directly.
-7. Do not output JSON or any metadata.`;
+    const userPrompt = hasContext ? `Context: ${truncatedContext}\nIntent: ${requirements}` : `Intent: ${requirements}`;
 
-    const userPrompt = hasContext ? `
-CONTEXT (Message you are replying to):
----
-${truncatedContext}
----
-
-REPLY REQUIREMENTS (User Intent):
----
-${requirements}
----
-` : `
-DRAFT REQUIREMENTS (User Intent):
----
-${requirements}
----
-`;
-
-    const result = await this.generate({
-      system: systemPrompt,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ]
-    });
-
-    return result.text;
+    return this.executeAI(systemPrompt, userPrompt);
   }
 
   async summarize(text: string) {
-    const systemPrompt = `Summarize the following content in Vietnamese.
-Output exactly:
-- Max 7 bullet points for summary.
-- Max 5 items to respond to.
-- Optional Risks/Gaps section.
-Output as plain text with clear headings. No JSON.`;
-
-    const result = await this.generate({
-      system: systemPrompt,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: text }
-      ]
-    });
-
-    return result.text;
+    const systemPrompt = `Summarize in Vietnamese. Heading: Tóm tắt (max 7 bullets), Cần phản hồi (max 5 items), Rủi ro (optional). Plain text.`;
+    return this.executeAI(systemPrompt, text);
   }
 
   async analyzeFileContent(text: string, language: string = 'Vietnamese') {
-    const systemPrompt = `Bạn là hệ thống trích xuất ngữ cảnh chuyên nghiệp. Hãy đọc tài liệu sau và trả về một bản "Context Summary" (Tóm tắt ngữ cảnh) ngắn gọn, súc tích.
-Bản tóm tắt phải gồm 3 phần rõ ràng:
-1. **Thông tin cốt lõi**: Ý chính của tài liệu là gì?
-2. **Yêu cầu của người gửi**: Người gửi muốn gì?
-3. **Các hành động cần phản hồi**: Các điểm cần phản hồi lại là gì?
-
-Tuyệt đối KHÔNG sinh ra câu trả lời cuối cùng. KHÔNG phân tích dài dòng thừa thãi. Trình bày bằng Markdown.
-IMPORTANT: You must write the entire output strictly in ${language}.`;
-
-    const result = await this.generate({
-      system: systemPrompt,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: text }
-      ]
-    });
-
-    return result.text;
+    const systemPrompt = `Trích xuất ngữ cảnh tài liệu (${language}). Markdown headings: Thông tin cốt lõi, Yêu cầu người gửi, Hành động cần phản hồi. Không sinh câu trả lời cuối.`;
+    return this.executeAI(systemPrompt, text);
   }
 }
