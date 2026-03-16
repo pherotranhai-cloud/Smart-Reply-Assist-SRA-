@@ -1,15 +1,13 @@
 import { Handler } from '@netlify/functions';
 import pg from 'pg';
+import crypto from 'crypto';
 
 const { Pool } = pg;
-// Đảm bảo dùng DATABASE_URL đồng bộ với các file khác
 const DATABASE_URL = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL;
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl: { rejectUnauthorized: false }
 });
 
 async function initDatabase(client: pg.PoolClient) {
@@ -35,41 +33,37 @@ export const handler: Handler = async (event) => {
     'Content-Type': 'application/json'
   };
 
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers, body: '' };
-  }
-
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
-  }
-
-  if (!DATABASE_URL) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Database connection string missing' }) };
-  }
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
+  if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+  if (!DATABASE_URL) return { statusCode: 500, headers, body: JSON.stringify({ error: 'DB Missing' }) };
 
   try {
-    const { data } = JSON.parse(event.body || '{}');
-    if (!Array.isArray(data) || data.length === 0) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: 'No data provided' }) };
+    const body = JSON.parse(event.body || '{}');
+    // Chấp nhận cả { data: [] } hoặc trực tiếp []
+    const rawData = Array.isArray(body) ? body : (body.data || []);
+    
+    if (rawData.length === 0) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'No data provided or empty array' }) };
     }
+
+    // Chuẩn hóa dữ liệu và tạo ID nếu thiếu
+    const sanitizedData = rawData.map((item: any) => ({
+      id: item.id || crypto.createHash('md5').update(`${item.term}-${item.meaning_vi}`).digest('hex'),
+      term: String(item.term || ''),
+      meaning_vi: String(item.meaning_vi || ''),
+      target_en: String(item.target_en || ''),
+      target_zh: String(item.target_zh || ''),
+      enabled: item.enabled !== false
+    })).filter((item: any) => item.term && item.meaning_vi);
 
     const client = await pool.connect();
     try {
       await initDatabase(client);
       
-      // Kỹ thuật Bulk Insert: Xây dựng 1 câu lệnh duy nhất
-      // Dạng: INSERT INTO table (cols) VALUES ($1,$2...), ($7,$8...)
       const values: any[] = [];
-      const placeholders = data.map((item, index) => {
+      const placeholders = sanitizedData.map((item, index) => {
         const offset = index * 6;
-        values.push(
-          item.id,
-          item.term,
-          item.meaning_vi,
-          item.target_en || '',
-          item.target_zh || '',
-          item.enabled !== undefined ? item.enabled : true
-        );
+        values.push(item.id, item.term, item.meaning_vi, item.target_en, item.target_zh, item.enabled);
         return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
       }).join(',');
 
@@ -92,23 +86,19 @@ export const handler: Handler = async (event) => {
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ 
-          message: `Successfully imported ${data.length} items`,
-          count: data.length 
-        }),
+        body: JSON.stringify({ message: `Imported ${sanitizedData.length} items`, count: sanitizedData.length }),
       };
     } catch (err: any) {
       await client.query('ROLLBACK');
-      console.error('Import Error Details:', err);
       throw err;
     } finally {
       client.release();
     }
   } catch (error: any) {
     return {
-      statusCode: 500,
+      statusCode: 400, // Trả về 400 nếu JSON hỏng hoặc map lỗi
       headers,
-      body: JSON.stringify({ error: 'Failed to import', details: error.message }),
+      body: JSON.stringify({ error: 'Invalid Request Format', details: error.message }),
     };
   }
 };
