@@ -1,14 +1,14 @@
 import { Handler } from '@netlify/functions';
 import pg from 'pg';
-import crypto from 'crypto';
 
 const { Pool } = pg;
-const DATABASE_URL = process.env.NETLIFY_DATABASE_URL;
+// Đảm bảo dùng DATABASE_URL đồng bộ với các file khác
+const DATABASE_URL = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL;
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false // Required for Neon
+    rejectUnauthorized: false
   }
 });
 
@@ -40,59 +40,42 @@ export const handler: Handler = async (event) => {
   }
 
   if (event.httpMethod !== 'POST') {
-    return { 
-      statusCode: 405, 
-      headers,
-      body: JSON.stringify({ error: 'Method Not Allowed' }) 
-    };
+    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
 
   if (!DATABASE_URL) {
-    return {
-      statusCode: 503,
-      headers,
-      body: JSON.stringify({ error: 'Database connection not configured' }),
-    };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Database connection string missing' }) };
   }
 
   try {
-    const data = JSON.parse(event.body || '[]');
-
+    const { data } = JSON.parse(event.body || '{}');
     if (!Array.isArray(data) || data.length === 0) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ error: 'Invalid or empty data array' }),
-      };
-    }
-
-    const sanitizedData = data.filter(item => 
-      item && typeof item === 'object' && item.term && item.meaningVi
-    ).map(item => ({
-      term: item.term.trim(),
-      meaning_vi: item.meaningVi.trim(),
-      target_en: item.targetEn?.trim() || '',
-      target_zh: item.targetZh?.trim() || '',
-      enabled: item.enabled !== undefined ? item.enabled : true,
-      id: item.id || crypto.randomUUID()
-    }));
-
-    if (sanitizedData.length === 0) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ error: 'No valid vocabulary items found' }),
-      };
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'No data provided' }) };
     }
 
     const client = await pool.connect();
     try {
       await initDatabase(client);
-      await client.query('BEGIN');
       
-      const query = `
+      // Kỹ thuật Bulk Insert: Xây dựng 1 câu lệnh duy nhất
+      // Dạng: INSERT INTO table (cols) VALUES ($1,$2...), ($7,$8...)
+      const values: any[] = [];
+      const placeholders = data.map((item, index) => {
+        const offset = index * 6;
+        values.push(
+          item.id,
+          item.term,
+          item.meaning_vi,
+          item.target_en || '',
+          item.target_zh || '',
+          item.enabled !== undefined ? item.enabled : true
+        );
+        return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
+      }).join(',');
+
+      const bulkQuery = `
         INSERT INTO vocab (id, term, meaning_vi, target_en, target_zh, enabled)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        VALUES ${placeholders}
         ON CONFLICT (id) DO UPDATE SET
           term = EXCLUDED.term,
           meaning_vi = EXCLUDED.meaning_vi,
@@ -102,39 +85,30 @@ export const handler: Handler = async (event) => {
           updated_at = CURRENT_TIMESTAMP
       `;
 
-      for (const item of sanitizedData) {
-        await client.query(query, [
-          item.id,
-          item.term,
-          item.meaning_vi,
-          item.target_en,
-          item.target_zh,
-          item.enabled
-        ]);
-      }
-
+      await client.query('BEGIN');
+      await client.query(bulkQuery, values);
       await client.query('COMMIT');
-    } catch (err) {
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          message: `Successfully imported ${data.length} items`,
+          count: data.length 
+        }),
+      };
+    } catch (err: any) {
       await client.query('ROLLBACK');
+      console.error('Import Error Details:', err);
       throw err;
     } finally {
       client.release();
     }
-
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ 
-        message: `Successfully imported ${sanitizedData.length} items`,
-        count: sanitizedData.length
-      }),
-    };
   } catch (error: any) {
-    console.error('Import error:', error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: error.message || 'Internal Server Error' }),
+      body: JSON.stringify({ error: 'Failed to import', details: error.message }),
     };
   }
 };
