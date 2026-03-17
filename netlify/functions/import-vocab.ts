@@ -29,7 +29,7 @@ export const handler: Handler = async (event) => {
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Missing GOOGLE_SHEET_ID config' }) };
   }
 
-  const googleSheetsUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+  const googleSheetsUrl = `https://docs.google.com/spreadsheets/d/$16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY/export?format=csv`;
 
   try {
     // 3. Tải dữ liệu CSV từ Google Sheets
