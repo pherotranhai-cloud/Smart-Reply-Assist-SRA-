@@ -8,13 +8,16 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "sync-vocab": "node update-db.js"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
+    "axios": "^1.13.6",
     "better-sqlite3": "^12.4.1",
+    "csvtojson": "^2.0.14",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "fs-extra": "^11.3.3",
@@ -23,6 +26,7 @@
     "papaparse": "^5.5.3",
     "pdfjs-dist": "^5.5.207",
     "pg": "^8.20.0",
+    "pg-format": "^1.0.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",

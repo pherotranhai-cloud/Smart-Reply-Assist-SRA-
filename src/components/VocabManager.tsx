@@ -26,7 +26,6 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ onSave, t }) => {
   const [vocab, setVocab] = useState<VocabItem[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     const loadVocab = async () => {
@@ -86,99 +85,6 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ onSave, t }) => {
     document.body.removeChild(link);
   };
 
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setImporting(true);
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const data = event.target?.result;
-        let results: any[] = [];
-
-        if (file.name.endsWith('.csv')) {
-          const parsed = Papa.parse(data as string, { 
-            header: true,
-            skipEmptyLines: true,
-            transformHeader: (header) => header.trim().toLowerCase().replace(/\s+/g, '_')
-          });
-          results = parsed.data;
-        } else {
-          const workbook = XLSX.read(data, { type: 'binary' });
-          const sheetName = workbook.SheetNames[0];
-          results = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-        }
-
-        console.log('Import Raw Results:', results);
-
-        const newItems: VocabItem[] = results.map((r: any, idx) => {
-          // Normalize keys to lowercase and underscores for easier matching
-          const normalizedRow: any = {};
-          Object.keys(r).forEach(key => {
-            const val = r[key];
-            normalizedRow[key.trim().toLowerCase().replace(/\s+/g, '_')] = val !== null && val !== undefined ? String(val) : '';
-          });
-
-          const meaning_vi = (normalizedRow.meaning_vi || normalizedRow.vietnamese || normalizedRow.tieng_viet || normalizedRow.vi || '').trim();
-          const target_en = (normalizedRow.target_en || normalizedRow.english || normalizedRow.tieng_anh || normalizedRow.en || '').trim();
-          const target_zh = (normalizedRow.target_zh || normalizedRow.chinese || normalizedRow.tieng_trung || normalizedRow.zh || '').trim();
-          
-          // Use a more stable ID if possible (e.g. based on content) to avoid duplicates on re-import
-          // but if the row already has an ID, use it.
-          const id = normalizedRow.id || normalizedRow.uuid || `import_${Date.now()}_${idx}`;
-
-          return {
-            id: String(id),
-            term: meaning_vi || target_en || target_zh,
-            meaning_vi,
-            target_en,
-            target_zh,
-            enabled: 'true'
-          };
-        }).filter(item => item.term);
-
-        console.log('Processed Items for Import:', newItems);
-
-        if (newItems.length === 0) {
-          console.warn('No valid items found to import. Check headers.');
-          return;
-        }
-
-        const updatedVocab = [...vocab, ...newItems];
-        setVocab(updatedVocab);
-        onSave(updatedVocab);
-        await storage.setVocab(updatedVocab);
-        
-        // Try to sync with backend
-        console.log('Sending to backend:', newItems);
-        const response = await fetch('/api/import-vocab', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newItems)
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Backend sync failed:', errorData);
-        } else {
-          console.log('Backend sync successful');
-        }
-
-      } catch (err) {
-        console.error('Import failed:', err);
-      } finally {
-        setImporting(false);
-      }
-    };
-
-    if (file.name.endsWith('.csv')) {
-      reader.readAsText(file);
-    } else {
-      reader.readAsBinaryString(file);
-    }
-  };
-
   return (
     <div className="flex flex-col h-full gap-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -187,13 +93,6 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ onSave, t }) => {
           {t('vocabularyManager')}
         </h2>
         <div className="flex gap-2 w-full sm:w-auto">
-          <label className="flex-1 sm:flex-none">
-            <div className="saas-button secondary-button flex items-center justify-center gap-2 cursor-pointer">
-              {importing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-              <span>{t('import')}</span>
-            </div>
-            <input type="file" className="hidden" accept=".csv,.xlsx,.xls" onChange={handleImport} disabled={importing} />
-          </label>
           <button onClick={handleExport} className="saas-button secondary-button flex items-center justify-center gap-2">
             <Download size={16} />
             <span>{t('export')}</span>

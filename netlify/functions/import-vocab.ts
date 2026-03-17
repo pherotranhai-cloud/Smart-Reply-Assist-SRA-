@@ -1,9 +1,11 @@
 import { Handler } from '@netlify/functions';
 import pg from 'pg';
 import crypto from 'crypto';
+import format from 'pg-format';
 
 const { Pool } = pg;
 const DATABASE_URL = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL;
+const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY;
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
@@ -28,45 +30,54 @@ async function initDatabase(client: pg.PoolClient) {
 export const handler: Handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, x-admin-key',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Content-Type': 'application/json'
   };
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
+  
+  // Admin Security Check
+  const adminKey = event.headers['x-admin-key'];
+  if (!ADMIN_SECRET_KEY || adminKey !== ADMIN_SECRET_KEY) {
+    return { 
+      statusCode: 401, 
+      headers, 
+      body: JSON.stringify({ error: 'Unauthorized: Admin access required' }) 
+    };
+  }
+
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   if (!DATABASE_URL) return { statusCode: 500, headers, body: JSON.stringify({ error: 'DB Missing' }) };
 
   try {
     const body = JSON.parse(event.body || '{}');
-    // Chấp nhận cả { data: [] } hoặc trực tiếp []
     const rawData = Array.isArray(body) ? body : (body.data || []);
     
     if (rawData.length === 0) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'No data provided or empty array' }) };
     }
 
-    // Chuẩn hóa dữ liệu và tạo ID bằng MD5 hash của term + meaning_vi
     const sanitizedData = rawData.map((item: any) => {
-      const term = String(item.term || '').trim();
-      const meaning_vi = String(item.meaning_vi || '').trim();
-      const target_en = String(item.target_en || '').trim();
-      const target_zh = String(item.target_zh || '').trim();
-      // Chấp nhận cả boolean và string "true"/"false"
-      const enabled = item.enabled !== false && String(item.enabled).toLowerCase() !== 'false';
-      
-      // Luôn tạo ID dựa trên nội dung để đảm bảo tính nhất quán
-      const id = crypto.createHash('md5').update(`${term}-${meaning_vi}`).digest('hex');
+      // Normalize keys: trim, lowercase, replace non-alphanumeric with underscore
+      const normalized: any = {};
+      Object.keys(item).forEach(key => {
+        const normalizedKey = key.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+        normalized[normalizedKey] = item[key];
+      });
 
-      return {
-        id,
-        term,
-        meaning_vi,
-        target_en,
-        target_zh,
-        enabled
-      };
-    }).filter((item: any) => item.term && item.meaning_vi);
+      const term = String(normalized.term || normalized.category || '').trim();
+      const meaning_vi = String(normalized.meaning_vi || normalized.vietnamese || normalized.tieng_viet || normalized.vi || '').trim();
+      const target_en = String(normalized.target_en || normalized.english || normalized.tieng_anh || normalized.en || '').trim();
+      const target_zh = String(normalized.target_zh || normalized.chinese || normalized.tieng_trung || normalized.zh || '').trim();
+      const enabledVal = normalized.enable !== undefined ? normalized.enable : normalized.enabled;
+      const enabled = enabledVal !== false && String(enabledVal).toLowerCase() !== 'false';
+      
+      const hashInput = term ? `${term}-${meaning_vi}` : meaning_vi;
+      const id = crypto.createHash('md5').update(hashInput).digest('hex');
+
+      return [id, term || meaning_vi, meaning_vi, target_en, target_zh, enabled];
+    }).filter((item: any) => item[2]); // Filter by meaning_vi
 
     if (sanitizedData.length === 0) {
       return {
@@ -79,25 +90,18 @@ export const handler: Handler = async (event) => {
     const client = await pool.connect();
     try {
       await initDatabase(client);
-      
-      const values: any[] = [];
-      const placeholders = sanitizedData.map((item, index) => {
-        const offset = index * 6;
-        values.push(item.id, item.term, item.meaning_vi, item.target_en, item.target_zh, item.enabled);
-        return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
-      }).join(',');
-
-      // Vì đã DELETE FROM vocab trước đó, chúng ta không cần ON CONFLICT nữa
-      const bulkQuery = `
-        INSERT INTO vocab (id, term, meaning_vi, target_en, target_zh, enabled)
-        VALUES ${placeholders}
-      `;
-
       await client.query('BEGIN');
-      // Clean Slate: Xóa toàn bộ dữ liệu cũ trước khi chèn mới
+      
+      // Clean Slate
       await client.query('DELETE FROM vocab');
-      // Thực hiện Bulk Insert
-      await client.query(bulkQuery, values);
+      
+      // Bulk Insert using pg-format to avoid parameter limits
+      const query = format(
+        'INSERT INTO vocab (id, term, meaning_vi, target_en, target_zh, enabled) VALUES %L',
+        sanitizedData
+      );
+      
+      await client.query(query);
       await client.query('COMMIT');
 
       return {
@@ -116,7 +120,7 @@ export const handler: Handler = async (event) => {
     }
   } catch (error: any) {
     return {
-      statusCode: 400, // Trả về 400 nếu JSON hỏng hoặc map lỗi
+      statusCode: 400,
       headers,
       body: JSON.stringify({ error: 'Invalid Request Format', details: error.message }),
     };
