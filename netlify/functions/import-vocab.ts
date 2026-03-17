@@ -5,7 +5,25 @@ import crypto from 'crypto';
 const { Pool } = pg;
 const DATABASE_URL = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL;
 
-const pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
+
+async function initDatabase(client: pg.PoolClient) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS vocab (
+      id TEXT PRIMARY KEY,
+      term TEXT NOT NULL,
+      meaning_vi TEXT NOT NULL,
+      target_en TEXT,
+      target_zh TEXT,
+      enabled BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+}
 
 export const handler: Handler = async (event) => {
   const headers = {
@@ -16,50 +34,51 @@ export const handler: Handler = async (event) => {
   };
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
-  
+  if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+  if (!DATABASE_URL) return { statusCode: 500, headers, body: JSON.stringify({ error: 'DB Missing' }) };
+
   try {
     const body = JSON.parse(event.body || '{}');
-    let items = Array.isArray(body) ? body : (body.data || body.items || []);
-
-    if (items.length === 0) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Data is empty', debug: body }) };
+    // Chấp nhận cả { data: [] } hoặc trực tiếp []
+    const rawData = Array.isArray(body) ? body : (body.data || []);
+    
+    if (rawData.length === 0) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'No data provided or empty array' }) };
     }
 
-    // MAPPER tối ưu cho file "Vocabulary Library.csv"
-    const sanitizedData = items.map((item: any) => {
-      // Khớp chính xác với tiêu đề trong file CSV của bạn
-      const term = item.Term || item.term || '';
-      const meaning = item['Meaning (VI)'] || item.meaning_vi || '';
-      const en = item['Target EN'] || item.target_en || '';
-      const zh = item['Target ZH'] || item.target_zh || '';
+    // Chuẩn hóa dữ liệu và tạo ID bằng MD5 hash của term + meaning_vi
+    const sanitizedData = rawData.map((item: any) => {
+      const term = String(item.term || '').trim();
+      const meaning_vi = String(item.meaning_vi || '').trim();
+      const target_en = String(item.target_en || '').trim();
+      const target_zh = String(item.target_zh || '').trim();
+      const enabled = item.enabled !== false;
       
-      // Chỉ lấy những dòng có đủ Term và Meaning
-      if (!term || !meaning) return null;
+      // Luôn tạo ID dựa trên nội dung để đảm bảo tính nhất quán
+      const id = crypto.createHash('md5').update(`${term}-${meaning_vi}`).digest('hex');
 
       return {
-        id: crypto.createHash('md5').update(`${term}-${meaning}`).digest('hex'),
-        term: String(term).trim(),
-        meaning_vi: String(meaning).trim(),
-        target_en: String(en).trim(),
-        target_zh: String(zh).trim(),
-        enabled: true
+        id,
+        term,
+        meaning_vi,
+        target_en,
+        target_zh,
+        enabled
       };
-    }).filter(Boolean);
-
-    if (sanitizedData.length === 0) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: 'No valid rows found. Check column names.' }) };
-    }
+    }).filter((item: any) => item.term && item.meaning_vi);
 
     const client = await pool.connect();
     try {
+      await initDatabase(client);
+      
       const values: any[] = [];
       const placeholders = sanitizedData.map((item, index) => {
-        const o = index * 6;
+        const offset = index * 6;
         values.push(item.id, item.term, item.meaning_vi, item.target_en, item.target_zh, item.enabled);
-        return `($${o+1}, $${o+2}, $${o+3}, $${o+4}, $${o+5}, $${o+6})`;
+        return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
       }).join(',');
 
-      const query = `
+      const bulkQuery = `
         INSERT INTO vocab (id, term, meaning_vi, target_en, target_zh, enabled)
         VALUES ${placeholders}
         ON CONFLICT (id) DO UPDATE SET
@@ -67,22 +86,36 @@ export const handler: Handler = async (event) => {
           meaning_vi = EXCLUDED.meaning_vi,
           target_en = EXCLUDED.target_en,
           target_zh = EXCLUDED.target_zh,
-          updated_at = CURRENT_TIMESTAMP;
+          enabled = EXCLUDED.enabled,
+          updated_at = CURRENT_TIMESTAMP
       `;
 
       await client.query('BEGIN');
-      await client.query(query, values);
+      // Clean Slate: Xóa toàn bộ dữ liệu cũ trước khi chèn mới
+      await client.query('DELETE FROM vocab');
+      // Thực hiện Bulk Insert
+      await client.query(bulkQuery, values);
       await client.query('COMMIT');
 
-      return { 
-        statusCode: 200, 
-        headers, 
-        body: JSON.stringify({ message: `Successfully imported ${sanitizedData.length} items from CSV` }) 
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          message: `Successfully imported ${sanitizedData.length} items (Clean Slate Mode)`, 
+          count: sanitizedData.length 
+        }),
       };
+    } catch (err: any) {
+      await client.query('ROLLBACK');
+      throw err;
     } finally {
       client.release();
     }
   } catch (error: any) {
-    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Import failed', details: error.message }) };
+    return {
+      statusCode: 400, // Trả về 400 nếu JSON hỏng hoặc map lỗi
+      headers,
+      body: JSON.stringify({ error: 'Invalid Request Format', details: error.message }),
+    };
   }
 };

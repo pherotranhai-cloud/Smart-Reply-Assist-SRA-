@@ -98,7 +98,11 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ onSave, t }) => {
         let results: any[] = [];
 
         if (file.name.endsWith('.csv')) {
-          const parsed = Papa.parse(data as string, { header: true });
+          const parsed = Papa.parse(data as string, { 
+            header: true,
+            skipEmptyLines: true,
+            transformHeader: (header) => header.trim().toLowerCase().replace(/\s+/g, '_')
+          });
           results = parsed.data;
         } else {
           const workbook = XLSX.read(data, { type: 'binary' });
@@ -106,12 +110,26 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ onSave, t }) => {
           results = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
         }
 
+        console.log('Import Raw Results:', results);
+
         const newItems: VocabItem[] = results.map((r: any, idx) => {
-          const meaning_vi = r.meaning_vi || r.Vietnamese || '';
-          const target_en = r.target_en || r.English || '';
-          const target_zh = r.target_zh || r.Chinese || '';
+          // Normalize keys to lowercase and underscores for easier matching
+          const normalizedRow: any = {};
+          Object.keys(r).forEach(key => {
+            const val = r[key];
+            normalizedRow[key.trim().toLowerCase().replace(/\s+/g, '_')] = val !== null && val !== undefined ? String(val) : '';
+          });
+
+          const meaning_vi = (normalizedRow.meaning_vi || normalizedRow.vietnamese || normalizedRow.tieng_viet || normalizedRow.vi || '').trim();
+          const target_en = (normalizedRow.target_en || normalizedRow.english || normalizedRow.tieng_anh || normalizedRow.en || '').trim();
+          const target_zh = (normalizedRow.target_zh || normalizedRow.chinese || normalizedRow.tieng_trung || normalizedRow.zh || '').trim();
+          
+          // Use a more stable ID if possible (e.g. based on content) to avoid duplicates on re-import
+          // but if the row already has an ID, use it.
+          const id = normalizedRow.id || normalizedRow.uuid || `import_${Date.now()}_${idx}`;
+
           return {
-            id: String(Date.now() + idx),
+            id: String(id),
             term: meaning_vi || target_en || target_zh,
             meaning_vi,
             target_en,
@@ -120,17 +138,32 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ onSave, t }) => {
           };
         }).filter(item => item.term);
 
+        console.log('Processed Items for Import:', newItems);
+
+        if (newItems.length === 0) {
+          console.warn('No valid items found to import. Check headers.');
+          return;
+        }
+
         const updatedVocab = [...vocab, ...newItems];
         setVocab(updatedVocab);
         onSave(updatedVocab);
         await storage.setVocab(updatedVocab);
         
         // Try to sync with backend
-        fetch('/api/import-vocab', {
+        console.log('Sending to backend:', newItems);
+        const response = await fetch('/api/import-vocab', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newItems)
-        }).catch(err => console.error('Backend sync failed:', err));
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Backend sync failed:', errorData);
+        } else {
+          console.log('Backend sync successful');
+        }
 
       } catch (err) {
         console.error('Import failed:', err);
@@ -169,7 +202,7 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ onSave, t }) => {
       </div>
 
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted/50" size={18} />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
         <input 
           type="text"
           placeholder={t('searchVocab')}
@@ -193,15 +226,15 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ onSave, t }) => {
               <div key={item.id} className="premium-card p-4 flex items-center justify-between gap-4 group">
                 <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div>
-                    <span className="text-[10px] uppercase text-muted/50 block">VI</span>
+                    <span className="text-[10px] uppercase text-muted font-bold block">VI</span>
                     <span className="text-sm font-medium">{item.meaning_vi}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase text-muted/50 block">EN</span>
+                    <span className="text-[10px] uppercase text-muted font-bold block">EN</span>
                     <span className="text-sm font-medium">{item.target_en}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase text-muted/50 block">ZH</span>
+                    <span className="text-[10px] uppercase text-muted font-bold block">ZH</span>
                     <span className="text-sm font-medium">{item.target_zh}</span>
                   </div>
                 </div>
