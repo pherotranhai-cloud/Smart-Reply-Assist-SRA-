@@ -52,7 +52,8 @@ export const handler: Handler = async (event) => {
       const meaning_vi = String(item.meaning_vi || '').trim();
       const target_en = String(item.target_en || '').trim();
       const target_zh = String(item.target_zh || '').trim();
-      const enabled = item.enabled !== false;
+      // Chấp nhận cả boolean và string "true"/"false"
+      const enabled = item.enabled !== false && String(item.enabled).toLowerCase() !== 'false';
       
       // Luôn tạo ID dựa trên nội dung để đảm bảo tính nhất quán
       const id = crypto.createHash('md5').update(`${term}-${meaning_vi}`).digest('hex');
@@ -67,6 +68,14 @@ export const handler: Handler = async (event) => {
       };
     }).filter((item: any) => item.term && item.meaning_vi);
 
+    if (sanitizedData.length === 0) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'No valid vocabulary items found after filtering' }),
+      };
+    }
+
     const client = await pool.connect();
     try {
       await initDatabase(client);
@@ -78,16 +87,10 @@ export const handler: Handler = async (event) => {
         return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
       }).join(',');
 
+      // Vì đã DELETE FROM vocab trước đó, chúng ta không cần ON CONFLICT nữa
       const bulkQuery = `
         INSERT INTO vocab (id, term, meaning_vi, target_en, target_zh, enabled)
         VALUES ${placeholders}
-        ON CONFLICT (id) DO UPDATE SET
-          term = EXCLUDED.term,
-          meaning_vi = EXCLUDED.meaning_vi,
-          target_en = EXCLUDED.target_en,
-          target_zh = EXCLUDED.target_zh,
-          enabled = EXCLUDED.enabled,
-          updated_at = CURRENT_TIMESTAMP
       `;
 
       await client.query('BEGIN');
