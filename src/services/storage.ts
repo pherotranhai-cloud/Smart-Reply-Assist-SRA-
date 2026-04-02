@@ -67,6 +67,9 @@ export const storage = {
       });
 
       if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('Không tìm thấy file Google Sheets. Vui lòng kiểm tra ID hoặc quyền chia sẻ');
+        }
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }

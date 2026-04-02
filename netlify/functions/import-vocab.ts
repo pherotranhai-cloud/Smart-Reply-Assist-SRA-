@@ -20,7 +20,8 @@ export const handler: Handler = async (event) => {
     console.log(`Starting sync from Google Sheet: ${GOOGLE_SHEET_ID}`);
     
     // 1. Fetch CSV from Google Sheets
-    const sheetUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/export?format=csv`;
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY/edit?usp=sharing`;
+    console.log("Fetching from URL:", sheetUrl);
     const response = await axios.get(sheetUrl, { timeout: 10000 });
     
     if (!response.data) {
@@ -79,12 +80,21 @@ export const handler: Handler = async (event) => {
     };
   } catch (error: any) {
     console.error('Sync Error:', error.message);
+    
+    let errorMessage = 'Sync failed';
+    let statusCode = 500;
+    
+    if (error.response && error.response.status === 404) {
+      errorMessage = 'Không tìm thấy file Google Sheets. Vui lòng kiểm tra ID hoặc quyền chia sẻ';
+      statusCode = 404;
+    }
+
     return {
-      statusCode: 500,
+      statusCode,
       headers,
       body: JSON.stringify({ 
         status: 'error',
-        error: 'Sync failed', 
+        error: errorMessage, 
         details: error.message 
       }),
     };
