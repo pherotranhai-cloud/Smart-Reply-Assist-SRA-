@@ -16,16 +16,6 @@ export const handler: Handler = async (event) => {
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   
-  // Admin Security Check (Header or Query Param)
-  const adminKey = event.headers['x-admin-key'] || event.queryStringParameters?.key;
-  if (!ADMIN_SECRET_KEY || adminKey !== ADMIN_SECRET_KEY) {
-    return { 
-      statusCode: 401, 
-      headers, 
-      body: JSON.stringify({ error: 'Unauthorized: Admin access required' }) 
-    };
-  }
-
   try {
     console.log(`Starting sync from Google Sheet: ${GOOGLE_SHEET_ID}`);
     

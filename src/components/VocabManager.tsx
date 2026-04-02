@@ -3,7 +3,7 @@ import {
   Search, 
   Download, 
   BookOpen,
-  CloudDownload
+  Clock
 } from 'lucide-react';
 import { VocabItem } from '../types';
 import { storage } from '../services/storage';
@@ -11,22 +11,28 @@ import { VocabSkeleton } from './Skeleton';
 import Papa from 'papaparse';
 
 interface VocabManagerProps {
-  onSave: (vocab: VocabItem[]) => void;
   t: (key: any) => string;
 }
 
-export const VocabManager: React.FC<VocabManagerProps> = ({ onSave, t }) => {
+export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
   const [vocab, setVocab] = useState<VocabItem[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
+  const [lastSynced, setLastSynced] = useState<string | null>(null);
 
   useEffect(() => {
     const loadVocab = async () => {
       setLoading(true);
       try {
-        const local = await storage.getVocab();
+        const [local, syncTime] = await Promise.all([
+          storage.getVocab(),
+          storage.getLastSyncTime()
+        ]);
         setVocab(local);
+        if (syncTime) {
+          const date = new Date(syncTime);
+          setLastSynced(date.toLocaleString());
+        }
       } catch (err) {
         console.error('Failed to load vocab from storage:', err);
       } finally {
@@ -35,28 +41,6 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ onSave, t }) => {
     };
     loadVocab();
   }, []);
-
-  const handleCloudSync = async () => {
-    const adminKey = prompt('Please enter the Admin Secret Key to sync from Google Sheets:');
-    if (!adminKey) return;
-
-    setSyncing(true);
-    try {
-      const result = await storage.syncWithCloud(adminKey);
-      if (result.success) {
-        const local = await storage.getVocab();
-        setVocab(local);
-        onSave(local);
-        alert(`Success: ${result.message}`);
-      } else {
-        alert(`Failed: ${result.message}`);
-      }
-    } catch (err: any) {
-      alert(`Error: ${err.message}`);
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   const filteredVocab = vocab.filter(v => 
     v.meaning_vi?.toLowerCase().includes(search.toLowerCase()) ||
@@ -82,15 +66,12 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ onSave, t }) => {
           <BookOpen className="text-accent" />
           {t('vocabularyManager')}
         </h2>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <button 
-            onClick={handleCloudSync} 
-            disabled={syncing}
-            className="saas-button primary-button flex items-center justify-center gap-2"
-          >
-            <CloudDownload size={16} />
-            <span>{syncing ? 'Syncing...' : 'Cloud Sync'}</span>
-          </button>
+        <div className="flex gap-2 w-full sm:w-auto items-center">
+          {lastSynced && (
+            <span className="text-xs text-slate-500 flex items-center gap-1 mr-2">
+              <Clock size={12} /> Last synced: {lastSynced}
+            </span>
+          )}
           <button onClick={handleExport} className="saas-button secondary-button flex items-center justify-center gap-2">
             <Download size={16} />
             <span>{t('export')}</span>

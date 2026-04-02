@@ -33,11 +33,6 @@ async function startServer() {
 
   // Replicate Netlify function logic for local development
   apiRouter.post('/import-vocab', async (req, res) => {
-    const adminKey = req.headers['x-admin-key'] || req.query.key;
-    if (!ADMIN_SECRET_KEY || adminKey !== ADMIN_SECRET_KEY) {
-      return res.status(401).json({ error: 'Unauthorized: Admin access required' });
-    }
-
     try {
       console.log(`Starting sync from Google Sheet: ${GOOGLE_SHEET_ID}`);
       

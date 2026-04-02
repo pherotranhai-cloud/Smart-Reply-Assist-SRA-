@@ -49,13 +49,20 @@ export const storage = {
     await adapter.set(STORAGE_KEYS.VOCAB, vocab);
   },
 
-  async syncWithCloud(adminKey: string): Promise<{ success: boolean; count?: number; message?: string }> {
+  async getLastSyncTime(): Promise<string | null> {
+    return await adapter.get<string>('sra_last_sync_time');
+  },
+
+  async setLastSyncTime(isoString: string): Promise<void> {
+    await adapter.set('sra_last_sync_time', isoString);
+  },
+
+  async syncWithCloud(): Promise<{ success: boolean; count?: number; message?: string }> {
     try {
       const response = await fetch('/api/import-vocab', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-admin-key': adminKey
+          'Content-Type': 'application/json'
         }
       });
 
@@ -68,6 +75,7 @@ export const storage = {
       
       if (result.status === 'success' && Array.isArray(result.data)) {
         await this.setVocab(result.data);
+        await this.setLastSyncTime(new Date().toISOString());
         return { success: true, count: result.count, message: result.message };
       } else {
         throw new Error(result.message || 'Invalid data format received from cloud');

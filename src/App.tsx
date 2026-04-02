@@ -295,6 +295,14 @@ export default function App() {
 
         let v = localVocab;
 
+        // Silent Sync on App Launch
+        storage.syncWithCloud().then(async (result) => {
+          if (result.success) {
+            const updatedVocab = await storage.getVocab();
+            setVocab(updatedVocab);
+          }
+        }).catch(console.error);
+
         // Migration: Normalize Gemini model name
         let migrated = false;
         const geminiModel = settings.gemini.model || '';
@@ -400,10 +408,6 @@ export default function App() {
 
     // Use local storage directly for instant access
     const currentVocab = await storage.getVocab();
-    
-    // Background sync (fire and forget)
-    // Assuming adminKey is not strictly needed or we can pass empty string if not available
-    storage.syncWithCloud('').catch(console.error);
 
     try {
       const ai = new AIService(state.settings);
@@ -971,7 +975,7 @@ export default function App() {
             className="h-full"
           >
             <div className="premium-card h-full flex flex-col">
-              <VocabManager onSave={setVocab} t={t} />
+              <VocabManager t={t} />
             </div>
           </motion.div>
         )}

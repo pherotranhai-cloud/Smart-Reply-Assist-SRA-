@@ -2,7 +2,7 @@
   "name": "Smart Reply Assist",
   "short_name": "Smart Reply",
   "version": "1.0.0",
-  "description": "Cyberpunk-themed AI assistant for translation and message composition.",
+  "description": "AI assistant for translation and message composition.",
   "start_url": "/",
   "display": "standalone",
   "theme_color": "#050505",
