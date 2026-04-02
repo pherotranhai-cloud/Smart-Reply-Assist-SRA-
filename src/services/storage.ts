@@ -1,7 +1,30 @@
 import { VocabItem, AISettings, AppState, HistoryItem, ConversationContext, GlobalLanguage } from '../types';
 import { DEFAULT_STATE } from '../constants';
-import { storage as adapter } from '../runtime/storage';
 import { STORAGE_KEYS, DATA_KEYS } from '../constants/storageKeys';
+
+const adapter = {
+  async get<T>(key: string): Promise<T | null> {
+    const stored = localStorage.getItem(key);
+    if (!stored) return null;
+    try {
+      return JSON.parse(stored) as T;
+    } catch (e) {
+      return stored as unknown as T;
+    }
+  },
+
+  async set<T>(key: string, value: T): Promise<void> {
+    localStorage.setItem(key, JSON.stringify(value));
+  },
+
+  async remove(key: string): Promise<void> {
+    localStorage.removeItem(key);
+  },
+
+  async multiRemove(keys: string[]): Promise<void> {
+    keys.forEach(key => localStorage.removeItem(key));
+  }
+};
 
 export const storage = {
   async getSettings(): Promise<AISettings> {
@@ -24,6 +47,35 @@ export const storage = {
 
   async setVocab(vocab: VocabItem[]): Promise<void> {
     await adapter.set(STORAGE_KEYS.VOCAB, vocab);
+  },
+
+  async syncWithCloud(adminKey: string): Promise<{ success: boolean; count?: number; message?: string }> {
+    try {
+      const response = await fetch('/api/import-vocab', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': adminKey
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.status === 'success' && Array.isArray(result.data)) {
+        await this.setVocab(result.data);
+        return { success: true, count: result.count, message: result.message };
+      } else {
+        throw new Error(result.message || 'Invalid data format received from cloud');
+      }
+    } catch (error: any) {
+      console.error('Cloud sync failed:', error);
+      return { success: false, message: error.message };
+    }
   },
 
   async getLastOutputs(): Promise<AppState['lastOutputs']> {

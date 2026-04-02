@@ -1,83 +1,107 @@
 import { AISettings, VocabItem } from '../types';
-import { GenerateParams } from './providers';
-import { aiTransport } from '../runtime/aiTransport';
+import { GenerateParams, AIProvider } from './providers';
+import { GeminiProvider } from './geminiProvider';
+import { OpenAIProvider } from './openaiProvider';
 
 export class AIService {
   private settings: AISettings;
+  private provider: AIProvider;
 
   constructor(settings: AISettings) {
     this.settings = settings;
+    if (settings.activeProvider === 'openai') {
+      this.provider = new OpenAIProvider(settings.openai);
+    } else {
+      this.provider = new GeminiProvider(settings.gemini);
+    }
   }
 
   private async generate(params: GenerateParams): Promise<{ text: string }> {
-    return aiTransport.call('GENERATE', this.settings, params);
+    return this.provider.generate(params);
   }
 
   async testConnection() {
     try {
-      const response = await aiTransport.call('LIST_MODELS', this.settings);
-      return !!response.models;
+      const models = await this.provider.listModels();
+      return models.length > 0;
     } catch (err) {
       console.error('Connection test failed:', err);
       return false;
     }
   }
 
-  private async executeAI(system: string, user: string | any[], responseMimeType?: 'application/json' | 'text/plain'): Promise<string> {
+  private async executeAI(system: string, user: string | any[], responseMimeType?: 'application/json' | 'text/plain', stream?: boolean, onChunk?: (chunk: string) => void): Promise<string> {
     const result = await this.generate({
       system: system.trim(),
       messages: [
         { role: 'system', content: system.trim() },
         { role: 'user', content: typeof user === 'string' ? user.trim() : user }
       ],
-      responseMimeType
+      responseMimeType,
+      stream,
+      onChunk
     });
     return result.text;
   }
 
   private buildGlossaryPrompt(vocab: VocabItem[], targetLang: string, sourceText?: string): string {
     if (!sourceText) return '';
-    const lowerInput = sourceText.toLowerCase().trim();
+    
+    // Normalize source text for robust matching (remove punctuation, extra spaces)
+    const normalizedInput = sourceText.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ").replace(/\s{2,}/g, " ").trim();
+    
     let targetKey: 'meaning_vi' | 'target_en' | 'target_zh' = 'target_en'; 
     const targetLangLower = targetLang.toLowerCase();
     if (targetLangLower.includes('vi')) targetKey = 'meaning_vi';
-    else if (targetLangLower.includes('zh')) targetKey = 'target_zh';
+    else if (targetLangLower.includes('zh') || targetLangLower.includes('chinese')) targetKey = 'target_zh';
 
     const matches: string[] = [];
     const seen = new Set<string>();
 
     vocab.forEach(item => {
       if (String(item.enabled).toLowerCase() !== 'true') return;
-      const vi = item.meaning_vi ? String(item.meaning_vi).toLowerCase().trim() : '';
-      const en = item.target_en ? String(item.target_en).toLowerCase().trim() : '';
-      const zh = item.target_zh ? String(item.target_zh).toLowerCase().trim() : '';
+      
+      const vi = item.meaning_vi ? String(item.meaning_vi).trim() : '';
+      const en = item.target_en ? String(item.target_en).trim() : '';
+      const zh = item.target_zh ? String(item.target_zh).trim() : '';
 
-      let matched = null;
-      if (zh && lowerInput.includes(zh)) matched = String(item.target_zh).trim();
-      else if (en && lowerInput.includes(en)) matched = String(item.target_en).trim();
-      else if (vi && lowerInput.includes(vi)) matched = String(item.meaning_vi).trim();
+      // Create normalized versions for matching
+      const viNorm = vi.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ").replace(/\s{2,}/g, " ").trim();
+      const enNorm = en.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ").replace(/\s{2,}/g, " ").trim();
+      const zhNorm = zh.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ").replace(/\s{2,}/g, " ").trim();
+
+      let matchedSource = null;
+      
+      // Check if any of the terms exist in the normalized input
+      if (zhNorm && normalizedInput.includes(zhNorm)) matchedSource = zh;
+      else if (enNorm && normalizedInput.includes(enNorm)) matchedSource = en;
+      else if (viNorm && normalizedInput.includes(viNorm)) matchedSource = vi;
 
       const target = item[targetKey] ? String(item[targetKey]).trim() : '';
-      if (matched && target && matched.toLowerCase() !== target.toLowerCase() && !seen.has(matched.toLowerCase())) {
-        seen.add(matched.toLowerCase());
-        matches.push(`"${matched}"->"${target}"`);
+      
+      if (matchedSource && target && matchedSource.toLowerCase() !== target.toLowerCase() && !seen.has(matchedSource.toLowerCase())) {
+        seen.add(matchedSource.toLowerCase());
+        matches.push(`"${matchedSource}" -> "${target}"`);
       }
     });
 
-    return matches.length > 0 ? `\nStrictly use glossary: ${matches.join(', ')}.` : '';
+    if (matches.length === 0) return '';
+
+    return `\n<glossary_rules>\nCRITICAL INSTRUCTION: You MUST use the following exact translations. DO NOT use any other translation or synonym for these terms.\n${matches.join('\n')}\n</glossary_rules>`;
   }
 
-  async translate(text: string, targetLang: string, vocab: VocabItem[], image?: string) {
+  async translate(text: string, targetLang: string, vocab: VocabItem[], image?: string, onChunk?: (chunk: string) => void) {
     const glossary = this.buildGlossaryPrompt(vocab, targetLang, text);
-    const persona = `Act as a ${targetLang.toUpperCase()} Industry Translator.`;
-    const systemPrompt = `${persona} Strictly use glossary. Output ONLY translated text.${glossary}`;
+    const persona = `You are an expert ${targetLang.toUpperCase()} Industry Translator.`;
+    
+    const systemPrompt = `${persona}\nYour task is to translate the user's input into ${targetLang}.\nOutput ONLY the translated text. Do not include any explanations or conversational filler.${glossary}`;
 
     const content: any[] = [{ type: 'text', text: text.trim() }];
     if (image) {
       content.push({ type: 'image_url', image_url: { url: image } });
     }
 
-    return this.executeAI(systemPrompt, content);
+    return this.executeAI(systemPrompt, content, undefined, !!onChunk, onChunk);
   }
 
   async extractStructuredSummary(text: string, sourceLang: string, contextSource: 'original' | 'translated'): Promise<any> {
@@ -137,7 +161,8 @@ Rules: No markdown. Valid JSON only. Use "unknown" if missing.`;
     requirements: string, 
     params: { audience: string; tone: string; lang: string; format: string }, 
     vocab: VocabItem[],
-    structuredSummary?: any
+    structuredSummary?: any,
+    onChunk?: (chunk: string) => void
   ) {
     const hasContext = contextText && contextText.trim().length > 0;
     const glossary = this.buildGlossaryPrompt(vocab, params.lang, hasContext ? contextText : requirements);
@@ -151,18 +176,23 @@ Rules: No markdown. Valid JSON only. Use "unknown" if missing.`;
 
     let summaryPrompt = '';
     if (hasContext && structuredSummary) {
-      summaryPrompt = `Context Intel: ${JSON.stringify(structuredSummary)}. Use titles/honorifics from people_and_roles. Highlight P0/P1.`;
+      summaryPrompt = `\n<context_intel>\n${JSON.stringify(structuredSummary)}\nUse titles/honorifics from people_and_roles. Highlight P0/P1 items.\n</context_intel>`;
     }
 
-    const systemPrompt = `Speak like a professional factory manager: Concise, clear, direct. No corporate fluff.
-Params: Audience: ${params.audience}, Tone: ${params.tone}, Lang: ${params.lang}, Format: ${params.format}.
-${glossary}
-${summaryPrompt}
-Instructions: Output ONLY message body (Email includes Subject). Max 200 words. No filler.`;
+    const systemPrompt = `You are a professional factory manager communicating clearly and directly. No corporate fluff.
+
+<critical_requirements>
+- Target Audience: ${params.audience}
+- Tone: ${params.tone}
+- Output Language: ${params.lang}
+- Format: ${params.format}
+- Output ONLY the message body (if Email, include Subject line first).
+- Max 200 words. No filler.
+</critical_requirements>${summaryPrompt}${glossary}`;
 
     const userPrompt = hasContext ? `Context: ${truncatedContext}\nIntent: ${requirements}` : `Intent: ${requirements}`;
 
-    return this.executeAI(systemPrompt, userPrompt);
+    return this.executeAI(systemPrompt, userPrompt, undefined, !!onChunk, onChunk);
   }
 
   async summarize(text: string) {

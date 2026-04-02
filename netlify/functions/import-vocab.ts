@@ -1,110 +1,102 @@
 import { Handler } from '@netlify/functions';
-import pg from 'pg';
 import crypto from 'crypto';
 import axios from 'axios';
+import Papa from 'papaparse';
 
-const { Pool } = pg;
-
-// Cấu hình Database
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
+const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY;
+const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || '16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY';
 
 export const handler: Handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, x-admin-key',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Content-Type': 'application/json'
   };
 
-  // 1. Kiểm tra bảo mật (Admin Key)
-  const adminKey = event.queryStringParameters?.key || event.headers['x-admin-key'];
-  if (adminKey !== process.env.ADMIN_SECRET_KEY) {
-    return { statusCode: 403, headers, body: JSON.stringify({ error: 'Unauthorized: Missing or invalid key' }) };
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
+  
+  // Admin Security Check (Header or Query Param)
+  const adminKey = event.headers['x-admin-key'] || event.queryStringParameters?.key;
+  if (!ADMIN_SECRET_KEY || adminKey !== ADMIN_SECRET_KEY) {
+    return { 
+      statusCode: 401, 
+      headers, 
+      body: JSON.stringify({ error: 'Unauthorized: Admin access required' }) 
+    };
   }
-
-  // 2. Lấy Google Sheet ID từ biến môi trường
-  const sheetId = process.env.GOOGLE_SHEET_ID;
-  if (!sheetId) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Missing GOOGLE_SHEET_ID config' }) };
-  }
-
-  const googleSheetsUrl = `https://docs.google.com/spreadsheets/d/16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY/export?format=csv`;
 
   try {
-    // 3. Tải dữ liệu CSV từ Google Sheets
-    const response = await axios.get(googleSheetsUrl);
-    const csvData = response.data;
+    console.log(`Starting sync from Google Sheet: ${GOOGLE_SHEET_ID}`);
+    
+    // 1. Fetch CSV from Google Sheets
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/export?format=csv`;
+    const response = await axios.get(sheetUrl, { timeout: 10000 });
+    
+    if (!response.data) {
+      throw new Error('Empty response from Google Sheets');
+    }
 
-    // 4. Parse CSV đơn giản (Tách dòng và cột)
-    const rows = csvData.split(/\r?\n/).map((row: string) => row.split(','));
-    const csvHeaders = rows[0];
-    const dataRows = rows.slice(1);
+    // 2. Parse CSV
+    const parsed = Papa.parse(response.data, {
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: (header) => header.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
+    });
 
-    const sanitizedData = dataRows.map((row: any[]) => {
-      // Ánh xạ cột dựa trên tiêu đề file của bạn
-      // Index: 0=Term, 1=Meaning (VI), 2=Target EN, 3=Target ZH
-      const term = (row[0] || '').trim();
-      const meaning = (row[1] || '').trim();
-      const en = (row[2] || '').trim();
-      const zh = (row[3] || '').trim();
+    const rawData = parsed.data;
+    if (rawData.length === 0) {
+      return { statusCode: 200, headers, body: JSON.stringify({ message: 'No data found in Google Sheet', count: 0, data: [] }) };
+    }
 
-      if (!term || !meaning) return null;
+    // 3. Sanitize and Prepare Data
+    const sanitizedData = rawData.map((item: any) => {
+      const term = String(item.term || item.category || '').trim();
+      const meaning_vi = String(item.meaning_vi || item.vietnamese || item.tieng_viet || item.vi || '').trim();
+      const target_en = String(item.target_en || item.english || item.tieng_anh || item.en || '').trim();
+      const target_zh = String(item.target_zh || item.chinese || item.tieng_trung || item.zh || '').trim();
+      const enabledVal = item.enable !== undefined ? item.enable : item.enabled;
+      const enabled = enabledVal !== false && String(enabledVal).toLowerCase() !== 'false';
+      
+      const hashInput = term ? `${term}-${meaning_vi}` : meaning_vi;
+      const id = crypto.createHash('md5').update(hashInput).digest('hex');
 
       return {
-        id: crypto.createHash('md5').update(`${term}-${meaning}`).digest('hex'),
-        term,
-        meaning_vi: meaning,
-        target_en: en,
-        target_zh: zh,
-        enabled: true
+        id,
+        term: term || meaning_vi,
+        meaning_vi,
+        target_en,
+        target_zh,
+        enabled
       };
-    }).filter(Boolean);
+    }).filter((item: any) => item.meaning_vi); // Filter by meaning_vi
 
     if (sanitizedData.length === 0) {
-      throw new Error('No valid data found in Google Sheets');
+      return { statusCode: 200, headers, body: JSON.stringify({ message: 'No valid items found after filtering', count: 0, data: [] }) };
     }
 
-    // 5. Database Transaction: Xóa và Nạp lại
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      await client.query('DELETE FROM vocab');
-
-      // Sử dụng Bulk Insert an toàn (tránh lỗi Parameter mismatch)
-      for (let i = 0; i < sanitizedData.length; i += 20) {
-          const chunk = sanitizedData.slice(i, i + 20); // Chia nhỏ từng cụm 20 dòng để an toàn
-          for (const item of chunk) {
-              await client.query(
-                `INSERT INTO vocab (id, term, meaning_vi, target_en, target_zh, enabled) 
-                 VALUES ($1, $2, $3, $4, $5, $6)`,
-                [item.id, item.term, item.meaning_vi, item.target_en, item.target_zh, item.enabled]
-              );
-          }
-      }
-
-      await client.query('COMMIT');
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ 
-          message: `Auto-Sync Success! Imported ${sanitizedData.length} items.`,
-          source: 'Google Sheets'
-        })
-      };
-    } catch (dbError: any) {
-      await client.query('ROLLBACK');
-      throw dbError;
-    } finally {
-      client.release();
-    }
-
+    // 4. Return JSON directly to Frontend
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ 
+        status: 'success',
+        message: `Successfully synced ${sanitizedData.length} items from Google Sheets`, 
+        count: sanitizedData.length,
+        data: sanitizedData,
+        timestamp: new Date().toISOString()
+      }),
+    };
   } catch (error: any) {
-    console.error('Sync Error:', error);
+    console.error('Sync Error:', error.message);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Sync Failed', details: error.message })
+      body: JSON.stringify({ 
+        status: 'error',
+        error: 'Sync failed', 
+        details: error.message 
+      }),
     };
   }
 };

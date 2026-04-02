@@ -74,8 +74,8 @@ export const Layout: React.FC<LayoutProps> = ({
 
       {/* Bottom Navigation */}
       {!showSplash && (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-6 pt-2">
-          <div className="max-w-md mx-auto glass-panel flex items-center justify-around py-1 px-2 shadow-2xl">
+        <nav className="fixed bottom-6 left-4 right-4 z-50 flex justify-center pointer-events-none">
+          <div className="pointer-events-auto w-full max-w-md backdrop-blur-md bg-white/70 dark:bg-slate-900/70 border border-white/20 rounded-2xl flex items-center justify-around py-2 px-2 shadow-sm">
             <NavItem 
               icon={<Languages size={20} />} 
               label="Translate" 
@@ -113,7 +113,7 @@ export const Layout: React.FC<LayoutProps> = ({
             exit={{ opacity: 0, y: 20, scale: 0.9 }}
             className="fixed bottom-24 left-4 right-4 z-[100] flex justify-center pointer-events-none"
           >
-            <div className={`pointer-events-auto px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border backdrop-blur-xl min-w-[280px] ${
+            <div className={`pointer-events-auto px-4 py-3 rounded-2xl shadow-sm flex items-center gap-3 border backdrop-blur-xl min-w-[280px] ${
               toast.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-500' : 
               toast.type === 'success' ? 'bg-green-500/10 border-green-500/20 text-green-500' :
               'bg-primary/10 border-primary/20 text-primary'
@@ -140,6 +140,6 @@ const NavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode, labe
     <div className={`p-2 rounded-xl transition-all duration-300 ${active ? 'bg-primary/10 scale-110' : 'hover:bg-muted/5'}`}>
       {icon}
     </div>
-    <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+    <span className="text-[11px] font-medium uppercase tracking-widest">{label}</span>
   </button>
 );

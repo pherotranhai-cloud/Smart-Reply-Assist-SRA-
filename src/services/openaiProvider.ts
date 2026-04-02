@@ -38,12 +38,40 @@ export class OpenAIProvider implements AIProvider {
         temperature: params.temperature ?? 0.7,
         max_tokens: params.maxTokens,
         response_format: params.responseMimeType === 'application/json' ? { type: 'json_object' } : undefined,
+        stream: params.stream,
       }),
     });
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Unknown error' }));
       throw new Error(error.error?.message || error.message || `HTTP error! status: ${response.status}`);
+    }
+
+    if (params.stream && params.onChunk) {
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let fullText = '';
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+              try {
+                const data = JSON.parse(line.slice(6));
+                const textChunk = data.choices[0]?.delta?.content || '';
+                fullText += textChunk;
+                params.onChunk(textChunk);
+              } catch (e) {
+                // Ignore parse errors for incomplete chunks
+              }
+            }
+          }
+        }
+      }
+      return { text: fullText };
     }
 
     const data = await response.json();

@@ -11,6 +11,8 @@ export interface GenerateParams {
   temperature?: number;
   maxTokens?: number;
   responseMimeType?: 'application/json' | 'text/plain';
+  stream?: boolean;
+  onChunk?: (chunk: string) => void;
 }
 
 export interface AIProvider {

@@ -47,18 +47,18 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     <div className="space-y-6">
       {/* Appearance */}
       <section className="space-y-3">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-muted px-1">
+        <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase px-1">
           {t('themeMode')}
         </h3>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2 p-1 bg-slate-100 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-800">
           {themeOptions.map((opt) => (
             <button
               key={opt.mode}
               onClick={() => onThemeChange(opt.mode)}
-              className={`flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all ${
+              className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-all ${
                 themeMode === opt.mode
-                  ? 'bg-primary/10 border-primary text-primary'
-                  : 'bg-muted/5 border-border-main/50 text-muted hover:bg-muted/10'
+                  ? 'bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border border-transparent'
               }`}
             >
               {opt.icon}
@@ -70,7 +70,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       {/* Language */}
       <section className="space-y-3">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-muted px-1">
+        <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase px-1">
           {t('interfaceLanguage')}
         </h3>
         <div className="glass-panel overflow-hidden">
@@ -95,7 +95,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       {/* System Actions */}
       <section className="space-y-3">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-muted px-1">
+        <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase px-1">
           System
         </h3>
         <div className="glass-panel overflow-hidden">
@@ -112,7 +112,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       {/* About */}
       <section className="space-y-3">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-muted px-1">
+        <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase px-1">
           About
         </h3>
         <div className="glass-panel p-4 space-y-4">

@@ -67,7 +67,7 @@ export class GeminiProvider implements AIProvider {
 
     // Endpoint: POST {baseUrl}/v1beta/{modelName}:generateContent
     // Note: modelName already starts with "models/" after normalization
-    const url = `${this.settings.baseUrl}/v1beta/${normalized}:generateContent`;
+    const url = `${this.settings.baseUrl}/v1beta/${normalized}:${params.stream ? 'streamGenerateContent?alt=sse' : 'generateContent'}`;
 
     // Convert OpenAI-style messages to Gemini format
     const contents = params.messages
@@ -120,6 +120,33 @@ export class GeminiProvider implements AIProvider {
       const error = await response.json().catch(() => ({ message: 'Unknown error' }));
       const msg = error.error?.message || error.message || `HTTP error! status: ${response.status}`;
       throw new Error(msg);
+    }
+
+    if (params.stream && params.onChunk) {
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let fullText = '';
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                const textChunk = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                fullText += textChunk;
+                params.onChunk(textChunk);
+              } catch (e) {
+                // Ignore parse errors
+              }
+            }
+          }
+        }
+      }
+      return { text: fullText };
     }
 
     const data = await response.json();

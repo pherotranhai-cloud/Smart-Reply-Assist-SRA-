@@ -1,63 +1,25 @@
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
-import pg from 'pg';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import axios from 'axios';
+import Papa from 'papaparse';
 
 dotenv.config();
-
-const { Pool } = pg;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DATABASE_URL = process.env.NETLIFY_DATABASE_URL;
-
-const pool = new Pool({
-  connectionString: DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false // Required for Neon
-  }
-});
-
-async function initDatabase() {
-  if (!DATABASE_URL) {
-    console.warn('NETLIFY_DATABASE_URL not defined. Backend sync will be disabled.');
-    return;
-  }
-
-  const client = await pool.connect();
-  try {
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS vocab (
-        id TEXT PRIMARY KEY,
-        term TEXT NOT NULL,
-        meaning_vi TEXT NOT NULL,
-        target_en TEXT,
-        target_zh TEXT,
-        enabled BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    console.log('Database initialized successfully');
-  } catch (err) {
-    console.error('Failed to initialize database:', err);
-  } finally {
-    client.release();
-  }
-}
+const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY;
+const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || '16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY';
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   app.use(express.json({ limit: '10mb' }));
-
-  // Initialize DB
-  await initDatabase();
 
   // API Routes
   const apiRouter = express.Router();
@@ -69,112 +31,76 @@ async function startServer() {
 
   apiRouter.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+  // Replicate Netlify function logic for local development
   apiRouter.post('/import-vocab', async (req, res) => {
+    const adminKey = req.headers['x-admin-key'] || req.query.key;
+    if (!ADMIN_SECRET_KEY || adminKey !== ADMIN_SECRET_KEY) {
+      return res.status(401).json({ error: 'Unauthorized: Admin access required' });
+    }
+
     try {
-      if (!DATABASE_URL) {
-        return res.status(503).json({ error: 'Database connection not configured' });
+      console.log(`Starting sync from Google Sheet: ${GOOGLE_SHEET_ID}`);
+      
+      const sheetUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/export?format=csv`;
+      const response = await axios.get(sheetUrl, { timeout: 10000 });
+      
+      if (!response.data) {
+        throw new Error('Empty response from Google Sheets');
       }
 
-      const data = req.body;
+      const parsed = Papa.parse(response.data, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (header) => header.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
+      });
 
-      if (!Array.isArray(data) || data.length === 0) {
-        return res.status(400).json({ error: 'Invalid or empty data array' });
+      const rawData = parsed.data;
+      if (rawData.length === 0) {
+        return res.json({ message: 'No data found in Google Sheet', count: 0, data: [] });
       }
 
-      const sanitizedData = data.filter(item => 
-        item && typeof item === 'object' && item.term && (item.meaning_vi || item.meaningVi)
-      ).map(item => ({
-        term: item.term.trim(),
-        meaning_vi: (item.meaning_vi || item.meaningVi || '').trim(),
-        target_en: (item.target_en || item.targetEn || '').trim(),
-        target_zh: (item.target_zh || item.targetZh || '').trim(),
-        enabled: item.enabled !== undefined ? item.enabled : true,
-        id: item.id || crypto.randomUUID()
-      }));
+      const sanitizedData = rawData.map((item: any) => {
+        const term = String(item.term || item.category || '').trim();
+        const meaning_vi = String(item.meaning_vi || item.vietnamese || item.tieng_viet || item.vi || '').trim();
+        const target_en = String(item.target_en || item.english || item.tieng_anh || item.en || '').trim();
+        const target_zh = String(item.target_zh || item.chinese || item.tieng_trung || item.zh || '').trim();
+        const enabledVal = item.enable !== undefined ? item.enable : item.enabled;
+        const enabled = enabledVal !== false && String(enabledVal).toLowerCase() !== 'false';
+        
+        const hashInput = term ? `${term}-${meaning_vi}` : meaning_vi;
+        const id = crypto.createHash('md5').update(hashInput).digest('hex');
+
+        return {
+          id,
+          term: term || meaning_vi,
+          meaning_vi,
+          target_en,
+          target_zh,
+          enabled
+        };
+      }).filter((item: any) => item.meaning_vi);
 
       if (sanitizedData.length === 0) {
-        return res.status(400).json({ error: 'No valid vocabulary items found' });
-      }
-
-      const client = await pool.connect();
-      try {
-        await client.query('BEGIN');
-        
-        const query = `
-          INSERT INTO vocab (id, term, meaning_vi, target_en, target_zh, enabled)
-          VALUES ($1, $2, $3, $4, $5, $6)
-          ON CONFLICT (id) DO UPDATE SET
-            term = EXCLUDED.term,
-            meaning_vi = EXCLUDED.meaning_vi,
-            target_en = EXCLUDED.target_en,
-            target_zh = EXCLUDED.target_zh,
-            enabled = EXCLUDED.enabled,
-            updated_at = CURRENT_TIMESTAMP
-        `;
-
-        for (const item of sanitizedData) {
-          await client.query(query, [
-            item.id,
-            item.term,
-            item.meaning_vi,
-            item.target_en,
-            item.target_zh,
-            item.enabled
-          ]);
-        }
-
-        await client.query('COMMIT');
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw err;
-      } finally {
-        client.release();
+        return res.json({ message: 'No valid items found after filtering', count: 0, data: [] });
       }
 
       res.json({ 
-        message: `Successfully imported ${sanitizedData.length} items`,
-        count: sanitizedData.length
+        status: 'success',
+        message: `Successfully synced ${sanitizedData.length} items from Google Sheets`, 
+        count: sanitizedData.length,
+        data: sanitizedData,
+        timestamp: new Date().toISOString()
       });
     } catch (error: any) {
       console.error('Import error:', error);
-      
-      // Handle connection errors
-      if (error.code === '28P01' || error.message.includes('password authentication failed')) {
-        return res.status(401).json({ 
-          error: 'Database Authentication Failed',
-          details: 'Please check your NEON database credentials in NETLIFY_DATABASE_URL.'
-        });
-      }
-
       res.status(500).json({ error: error.message || 'Internal Server Error' });
     }
   });
 
-  apiRouter.get('/vocab', async (req, res) => {
-    try {
-      if (!DATABASE_URL) {
-        return res.status(503).json({ error: 'Database connection not configured' });
-      }
-
-      const client = await pool.connect();
-      try {
-        const result = await client.query('SELECT * FROM vocab ORDER BY created_at DESC');
-        const mapped = result.rows.map(row => ({
-          id: row.id,
-          term: row.term,
-          meaning_vi: row.meaning_vi,
-          target_en: row.target_en,
-          target_zh: row.target_zh,
-          enabled: row.enabled
-        }));
-        res.json(mapped);
-      } finally {
-        client.release();
-      }
-    } catch (error: any) {
-      console.error('Fetch error:', error);
-      res.status(500).json({ error: error.message || 'Internal Server Error' });
-    }
+  // Since we don't have a DB, /vocab API might not be needed if frontend uses localStorage.
+  // We'll return 404 or a message to use localStorage.
+  apiRouter.get('/vocab', (req, res) => {
+    res.status(410).json({ error: 'Database removed. Please use client-side localStorage and /api/import-vocab to sync.' });
   });
 
   // Catch-all for API routes to prevent falling through to SPA fallback

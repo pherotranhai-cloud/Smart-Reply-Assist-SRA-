@@ -24,9 +24,6 @@ import { storage } from './services/storage';
 import { AIService } from './services/ai';
 import { normalizeGeminiModelName } from './services/geminiProvider';
 import { applyTheme, resolveTheme, watchSystemThemeChanges, ThemeMode } from './utils/theme';
-import { RUNTIME, IS_EXTENSION, IS_PWA } from './runtime/env';
-import { aiTransport } from './runtime/aiTransport';
-import { windowAdapter } from './runtime/window';
 import { FileAnalyzer } from './components/FileAnalyzer';
 import { translations } from './i18n';
 import { 
@@ -82,12 +79,19 @@ const AISettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings
     setTesting(true);
     setTestResult(null);
     try {
-      const response = await aiTransport.call('LIST_MODELS', localSettings);
-      if (response.models) {
-        setAvailableModels(response.models);
+      const ai = new AIService(localSettings);
+      const success = await ai.testConnection();
+      if (success) {
+        // We need to list models directly to update the dropdown
+        const provider = localSettings.activeProvider === 'openai' 
+          ? new (await import('./services/openaiProvider')).OpenAIProvider(localSettings.openai)
+          : new (await import('./services/geminiProvider')).GeminiProvider(localSettings.gemini);
+        
+        const models = await provider.listModels();
+        setAvailableModels(models);
         // If current model is empty, auto-select first
-        if (!localSettings[localSettings.activeProvider].model && response.models.length > 0) {
-          updateCurrent({ model: response.models[0].id });
+        if (!localSettings[localSettings.activeProvider].model && models.length > 0) {
+          updateCurrent({ model: models[0].id });
         }
       }
       setTestResult('success');
@@ -114,13 +118,13 @@ const AISettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings
         <h3 className="text-lg font-bold text-accent flex items-center gap-2">
           <Settings size={20} /> {t('aiEngineConfig')}
         </h3>
-        <div className="flex p-1 bg-slate-900/50 rounded-lg border border-white/10 shadow-inner">
+        <div className="segmented-control">
           <button 
             onClick={() => {
               setLocalSettings({ ...localSettings, activeProvider: 'openai' });
               setAvailableModels([]);
             }}
-            className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all duration-200 ${activeProvider === 'openai' ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
+            className={`segmented-control-item ${activeProvider === 'openai' ? 'active' : ''}`}
           >
             OpenAI
           </button>
@@ -129,7 +133,7 @@ const AISettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings
               setLocalSettings({ ...localSettings, activeProvider: 'gemini' });
               setAvailableModels([]);
             }}
-            className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all duration-200 ${activeProvider === 'gemini' ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
+            className={`segmented-control-item ${activeProvider === 'gemini' ? 'active' : ''}`}
           >
             Gemini
           </button>
@@ -290,23 +294,6 @@ export default function App() {
         ]);
 
         let v = localVocab;
-        try {
-          const response = await fetch('/api/vocab');
-          if (response.ok) {
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-              const data = await response.json();
-              if (Array.isArray(data) && data.length > 0) {
-                v = data;
-                storage.setVocab(data);
-              }
-            } else {
-              console.warn('Expected JSON from /api/vocab on init but received non-JSON response');
-            }
-          }
-        } catch (err) {
-          console.error('Failed to fetch vocab from backend on init:', err);
-        }
 
         // Migration: Normalize Gemini model name
         let migrated = false;
@@ -411,38 +398,33 @@ export default function App() {
     }
     setLoading(true);
 
-    // Defensive vocabulary fetching with graceful fallback
-    let currentVocab: VocabItem[] = [];
-    try {
-      const response = await fetch('/api/vocab');
-      if (response.ok) {
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const data = await response.json();
-          if (Array.isArray(data)) {
-            currentVocab = data;
-            setVocab(data);
-            storage.setVocab(data);
-          }
-        } else {
-          console.warn('Expected JSON from /api/vocab during translate but received non-JSON response');
-        }
-      } else {
-        console.warn(`Vocabulary fetch failed with status: ${response.status}. Falling back to empty list.`);
-      }
-    } catch (err) {
-      console.error('Graceful fallback: Failed to fetch vocabulary list:', err);
-      // Continue with empty array as requested
-    }
+    // Use local storage directly for instant access
+    const currentVocab = await storage.getVocab();
+    
+    // Background sync (fire and forget)
+    // Assuming adminKey is not strictly needed or we can pass empty string if not available
+    storage.syncWithCloud('').catch(console.error);
 
     try {
       const ai = new AIService(state.settings);
-      const result = await ai.translate(translateInput, targetLang, currentVocab, translateImage || undefined);
       
-      // Generate summary of the input/translation
-      const summary = await ai.summarize(translateInput);
+      // Reset translated text for typewriter effect
+      setState(prev => ({ 
+        ...prev, 
+        lastOutputs: { ...prev.lastOutputs, translatedText: '' } 
+      }));
 
-      const newOutputs = { ...state.lastOutputs, translatedText: result, summary, contextSource: 'translated' as const };
+      let fullTranslation = '';
+      
+      const result = await ai.translate(translateInput, targetLang, currentVocab, translateImage || undefined, (chunk) => {
+        fullTranslation += chunk;
+        setState(prev => ({ 
+          ...prev, 
+          lastOutputs: { ...prev.lastOutputs, translatedText: fullTranslation } 
+        }));
+      });
+      
+      const newOutputs = { ...state.lastOutputs, translatedText: result, summary: '', contextSource: 'translated' as const };
       setState(prev => ({ ...prev, lastOutputs: newOutputs }));
       await storage.setLastOutputs(newOutputs);
       
@@ -450,7 +432,7 @@ export default function App() {
       const newContext: ConversationContext = {
         sourceText: translateInput,
         translatedText: result,
-        summaryText: summary,
+        summaryText: '',
         targetTranslationLanguage: targetLang,
         lastUpdatedIso: new Date().toISOString(),
         contextSource: 'translated'
@@ -460,9 +442,6 @@ export default function App() {
 
       await storage.addHistory({ type: 'translate', input: translateInput, output: result });
       showToast('Translation & Context updated', 'success');
-
-      // Trigger EPE Extraction (Silent)
-      handleExtract(result, targetLang, 'translated');
     } catch (err: any) {
       showToast(err.message, 'error');
     } finally {
@@ -501,6 +480,14 @@ export default function App() {
         }
       }
 
+      let fullReply = '';
+      
+      // Reset generated reply for typewriter effect
+      setState(prev => ({ 
+        ...prev, 
+        lastOutputs: { ...prev.lastOutputs, generatedReply: '', subject: '' } 
+      }));
+
       const result = await ai.compose(
         contextText,
         composeReq, 
@@ -511,10 +498,26 @@ export default function App() {
           format: composeParams.format
         }, 
         vocab,
-        currentStructuredSummary || undefined
+        currentStructuredSummary || undefined,
+        (chunk) => {
+          fullReply += chunk;
+          
+          let subject = '';
+          let body = fullReply;
+          if (composeParams.format === 'Email' && fullReply.toLowerCase().startsWith('subject:')) {
+            const lines = fullReply.split('\n');
+            subject = lines[0].replace(/subject:/i, '').trim();
+            body = lines.slice(1).join('\n').trim();
+          }
+
+          setState(prev => ({ 
+            ...prev, 
+            lastOutputs: { ...prev.lastOutputs, generatedReply: body, subject } 
+          }));
+        }
       );
 
-      // Extract subject if format is Email
+      // Final extraction of subject
       let subject = '';
       let body = result;
       if (composeParams.format === 'Email' && result.toLowerCase().startsWith('subject:')) {
@@ -580,13 +583,8 @@ export default function App() {
     try {
       // 1. Clear Storage
       await storage.clearSessionData();
-      
-      // 2. Clear Background Cache (if extension)
-      if (IS_EXTENSION) {
-        await aiTransport.call('RESET_SESSION', state.settings).catch(() => {});
-      }
 
-      // 3. Reset UI State
+      // 2. Reset UI State
       setTranslateInput('');
       setTranslateImage(null);
       setComposeReq('');
@@ -607,7 +605,7 @@ export default function App() {
         }
       }));
 
-      // 4. Trigger Re-hydration guard
+      // 3. Trigger Re-hydration guard
       setResetNonce(prev => prev + 1);
       
       showToast('All context and outputs cleared', 'success');
@@ -644,11 +642,12 @@ export default function App() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="space-y-6"
           >
-            <div className="premium-card p-6 space-y-4">
+            <div className="premium-card space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-xs font-bold text-muted uppercase tracking-widest">{t('inputSource')}</h3>
+                <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('inputSource')}</h3>
                 <div className="flex gap-2">
                   <button 
                     onClick={() => setTranslateImage(null)}
@@ -691,9 +690,9 @@ export default function App() {
               </div>
 
               {showFileAnalyzer && (
-                <div className="premium-card p-0 overflow-hidden border-accent/30">
+                <div className="premium-card !p-0 overflow-hidden border-accent/30">
                   <div className="bg-accent/10 p-4 flex justify-between items-center border-b border-white/5">
-                    <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                    <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase flex items-center gap-2">
                       <Upload size={14} /> {t('analyzeDocument')}
                     </h3>
                     <button onClick={() => setShowFileAnalyzer(false)} className="text-white/30 hover:text-white">
@@ -733,7 +732,7 @@ export default function App() {
 
               <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
                 <div className="flex-1 space-y-2">
-                  <label className="text-[10px] text-muted uppercase font-bold tracking-wider">{t('targetLanguage')}</label>
+                  <label className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('targetLanguage')}</label>
                   <select 
                     className="saas-input w-full"
                     value={targetLang}
@@ -753,9 +752,9 @@ export default function App() {
               </div>
             </div>
 
-            <div ref={outputRef} className="premium-card p-8 flex flex-col gap-4 bg-surface/30">
+            <div ref={outputRef} className="premium-card flex flex-col gap-4 bg-surface/30">
               <div className="flex justify-between items-center">
-                <h3 className="text-xs font-bold text-muted uppercase tracking-widest">{t('translatedOutput')}</h3>
+                <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('translatedOutput')}</h3>
                 {state.lastOutputs.translatedText && (
                   <button 
                     onClick={() => handleCopy(state.lastOutputs.translatedText)}
@@ -778,32 +777,33 @@ export default function App() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="space-y-6"
           >
-            <div className="premium-card p-6 space-y-6">
+            <div className="premium-card space-y-6">
               {/* Context Preview */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-xs font-bold text-muted uppercase tracking-widest">{t('messageContext')}</h3>
+                    <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('messageContext')}</h3>
                     {context ? (
-                      <span className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold uppercase tracking-wider">
+                      <span className="flex items-center gap-1 text-[11px] text-emerald-500 font-medium uppercase tracking-widest">
                         <CheckCircle2 size={12} /> {t('linked')}
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-[10px] text-amber-500 font-bold uppercase tracking-wider">
+                      <span className="flex items-center gap-1 text-[11px] text-amber-500 font-medium uppercase tracking-widest">
                         <AlertCircle size={12} /> {t('noLinked')}
                       </span>
                     )}
                   </div>
-                  <div className="flex p-1 bg-slate-900/50 rounded-full border border-white/10 shadow-inner text-[10px] font-bold">
+                  <div className="segmented-control rounded-full">
                     <button 
                       onClick={() => {
                         const newOutputs = { ...state.lastOutputs, contextSource: 'translated' as const };
                         setState(prev => ({ ...prev, lastOutputs: newOutputs }));
                         storage.setLastOutputs(newOutputs);
                       }}
-                      className={`px-4 py-1 rounded-full transition-all duration-200 ${state.lastOutputs.contextSource === 'translated' ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
+                      className={`segmented-control-item rounded-full ${state.lastOutputs.contextSource === 'translated' ? 'active' : ''}`}
                     >
                       {t('translate')}
                     </button>
@@ -813,7 +813,7 @@ export default function App() {
                         setState(prev => ({ ...prev, lastOutputs: newOutputs }));
                         storage.setLastOutputs(newOutputs);
                       }}
-                      className={`px-4 py-1 rounded-full transition-all duration-200 ${state.lastOutputs.contextSource === 'original' ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
+                      className={`segmented-control-item rounded-full ${state.lastOutputs.contextSource === 'original' ? 'active' : ''}`}
                     >
                       {t('source')}
                     </button>
@@ -830,7 +830,7 @@ export default function App() {
                   {context && (
                     <button 
                       onClick={() => setIsContextExpanded(!isContextExpanded)}
-                      className="w-full mt-3 flex items-center justify-center gap-1 text-[10px] font-bold text-accent uppercase tracking-widest border-t border-border-main/50 pt-3"
+                      className="w-full mt-3 flex items-center justify-center gap-1 text-[11px] font-medium text-accent uppercase tracking-widest border-t border-border-main/50 pt-3"
                     >
                       {isContextExpanded ? <><ChevronUp size={14} /> {t('showLess')}</> : <><ChevronDown size={14} /> {t('expandContext')}</>}
                     </button>
@@ -840,7 +840,7 @@ export default function App() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] text-muted uppercase font-bold tracking-wider">{t('audience')}</label>
+                  <label className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('audience')}</label>
                   <select 
                     className="saas-input w-full"
                     value={composeParams.audience}
@@ -850,7 +850,7 @@ export default function App() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] text-muted uppercase font-bold tracking-wider">{t('tone')}</label>
+                  <label className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('tone')}</label>
                   <select 
                     className="saas-input w-full"
                     value={composeParams.tone}
@@ -860,7 +860,7 @@ export default function App() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] text-muted uppercase font-bold tracking-wider">{t('language')}</label>
+                  <label className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('language')}</label>
                   <select 
                     className="saas-input w-full"
                     value={composeParams.lang}
@@ -870,7 +870,7 @@ export default function App() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] text-muted uppercase font-bold tracking-wider">{t('format')}</label>
+                  <label className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('format')}</label>
                   <select 
                     className="saas-input w-full"
                     value={composeParams.format}
@@ -883,10 +883,10 @@ export default function App() {
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <label className="text-[10px] text-muted uppercase font-bold tracking-wider">{t('replyRequirements')}</label>
+                  <label className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('replyRequirements')}</label>
                   <button 
                     onClick={() => setShowFileAnalyzer(!showFileAnalyzer)}
-                    className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${showFileAnalyzer ? 'text-accent' : 'text-muted hover:text-accent'}`}
+                    className={`flex items-center gap-1 text-[12px] font-medium uppercase tracking-widest transition-colors ${showFileAnalyzer ? 'text-accent' : 'text-muted hover:text-accent'}`}
                   >
                     <Upload size={12} /> {t('analyzeDocument')}
                   </button>
@@ -900,9 +900,9 @@ export default function App() {
               </div>
 
               {showFileAnalyzer && (
-                <div className="premium-card p-0 overflow-hidden border-accent/30">
+                <div className="premium-card !p-0 overflow-hidden border-accent/30">
                   <div className="bg-accent/10 p-4 flex justify-between items-center border-b border-border-main">
-                    <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-text-main">
+                    <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase flex items-center gap-2 text-text-main">
                       <Upload size={14} /> {t('analyzeDocument')}
                     </h3>
                     <button onClick={() => setShowFileAnalyzer(false)} className="text-muted hover:text-text-main">
@@ -934,9 +934,9 @@ export default function App() {
               </button>
             </div>
 
-            <div className="premium-card p-8 space-y-4 bg-surface/30">
+            <div className="premium-card space-y-4 bg-surface/30">
               <div className="flex justify-between items-center">
-                <h3 className="text-xs font-bold text-muted uppercase tracking-widest">{t('generatedOutput')}</h3>
+                <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('generatedOutput')}</h3>
                 <div className="flex gap-2">
                   {state.lastOutputs.generatedReply && (
                     <button 
@@ -951,7 +951,7 @@ export default function App() {
               <div className="flex-1 min-h-[100px] text-base leading-relaxed text-text-main whitespace-pre-wrap">
                 {state.lastOutputs.subject && (
                   <div className="mb-4 pb-4 border-b border-border-main/50">
-                    <span className="text-[10px] text-accent uppercase font-bold block mb-1">Subject</span>
+                    <span className="text-[11px] text-accent uppercase font-medium block mb-1 tracking-widest">Subject</span>
                     <div className="text-text-main font-bold">{state.lastOutputs.subject}</div>
                   </div>
                 )}
@@ -967,9 +967,12 @@ export default function App() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="h-full"
           >
-            <VocabManager onSave={setVocab} t={t} />
+            <div className="premium-card h-full flex flex-col">
+              <VocabManager onSave={setVocab} t={t} />
+            </div>
           </motion.div>
         )}
 
@@ -979,9 +982,10 @@ export default function App() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="space-y-6"
           >
-            <div className="premium-card p-6 space-y-6">
+            <div className="premium-card space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold flex items-center gap-2">
                   <Settings className="text-accent" />
@@ -998,7 +1002,7 @@ export default function App() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] text-muted uppercase font-bold tracking-wider">{t('interfaceLanguage')}</label>
+                  <label className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('interfaceLanguage')}</label>
                   <select 
                     value={state.globalLanguage}
                     onChange={async (e) => {
@@ -1018,7 +1022,7 @@ export default function App() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] text-muted uppercase font-bold tracking-wider">{t('themeMode')}</label>
+                  <label className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('themeMode')}</label>
                   <div className="flex p-1 glass-panel rounded-full">
                     {(['system', 'light', 'dark'] as ThemeMode[]).map(mode => (
                       <button
@@ -1029,7 +1033,7 @@ export default function App() {
                           applyTheme(resolveTheme(mode));
                           showToast(`Theme: ${mode}`, 'info');
                         }}
-                        className={`flex-1 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-2 ${state.themeMode === mode ? 'bg-accent text-white shadow-lg' : 'text-muted/50'}`}
+                        className={`flex-1 py-1.5 rounded-full text-[11px] font-medium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${state.themeMode === mode ? 'bg-accent text-white shadow-sm' : 'text-muted hover:text-text-main'}`}
                       >
                         {mode === 'system' && <Monitor size={12} />}
                         {mode === 'light' && <Sun size={12} />}
@@ -1057,7 +1061,7 @@ export default function App() {
                 />
               </div>
 
-              {IS_PWA && deferredPrompt && (
+              {deferredPrompt && (
                 <button 
                   onClick={handleInstallPWA}
                   className="saas-button primary-button w-full flex items-center justify-center gap-2"
