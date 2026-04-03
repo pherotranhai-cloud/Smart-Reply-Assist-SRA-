@@ -20,7 +20,7 @@ export const handler: Handler = async (event) => {
     console.log(`Starting sync from Google Sheet: ${GOOGLE_SHEET_ID}`);
     
     // 1. Fetch CSV from Google Sheets
-    const sheetUrl = `https://docs.google.com/spreadsheets/d/16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY/edit?usp=sharing`;
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv`;
     console.log("Fetching from URL:", sheetUrl);
     const response = await axios.get(sheetUrl, { timeout: 10000 });
     

@@ -6,16 +6,10 @@
   node_bundler = "esbuild"
   external_node_modules = ["pg"]
 
-# Trỏ api/vocab về file vocab.ts
+# Map /api/* to Netlify functions
 [[redirects]]
-  from = "/api/vocab"
-  to = "/.netlify/functions/vocab"
-  status = 200
-
-# Trỏ api/import-vocab về file import-vocab.ts
-[[redirects]]
-  from = "/api/import-vocab"
-  to = "/.netlify/functions/import-vocab"
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
   status = 200
 
 [[redirects]]

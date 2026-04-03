@@ -1,7 +1,7 @@
 import React from 'react';
 
 export const Skeleton = ({ className }: { className?: string }) => (
-  <div className={`shimmer bg-white/5 rounded-lg ${className}`} />
+  <div className={`shimmer bg-muted/10 rounded-lg ${className}`} />
 );
 
 export const VocabSkeleton = () => (

@@ -1,3 +1,11 @@
+import express from 'express';
+import { createServer as createViteServer } from 'vite';
+import dotenv from 'dotenv';
+import crypto from 'crypto';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import axios from 'axios';
+import Papa from 'papaparse';
 
 dotenv.config();
 
@@ -5,21 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY;
-const GOOGLE_SHEET_ID =
-  process.env.GOOGLE_SHEET_ID || "16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY";
-
-import net from "net";
-
-function findAvailablePort(startPort: number): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.listen(startPort, "0.0.0.0", () => {
-      const port = (server.address() as net.AddressInfo).port;
-      server.close(() => resolve(port));
-    });
-    server.on("error", () => resolve(findAvailablePort(startPort + 1)));
-  });
-}
+const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || '16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY';
 
 async function startServer() {
   const app = express();
@@ -42,7 +36,7 @@ async function startServer() {
     try {
       console.log(`Starting sync from Google Sheet: ${GOOGLE_SHEET_ID}`);
       
-      const sheetUrl = `https://docs.google.com/spreadsheets/d/16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY/edit?usp=sharing`;
+      const sheetUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv`;
       console.log("Fetching from URL:", sheetUrl);
       const response = await axios.get(sheetUrl, { timeout: 10000 });
       
@@ -122,7 +116,10 @@ async function startServer() {
   app.use('/api', apiRouter);
 
   // Vite middleware for development
+  if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
@@ -132,6 +129,8 @@ async function startServer() {
     });
   }
 
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://localhost:${PORT}`);
   });
 }
 

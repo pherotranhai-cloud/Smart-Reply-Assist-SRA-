@@ -59,7 +59,21 @@ export const storage = {
 
   async syncWithCloud(): Promise<{ success: boolean; count?: number; message?: string }> {
     try {
-      const response = await fetch('/api/import-vocab', {
+      const hostname = window.location.hostname;
+      const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+      const isNetlify = hostname.includes('netlify.app');
+      
+      // Determine base URL based on environment
+      let apiUrl = '/api/import-vocab';
+      if (isLocalhost) {
+        // Vite proxy will handle /api and redirect to localhost:8888/.netlify/functions
+        apiUrl = '/api/import-vocab';
+      } else if (isNetlify) {
+        // Use direct function URL on Netlify to avoid redirect overhead
+        apiUrl = '/.netlify/functions/import-vocab';
+      }
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
