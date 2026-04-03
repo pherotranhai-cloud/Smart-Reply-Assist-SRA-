@@ -18,13 +18,14 @@ import {
   ChevronDown,
   ChevronUp,
   RotateCcw,
-  Monitor
+  Monitor,
+  Camera
 } from 'lucide-react';
 import { storage } from './services/storage';
 import { AIService } from './services/ai';
 import { normalizeGeminiModelName } from './services/geminiProvider';
 import { applyTheme, resolveTheme, watchSystemThemeChanges, ThemeMode } from './utils/theme';
-import { FileAnalyzer } from './components/FileAnalyzer';
+import { generateHash } from './utils/hash';
 import { translations } from './i18n';
 import { 
   VocabItem, 
@@ -68,171 +69,6 @@ const Toast = ({ message, type = 'info', onClose }: { message: string, type?: 'i
   </motion.div>
 );
 
-const AISettingsPanel = ({ settings, onSave, onTest, t }: { settings: AISettings; onSave: (s: AISettings) => void; onTest: () => Promise<boolean>; t: any }) => {
-  const [localSettings, setLocalSettings] = useState(settings);
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
-  const [availableModels, setAvailableModels] = useState<{ id: string; name: string }[]>([]);
-  const [manualMode, setManualMode] = useState(false);
-
-  const handleRefreshModels = async () => {
-    setTesting(true);
-    setTestResult(null);
-    try {
-      const ai = new AIService(localSettings);
-      const success = await ai.testConnection();
-      if (success) {
-        // We need to list models directly to update the dropdown
-        const provider = localSettings.activeProvider === 'openai' 
-          ? new (await import('./services/openaiProvider')).OpenAIProvider(localSettings.openai)
-          : new (await import('./services/geminiProvider')).GeminiProvider(localSettings.gemini);
-        
-        const models = await provider.listModels();
-        setAvailableModels(models);
-        // If current model is empty, auto-select first
-        if (!localSettings[localSettings.activeProvider].model && models.length > 0) {
-          updateCurrent({ model: models[0].id });
-        }
-      }
-      setTestResult('success');
-    } catch (err) {
-      setTestResult('error');
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  const activeProvider = localSettings.activeProvider;
-  const current = localSettings[activeProvider];
-
-  const updateCurrent = (updates: Partial<typeof current>) => {
-    setLocalSettings({
-      ...localSettings,
-      [activeProvider]: { ...current, ...updates }
-    });
-  };
-
-  return (
-    <div className="space-y-4 p-4 glass-panel border border-border-main/50">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold text-accent flex items-center gap-2">
-          <Settings size={20} /> {t('aiEngineConfig')}
-        </h3>
-        <div className="segmented-control">
-          <button 
-            onClick={() => {
-              setLocalSettings({ ...localSettings, activeProvider: 'openai' });
-              setAvailableModels([]);
-            }}
-            className={`segmented-control-item ${activeProvider === 'openai' ? 'active' : ''}`}
-          >
-            OpenAI
-          </button>
-          <button 
-            onClick={() => {
-              setLocalSettings({ ...localSettings, activeProvider: 'gemini' });
-              setAvailableModels([]);
-            }}
-            className={`segmented-control-item ${activeProvider === 'gemini' ? 'active' : ''}`}
-          >
-            Gemini
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <div className="flex justify-between items-center">
-            <label className="text-xs text-muted uppercase tracking-wider">{t('modelName')}</label>
-            <button 
-              onClick={handleRefreshModels}
-              disabled={testing}
-              className="text-[10px] text-accent hover:underline flex items-center gap-1"
-            >
-              {testing ? <Loader2 className="animate-spin" size={10} /> : <Check size={10} />} {t('refreshModels')}
-            </button>
-          </div>
-          
-          {!manualMode && availableModels.length > 0 ? (
-            <select 
-              className="saas-input w-full"
-              value={current.model}
-              onChange={e => updateCurrent({ model: e.target.value })}
-            >
-              <option value="">{t('selectModel')}</option>
-              {availableModels.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
-          ) : (
-            <input 
-              type="text" 
-              className="saas-input w-full"
-              value={current.model}
-              onChange={e => updateCurrent({ model: e.target.value })}
-              placeholder={activeProvider === 'openai' ? 'e.g. gpt-4o' : 'e.g. models/gemini-1.5-flash'}
-            />
-          )}
-          
-          <div className="flex justify-end">
-            <button 
-              onClick={() => setManualMode(!manualMode)}
-              className="text-[10px] text-muted hover:text-text-main underline mt-1"
-            >
-              {manualMode ? t('useDropdown') : t('manualOverride')}
-            </button>
-          </div>
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs text-muted uppercase tracking-wider">{t('apiKey')}</label>
-          <input 
-            type="password" 
-            className="saas-input w-full"
-            value={current.apiKey}
-            onChange={e => updateCurrent({ apiKey: e.target.value })}
-            placeholder={activeProvider === 'openai' ? 'sk-...' : 'Gemini API Key'}
-          />
-        </div>
-        <div className="space-y-1 md:col-span-2">
-          <label className="text-xs text-muted uppercase tracking-wider">{t('baseUrl')}</label>
-          <input 
-            type="text" 
-            className="saas-input w-full"
-            value={current.baseUrl}
-            onChange={e => updateCurrent({ baseUrl: e.target.value })}
-            placeholder={activeProvider === 'openai' ? 'https://api.openai.com/v1' : 'https://generativelanguage.googleapis.com'}
-          />
-        </div>
-      </div>
-
-      <div className="flex justify-between items-center pt-2">
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={async () => {
-              setTesting(true);
-              setTestResult(null);
-              const ai = new AIService(localSettings);
-              const success = await ai.testConnection();
-              setTestResult(success ? 'success' : 'error');
-              setTesting(false);
-            }}
-            disabled={testing}
-            className="saas-button secondary-button px-4 py-2 flex items-center gap-2 text-sm"
-          >
-            {testing ? <Loader2 className="animate-spin" size={16} /> : t('testConnection')}
-          </button>
-          {testResult === 'success' && <span className="text-green-500 text-sm flex items-center gap-1 font-medium"><Check size={14} /> {t('connected')}</span>}
-          {testResult === 'error' && <span className="text-red-500 text-sm flex items-center gap-1 font-medium"><AlertCircle size={14} /> {t('failed')}</span>}
-        </div>
-        <button 
-          onClick={() => onSave(localSettings)}
-          className="saas-button primary-button px-6 py-2"
-        >
-          {t('saveSettings')}
-        </button>
-      </div>
-    </div>
-  );
-};
-
 // --- Main App ---
 
 export default function App() {
@@ -243,7 +79,6 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isAppLoading, setIsAppLoading] = useState(true);
-  const [showFileAnalyzer, setShowFileAnalyzer] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'info' | 'error' | 'success' } | null>(null);
   const [context, setContext] = useState<ConversationContext | null>(null);
   const [isContextExpanded, setIsContextExpanded] = useState(false);
@@ -252,8 +87,22 @@ export default function App() {
   const [resetNonce, setResetNonce] = useState(0);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isCopied, setIsCopied] = useState(false);
+  const [isCached, setIsCached] = useState(false);
   
   const outputRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setTranslateImage(event.target?.result as string);
+        showToast('Image uploaded', 'success');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Tab States
   const [translateInput, setTranslateInput] = useState('');
@@ -408,8 +257,34 @@ export default function App() {
 
     // Use local storage directly for instant access
     const currentVocab = await storage.getVocab();
+    
+    // Hash key: text + lang + (image if exists)
+    const imageHash = translateImage ? translateImage.substring(0, 50) + translateImage.substring(translateImage.length - 50) : '';
+    const hashKey = generateHash(translateInput + targetLang + imageHash);
+    const cache = await storage.getTranslationCache();
+
+    if (cache[hashKey]) {
+      // Cache hit
+      const cachedResult = cache[hashKey].translatedText;
+      // Typewriter effect
+      for (let i = 0; i <= cachedResult.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 10)); // 10ms per char
+        setState(prev => ({ 
+          ...prev, 
+          lastOutputs: { ...prev.lastOutputs, translatedText: cachedResult.substring(0, i) } 
+        }));
+      }
+      setIsCached(true);
+      showToast('Instant translation from cache', 'success');
+      setLoading(false);
+      return;
+    }
 
     try {
+      setIsCached(false);
+      setLoading(true); // Ensure loading is set
+      if (translateImage) showToast('Đang đọc dữ liệu từ ảnh...', 'info');
+      
       const ai = new AIService(state.settings);
       
       // Reset translated text for typewriter effect
@@ -445,6 +320,11 @@ export default function App() {
       await storage.setContext(newContext);
 
       await storage.addHistory({ type: 'translate', input: translateInput, output: result });
+      
+      // Save to cache
+      cache[hashKey] = { translatedText: result, timestamp: Date.now() };
+      await storage.setTranslationCache(cache);
+      
       showToast('Translation & Context updated', 'success');
     } catch (err: any) {
       showToast(err.message, 'error');
@@ -677,12 +557,19 @@ export default function App() {
                   >
                     <X size={18} />
                   </button>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    ref={fileInputRef} 
+                    onChange={handleImageUpload} 
+                  />
                   <button 
-                    onClick={() => setShowFileAnalyzer(!showFileAnalyzer)}
-                    className={`p-2 glass-panel rounded-xl transition-colors ${showFileAnalyzer ? 'text-accent border-accent/50' : 'text-muted hover:text-accent'}`}
-                    title="Upload & Analyze File"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-2 glass-panel rounded-xl text-muted hover:text-accent transition-colors"
+                    title="Upload Image"
                   >
-                    <Upload size={18} />
+                    <Camera size={18} />
                   </button>
                   <button 
                     onClick={handlePasteFromClipboard}
@@ -692,35 +579,6 @@ export default function App() {
                   </button>
                 </div>
               </div>
-
-              {showFileAnalyzer && (
-                <div className="premium-card !p-0 overflow-hidden border-accent/30">
-                  <div className="bg-accent/10 p-4 flex justify-between items-center border-b border-white/5">
-                    <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase flex items-center gap-2">
-                      <Upload size={14} /> {t('analyzeDocument')}
-                    </h3>
-                    <button onClick={() => setShowFileAnalyzer(false)} className="text-white/30 hover:text-white">
-                      <X size={14} />
-                    </button>
-                  </div>
-                  <div className="p-6">
-                    <FileAnalyzer 
-                      settings={state.settings}
-                      globalLanguage={state.globalLanguage}
-                      onAnalyzeComplete={(summary) => {
-                        if (activeTab === 'translate') {
-                          setTranslateInput(summary);
-                        } else {
-                          setComposeReq(summary);
-                        }
-                        setShowFileAnalyzer(false);
-                        showToast('Context updated from file', 'success');
-                      }}
-                      t={t}
-                    />
-                  </div>
-                </div>
-              )}
 
               {translateImage && (
                 <div className="relative inline-block group">
@@ -747,7 +605,7 @@ export default function App() {
                 </div>
                 <button 
                   onClick={handleTranslate}
-                  disabled={loading || !translateInput.trim()}
+                  disabled={loading || (!translateInput.trim() && !translateImage)}
                   className="saas-button primary-button flex-1 sm:flex-none flex items-center justify-center gap-2"
                 >
                   {loading ? <Loader2 className="animate-spin" size={20} /> : <Languages size={20} />}
@@ -759,18 +617,25 @@ export default function App() {
             <div ref={outputRef} className="premium-card flex flex-col gap-4 bg-surface/30">
               <div className="flex justify-between items-center">
                 <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('translatedOutput')}</h3>
-                {state.lastOutputs.translatedText && (
-                  <button 
-                    onClick={() => handleCopy(state.lastOutputs.translatedText)}
-                    className="p-2 text-muted hover:text-accent transition-colors"
-                  >
-                    {isCopied ? <Check size={18} className="text-emerald-500" /> : <Copy size={18} />}
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {state.lastOutputs.translatedText && (
+                    <button 
+                      onClick={() => handleCopy(state.lastOutputs.translatedText)}
+                      className="p-2 text-muted hover:text-accent transition-colors"
+                    >
+                      {isCopied ? <Check size={18} className="text-emerald-500" /> : <Copy size={18} />}
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="flex-1 min-h-[100px] text-lg leading-relaxed text-text-main whitespace-pre-wrap">
                 {state.lastOutputs.translatedText || <span className="text-muted/40 italic">{t('translationPlaceholder')}</span>}
               </div>
+              {state.lastOutputs.translatedText && isCached && (
+                <div className="flex justify-end">
+                  <span className="text-[10px] uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">Instant</span>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
@@ -778,188 +643,124 @@ export default function App() {
         {activeTab === 'compose' && (
           <motion.div 
             key="compose"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="space-y-6"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            className="flex flex-col h-full relative"
           >
-            <div className="premium-card space-y-6">
-              {/* Context Preview */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('messageContext')}</h3>
-                    {context ? (
-                      <span className="flex items-center gap-1 text-[11px] text-emerald-500 font-medium uppercase tracking-widest">
-                        <CheckCircle2 size={12} /> {t('linked')}
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-[11px] text-amber-500 font-medium uppercase tracking-widest">
-                        <AlertCircle size={12} /> {t('noLinked')}
-                      </span>
-                    )}
-                  </div>
-                  <div className="segmented-control rounded-full">
-                    <button 
-                      onClick={() => {
-                        const newOutputs = { ...state.lastOutputs, contextSource: 'translated' as const };
-                        setState(prev => ({ ...prev, lastOutputs: newOutputs }));
-                        storage.setLastOutputs(newOutputs);
-                      }}
-                      className={`segmented-control-item rounded-full ${state.lastOutputs.contextSource === 'translated' ? 'active' : ''}`}
-                    >
-                      {t('translate')}
-                    </button>
-                    <button 
-                      onClick={() => {
-                        const newOutputs = { ...state.lastOutputs, contextSource: 'original' as const };
-                        setState(prev => ({ ...prev, lastOutputs: newOutputs }));
-                        storage.setLastOutputs(newOutputs);
-                      }}
-                      className={`segmented-control-item rounded-full ${state.lastOutputs.contextSource === 'original' ? 'active' : ''}`}
-                    >
-                      {t('source')}
-                    </button>
-                  </div>
-                </div>
-                <div className="relative glass-panel rounded-2xl p-4 bg-surface/30">
-                  <div className={`text-sm leading-relaxed text-text-main/80 overflow-hidden transition-all ${isContextExpanded ? 'max-h-[500px] overflow-auto' : 'max-h-20'}`}>
-                    {context ? (
-                      state.lastOutputs.contextSource === 'original' ? context.sourceText : context.translatedText
-                    ) : (
-                      <span className="text-muted/40 italic">{t('noContext')}</span>
-                    )}
-                  </div>
-                  {context && (
-                    <button 
-                      onClick={() => setIsContextExpanded(!isContextExpanded)}
-                      className="w-full mt-3 flex items-center justify-center gap-1 text-[11px] font-medium text-accent uppercase tracking-widest border-t border-border-main/50 pt-3"
-                    >
-                      {isContextExpanded ? <><ChevronUp size={14} /> {t('showLess')}</> : <><ChevronDown size={14} /> {t('expandContext')}</>}
-                    </button>
+            <div className="flex-1 overflow-y-auto pb-32 space-y-4">
+              <div className="premium-card space-y-6">
+                
+                {/* Minimalist Status Badge */}
+                <div className="flex justify-center">
+                  {context ? (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-[13px] font-medium">
+                      <CheckCircle2 size={14} />
+                      <span>Linked to Context</span>
+                    </div>
+                  ) : (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-full text-[13px] font-medium">
+                      <AlertCircle size={14} />
+                      <span>No Context</span>
+                    </div>
                   )}
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
+                {/* Primary Focus: Reply Requirements */}
                 <div className="space-y-2">
-                  <label className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('audience')}</label>
-                  <select 
-                    className="saas-input w-full"
-                    value={composeParams.audience}
-                    onChange={e => setComposeParams({ ...composeParams, audience: e.target.value as Audience })}
-                  >
-                    {AUDIENCES.map(a => <option key={a} className="bg-surface">{a}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('tone')}</label>
-                  <select 
-                    className="saas-input w-full"
-                    value={composeParams.tone}
-                    onChange={e => setComposeParams({ ...composeParams, tone: e.target.value as Tone })}
-                  >
-                    {TONES.map(t => <option key={t} className="bg-surface">{t}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('language')}</label>
-                  <select 
-                    className="saas-input w-full"
-                    value={composeParams.lang}
-                    onChange={e => setComposeParams({ ...composeParams, lang: e.target.value as Language })}
-                  >
-                    {LANGUAGES.filter(l => l !== 'Auto').map(l => <option key={l} className="bg-surface">{l}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('format')}</label>
-                  <select 
-                    className="saas-input w-full"
-                    value={composeParams.format}
-                    onChange={e => setComposeParams({ ...composeParams, format: e.target.value as Format })}
-                  >
-                    {FORMATS.map(f => <option key={f} className="bg-surface">{f}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('replyRequirements')}</label>
-                  <button 
-                    onClick={() => setShowFileAnalyzer(!showFileAnalyzer)}
-                    className={`flex items-center gap-1 text-[12px] font-medium uppercase tracking-widest transition-colors ${showFileAnalyzer ? 'text-accent' : 'text-muted hover:text-accent'}`}
-                  >
-                    <Upload size={12} /> {t('analyzeDocument')}
-                  </button>
-                </div>
-                <textarea 
-                  className="saas-input w-full h-32 resize-none text-sm"
-                  placeholder={t('replyPlaceholder')}
-                  value={composeReq}
-                  onChange={e => setComposeReq(e.target.value)}
-                />
-              </div>
-
-              {showFileAnalyzer && (
-                <div className="premium-card !p-0 overflow-hidden border-accent/30">
-                  <div className="bg-accent/10 p-4 flex justify-between items-center border-b border-border-main">
-                    <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase flex items-center gap-2 text-text-main">
-                      <Upload size={14} /> {t('analyzeDocument')}
-                    </h3>
-                    <button onClick={() => setShowFileAnalyzer(false)} className="text-muted hover:text-text-main">
-                      <X size={14} />
-                    </button>
+                  <div className="flex justify-between items-center px-1">
+                    <label className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{t('replyRequirements')}</label>
                   </div>
-                  <div className="p-6">
-                    <FileAnalyzer 
-                      settings={state.settings}
-                      globalLanguage={state.globalLanguage}
-                      onAnalyzeComplete={(summary) => {
-                        setComposeReq(summary);
-                        setShowFileAnalyzer(false);
-                        showToast('Context updated from file', 'success');
-                      }}
-                      t={t}
-                    />
+                  <textarea 
+                    className="w-full min-h-[40vh] p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm resize-none text-[17px] leading-relaxed focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    placeholder={t('replyPlaceholder')}
+                    value={composeReq}
+                    onChange={e => setComposeReq(e.target.value)}
+                  />
+                </div>
+
+                {/* Configuration Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[12px] font-medium text-slate-500 px-1">{t('audience')}</label>
+                    <select 
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-blue-500"
+                      value={composeParams.audience}
+                      onChange={e => setComposeParams({ ...composeParams, audience: e.target.value as Audience })}
+                    >
+                      {AUDIENCES.map(a => <option key={a}>{a}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[12px] font-medium text-slate-500 px-1">{t('tone')}</label>
+                    <select 
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-blue-500"
+                      value={composeParams.tone}
+                      onChange={e => setComposeParams({ ...composeParams, tone: e.target.value as Tone })}
+                    >
+                      {TONES.map(t => <option key={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[12px] font-medium text-slate-500 px-1">{t('language')}</label>
+                    <select 
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-blue-500"
+                      value={composeParams.lang}
+                      onChange={e => setComposeParams({ ...composeParams, lang: e.target.value as Language })}
+                    >
+                      {LANGUAGES.filter(l => l !== 'Auto').map(l => <option key={l}>{l}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[12px] font-medium text-slate-500 px-1">{t('format')}</label>
+                    <select 
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-blue-500"
+                      value={composeParams.format}
+                      onChange={e => setComposeParams({ ...composeParams, format: e.target.value as Format })}
+                    >
+                      {FORMATS.map(f => <option key={f}>{f}</option>)}
+                    </select>
                   </div>
                 </div>
-              )}
+              </div>
 
-              <button 
-                onClick={handleCompose}
-                disabled={loading || !composeReq.trim()}
-                className="saas-button primary-button w-full flex items-center justify-center gap-2"
-              >
-                {loading ? <Loader2 className="animate-spin" size={20} /> : <PenTool size={20} />}
-                <span>{t('generateReply')}</span>
-              </button>
-            </div>
-
-            <div className="premium-card space-y-4 bg-surface/30">
-              <div className="flex justify-between items-center">
-                <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('generatedOutput')}</h3>
-                <div className="flex gap-2">
-                  {state.lastOutputs.generatedReply && (
+              {/* Generated Output */}
+              {state.lastOutputs.generatedReply && (
+                <div className="premium-card space-y-4 bg-surface/30">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('generatedOutput')}</h3>
                     <button 
                       onClick={() => copyToClipboard(state.lastOutputs.generatedReply)}
                       className="p-2 text-muted hover:text-accent transition-colors"
                     >
                       <Copy size={18} />
                     </button>
-                  )}
-                </div>
-              </div>
-              <div className="flex-1 min-h-[100px] text-base leading-relaxed text-text-main whitespace-pre-wrap">
-                {state.lastOutputs.subject && (
-                  <div className="mb-4 pb-4 border-b border-border-main/50">
-                    <span className="text-[11px] text-accent uppercase font-medium block mb-1 tracking-widest">Subject</span>
-                    <div className="text-text-main font-bold">{state.lastOutputs.subject}</div>
                   </div>
-                )}
-                {state.lastOutputs.generatedReply || <span className="text-muted/40 italic">Generated reply will appear here...</span>}
+                  <div className="flex-1 min-h-[100px] text-base leading-relaxed text-text-main whitespace-pre-wrap">
+                    {state.lastOutputs.subject && (
+                      <div className="mb-4 pb-4 border-b border-border-main/50">
+                        <span className="text-[11px] text-accent uppercase font-medium block mb-1 tracking-widest">Subject</span>
+                        <div className="text-text-main font-bold">{state.lastOutputs.subject}</div>
+                      </div>
+                    )}
+                    {state.lastOutputs.generatedReply}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sticky Action Button */}
+            <div className="fixed bottom-[80px] left-0 right-0 p-4 bg-gradient-to-t from-bg-main via-bg-main to-transparent pointer-events-none z-10">
+              <div className="max-w-3xl mx-auto pointer-events-auto">
+                <button 
+                  onClick={handleCompose}
+                  disabled={loading || !composeReq.trim()}
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-2xl py-4 text-[17px] font-semibold flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 transition-all active:scale-[0.98]"
+                >
+                  {loading ? <Loader2 className="animate-spin" size={20} /> : <PenTool size={20} />}
+                  <span>{t('generateReply')}</span>
+                </button>
               </div>
             </div>
           </motion.div>
@@ -987,85 +788,37 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="space-y-6"
+            className="h-full overflow-y-auto"
           >
-            <div className="premium-card space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold flex items-center gap-2">
-                  <Settings className="text-accent" />
-                  {t('settings')}
-                </h2>
-                <button 
-                  onClick={handleReset}
-                  className="saas-button secondary-button text-red-400 border-red-500/20 hover:bg-red-500/10 flex items-center gap-2"
-                >
-                  <RotateCcw size={16} />
-                  <span>{t('resetApp')}</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('interfaceLanguage')}</label>
-                  <select 
-                    value={state.globalLanguage}
-                    onChange={async (e) => {
-                      const lang = e.target.value as GlobalLanguage;
-                      await storage.setGlobalLanguage(lang);
-                      setState(prev => ({ ...prev, globalLanguage: lang }));
-                      showToast(`Language set to ${lang}`, 'info');
-                    }}
-                    className="saas-input w-full"
-                  >
-                    <option value="en" className="bg-surface">English</option>
-                    <option value="vi" className="bg-surface">Tiếng Việt</option>
-                    <option value="ja" className="bg-surface">日本語</option>
-                    <option value="zh-CN" className="bg-surface">简体中文</option>
-                    <option value="zh-TW" className="bg-surface">繁體中文</option>
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('themeMode')}</label>
-                  <div className="flex p-1 glass-panel rounded-full">
-                    {(['system', 'light', 'dark'] as ThemeMode[]).map(mode => (
-                      <button
-                        key={mode}
-                        onClick={() => {
-                          storage.setTheme(mode);
-                          setState(prev => ({ ...prev, themeMode: mode }));
-                          applyTheme(resolveTheme(mode));
-                          showToast(`Theme: ${mode}`, 'info');
-                        }}
-                        className={`flex-1 py-1.5 rounded-full text-[11px] font-medium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${state.themeMode === mode ? 'bg-accent text-white shadow-sm' : 'text-muted hover:text-text-main'}`}
-                      >
-                        {mode === 'system' && <Monitor size={12} />}
-                        {mode === 'light' && <Sun size={12} />}
-                        {mode === 'dark' && <Moon size={12} />}
-                        {mode}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t border-white/5 pt-6">
-                <AISettingsPanel 
-                  settings={state.settings} 
-                  t={t}
-                  onSave={s => {
-                    storage.setSettings(s);
-                    setState(prev => ({ ...prev, settings: s }));
-                    showToast(t('saveSettings'), 'success');
-                  }}
-                  onTest={async () => {
-                    const ai = new AIService(state.settings);
-                    return await ai.testConnection();
-                  }}
-                />
-              </div>
-
-              {deferredPrompt && (
+            <SettingsPanel 
+              themeMode={state.themeMode}
+              onThemeChange={(mode) => {
+                storage.setTheme(mode);
+                setState(prev => ({ ...prev, themeMode: mode }));
+                applyTheme(resolveTheme(mode));
+                showToast(`Theme: ${mode}`, 'info');
+              }}
+              globalLanguage={state.globalLanguage}
+              onLanguageChange={async (lang) => {
+                await storage.setGlobalLanguage(lang);
+                setState(prev => ({ ...prev, globalLanguage: lang }));
+                showToast(`Language set to ${lang}`, 'info');
+              }}
+              onReset={handleReset}
+              settings={state.settings}
+              onSaveSettings={(s) => {
+                storage.setSettings(s);
+                setState(prev => ({ ...prev, settings: s }));
+              }}
+              onTestConnection={async () => {
+                const ai = new AIService(state.settings);
+                return await ai.testConnection();
+              }}
+              t={t}
+            />
+            
+            {deferredPrompt && (
+              <div className="px-4 pb-8">
                 <button 
                   onClick={handleInstallPWA}
                   className="saas-button primary-button w-full flex items-center justify-center gap-2"
@@ -1073,8 +826,8 @@ export default function App() {
                   <Download size={20} />
                   <span>{t('installPWA')}</span>
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

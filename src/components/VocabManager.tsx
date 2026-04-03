@@ -108,8 +108,8 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredVocab.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+              {filteredVocab.map((item, index) => (
+                <tr key={`${item.id}-${index}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                   <td className="px-4 py-3 text-slate-900 dark:text-slate-100">{item.meaning_vi}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.target_en}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.target_zh}</td>

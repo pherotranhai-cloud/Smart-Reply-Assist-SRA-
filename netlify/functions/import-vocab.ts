@@ -41,7 +41,7 @@ export const handler: Handler = async (event) => {
     }
 
     // 3. Sanitize and Prepare Data
-    const sanitizedData = rawData.map((item: any) => {
+    const sanitizedData = rawData.map((item: any, index: number) => {
       const term = String(item.term || item.category || '').trim();
       const meaning_vi = String(item.meaning_vi || item.vietnamese || item.tieng_viet || item.vi || '').trim();
       const target_en = String(item.target_en || item.english || item.tieng_anh || item.en || '').trim();
@@ -49,7 +49,7 @@ export const handler: Handler = async (event) => {
       const enabledVal = item.enable !== undefined ? item.enable : item.enabled;
       const enabled = enabledVal !== false && String(enabledVal).toLowerCase() !== 'false';
       
-      const hashInput = term ? `${term}-${meaning_vi}` : meaning_vi;
+      const hashInput = term ? `${term}-${meaning_vi}-${index}` : `${meaning_vi}-${index}`;
       const id = crypto.createHash('md5').update(hashInput).digest('hex');
 
       return {

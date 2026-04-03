@@ -94,7 +94,11 @@ export class AIService {
     const glossary = this.buildGlossaryPrompt(vocab, targetLang, text);
     const persona = `You are an expert ${targetLang.toUpperCase()} Industry Translator.`;
     
-    const systemPrompt = `${persona}\nYour task is to translate the user's input into ${targetLang}.\nOutput ONLY the translated text. Do not include any explanations or conversational filler.${glossary}`;
+    let systemPrompt = `${persona}\nYour task is to translate the user's input into ${targetLang}.\nOutput ONLY the translated text. Do not include any explanations or conversational filler.${glossary}`;
+    
+    if (image) {
+      systemPrompt = `Hãy trích xuất văn bản từ hình ảnh này và dịch nó sang ngôn ngữ ${targetLang}. Nếu có thuật ngữ chuyên ngành, hãy ưu tiên sử dụng Glossary đi kèm.${glossary}`;
+    }
 
     const content: any[] = [{ type: 'text', text: text.trim() }];
     if (image) {

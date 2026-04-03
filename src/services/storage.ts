@@ -168,5 +168,13 @@ export const storage = {
     } else {
       await adapter.set(STORAGE_KEYS.STRUCTURED_SUMMARY, summary);
     }
+  },
+
+  async getTranslationCache(): Promise<Record<string, { translatedText: string, timestamp: number }>> {
+    return (await adapter.get<Record<string, { translatedText: string, timestamp: number }>>(STORAGE_KEYS.TRANSLATION_CACHE)) || {};
+  },
+
+  async setTranslationCache(cache: Record<string, { translatedText: string, timestamp: number }>): Promise<void> {
+    await adapter.set(STORAGE_KEYS.TRANSLATION_CACHE, cache);
   }
 };
