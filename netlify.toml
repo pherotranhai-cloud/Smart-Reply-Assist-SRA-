@@ -4,7 +4,7 @@
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["serverless-http", "express"]
+  external_node_modules = ["serverless-http", "express", "cors", "openai"]
 
 # Map /api/* to Netlify functions
 [[redirects]]
