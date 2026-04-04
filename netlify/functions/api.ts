@@ -1,9 +1,11 @@
 import express, { Router } from 'express';
 import serverless from 'serverless-http';
 import dotenv from 'dotenv';
+import cors from 'cors';
 import crypto from 'crypto';
 import axios from 'axios';
 import Papa from 'papaparse';
+import OpenAI from 'openai';
 
 dotenv.config();
 
@@ -11,9 +13,14 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const AI_MODEL_NAME = process.env.AI_MODEL_NAME || 'gpt-4o-mini';
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || '16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY';
 
+const openai = new OpenAI({
+  apiKey: OPENAI_API_KEY,
+});
+
 const app = express();
 const router = Router();
 
+app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 router.get('/health', (req, res) => res.json({ status: 'ok' }));
@@ -50,21 +57,16 @@ CRITICAL: You MUST use these exact translations. DO NOT use synonyms.
       });
     }
 
-    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+    const response = await openai.chat.completions.create({
       model: AI_MODEL_NAME,
       messages,
       temperature: 0,
-    }, {
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
     });
 
-    res.json({ translatedText: response.data.choices[0].message.content });
+    res.json({ translatedText: response.choices[0].message.content });
   } catch (error: any) {
     console.error('Translation error:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Translation failed' });
+    res.status(500).json({ error: 'Translation failed', details: error.message });
   }
 });
 
@@ -94,24 +96,19 @@ CRITICAL: You MUST use these exact translations. DO NOT use synonyms.
 - Max 200 words. No filler.
 </critical_requirements>`;
     
-    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+    const response = await openai.chat.completions.create({
       model: AI_MODEL_NAME,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `${contextText}\n${requirements}` }
       ],
       temperature: 0,
-    }, {
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
     });
 
-    res.json({ generatedReply: response.data.choices[0].message.content });
+    res.json({ generatedReply: response.choices[0].message.content });
   } catch (error: any) {
     console.error('Compose error:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Compose failed' });
+    res.status(500).json({ error: 'Compose failed', details: error.message });
   }
 });
 
