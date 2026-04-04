@@ -13,10 +13,9 @@ export interface VocabItem {
   enabled: boolean | string;
 }
 
-export type ProviderType = 'openai' | 'gemini';
+export type ProviderType = 'openai';
 
 export interface ProviderSettings {
-  apiKey: string;
   baseUrl: string;
   model: string;
 }
@@ -24,7 +23,6 @@ export interface ProviderSettings {
 export interface AISettings {
   activeProvider: ProviderType;
   openai: ProviderSettings;
-  gemini: ProviderSettings;
 }
 
 export interface ConversationContext {

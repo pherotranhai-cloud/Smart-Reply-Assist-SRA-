@@ -3,14 +3,8 @@ import { AISettings, AppState } from './types';
 export const DEFAULT_SETTINGS: AISettings = {
   activeProvider: 'openai',
   openai: {
-    apiKey: '',
     baseUrl: 'https://api.openai.com/v1',
     model: 'gpt-4o',
-  },
-  gemini: {
-    apiKey: '',
-    baseUrl: 'https://generativelanguage.googleapis.com',
-    model: 'gemini-1.5-flash',
   },
 };
 

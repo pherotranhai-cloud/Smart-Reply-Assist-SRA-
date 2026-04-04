@@ -1,14 +1,12 @@
 # Smart Reply Assist (SRA)
 
-Cyberpunk-themed AI assistant for translation and message composition, built as a Pure Progressive Web App (PWA).
+AI assistant for translation and message composition.
 
 ## Features
 
 - **AI Translation:** Multi-language support with vocabulary integration.
 - **Smart Composition:** Generate replies based on context, audience, and tone.
 - **Vocabulary Library:** Manage custom terms and meanings.
-- **PWA Support:** Installable on desktop and mobile with offline capabilities.
-- **Cyberpunk UI:** High-contrast, neon-themed interface.
 
 ## Development
 
@@ -16,6 +14,7 @@ Cyberpunk-themed AI assistant for translation and message composition, built as 
 ```bash
 npm run dev
 ```
+(Runs the backend server using `tsx server.ts`)
 
 ### Build for Production
 ```bash
@@ -25,17 +24,20 @@ The output will be in the `dist/` directory.
 
 ## Architecture
 
-The project is built as a standalone Single Page Application (SPA) with PWA capabilities:
+The project is built as a full-stack application using Express and Vite:
 
-- **Storage:** Uses standard `localStorage` for persistent data.
-- **AI Integration:** Calls Gemini API directly from the client.
-- **Service Worker:** Handles caching for offline performance and installation.
+- **Backend:** Express server handles API requests, rate limiting, and AI provider interaction.
+- **Frontend:** Single Page Application (SPA) served by Vite.
+- **AI Integration:** Backend proxies requests to AI providers using secure environment variables.
+- **Rate Limiting:** IP-based rate limiting (20 requests/hour) is enforced on the backend.
 
 ## Environment Variables
 
-Create a `.env` file with your Gemini API key:
+Create a `.env` file with your API keys:
 ```env
-GEMINI_API_KEY=your_key_here
+OPENAI_API_KEY=your_openai_key
+ADMIN_SECRET_KEY=your_secret
+GOOGLE_SHEET_ID=your_sheet_id
 ```
 
-For production builds, ensure these are set in your CI/CD environment.
+For production builds, ensure these are set in your deployment environment.

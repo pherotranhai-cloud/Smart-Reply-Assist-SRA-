@@ -12,7 +12,7 @@ export class OpenAIProvider implements AIProvider {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${this.settings.apiKey}`,
+        'Content-Type': 'application/json',
       },
     });
 
@@ -30,7 +30,6 @@ export class OpenAIProvider implements AIProvider {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.settings.apiKey}`,
       },
       body: JSON.stringify({
         model: this.settings.model,

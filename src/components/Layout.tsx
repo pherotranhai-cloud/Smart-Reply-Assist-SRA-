@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Languages, PenTool, BookOpen, Settings, CheckCircle2, AlertCircle, X } from 'lucide-react';
 
@@ -6,7 +6,6 @@ interface LayoutProps {
   children: React.ReactNode;
   activeTab: string;
   setActiveTab: (tab: any) => void;
-  isLoading: boolean;
   toast: { message: string; type: 'info' | 'error' | 'success' } | null;
   onCloseToast: () => void;
 }
@@ -15,67 +14,23 @@ export const Layout: React.FC<LayoutProps> = ({
   children, 
   activeTab, 
   setActiveTab, 
-  isLoading, 
   toast, 
   onCloseToast 
 }) => {
-  const [showSplash, setShowSplash] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 2000);
-    return () => clearTimeout(timer);
-  }, []);
-
   return (
-    <div className="flex flex-col min-h-screen bg-background text-text-main">
-      {/* Splash Screen */}
-      <AnimatePresence>
-        {showSplash && (
-          <motion.div
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0, scale: 1.1 }}
-            transition={{ duration: 0.5, ease: "easeInOut" }}
-            className="fixed inset-0 z-[1000] flex flex-col items-center justify-center bg-background"
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center gap-6"
-            >
-              <div className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center shadow-2xl shadow-primary/40 animate-pulse-soft">
-                <Languages size={40} className="text-white" />
-              </div>
-              <div className="flex flex-col items-center gap-2">
-                <h1 className="text-3xl font-bold tracking-tight">SRA</h1>
-                <p className="text-muted text-sm font-medium uppercase tracking-[0.2em]">Smart Reply Assist</p>
-              </div>
-            </motion.div>
-            
-            <div className="absolute bottom-12 w-48 h-1 bg-muted/10 rounded-full overflow-hidden">
-              <motion.div 
-                initial={{ x: "-100%" }}
-                animate={{ x: "100%" }}
-                transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                className="w-full h-full bg-primary"
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+    <div className="flex flex-col min-h-screen bg-app text-text-main">
       {/* Main Content */}
       <motion.main 
         initial={{ opacity: 0 }}
-        animate={{ opacity: showSplash ? 0 : 1 }}
+        animate={{ opacity: 1 }}
         className="flex-1 flex flex-col pb-20 max-w-2xl mx-auto w-full px-4 pt-6"
       >
         {children}
       </motion.main>
 
       {/* Bottom Navigation */}
-      {!showSplash && (
-        <nav className="fixed bottom-6 left-4 right-4 z-50 flex justify-center pointer-events-none">
-          <div className="pointer-events-auto w-full max-w-md backdrop-blur-md bg-white/70 dark:bg-slate-900/70 border border-white/20 rounded-2xl flex items-center justify-around py-2 px-2 shadow-sm">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-6 pt-2 bg-gradient-to-t from-app via-app/80 to-transparent pointer-events-none">
+        <div className="pointer-events-auto w-full max-w-md backdrop-blur-lg bg-panel/80 border border-border-main rounded-2xl flex items-center justify-around py-2 px-2 shadow-sm mx-4">
             <NavItem 
               icon={<Languages size={20} />} 
               label="Translate" 
@@ -100,9 +55,8 @@ export const Layout: React.FC<LayoutProps> = ({
               active={activeTab === 'settings'} 
               onClick={() => setActiveTab('settings')} 
             />
-          </div>
-        </nav>
-      )}
+        </div>
+      </nav>
 
       {/* Toast Notification */}
       <AnimatePresence>

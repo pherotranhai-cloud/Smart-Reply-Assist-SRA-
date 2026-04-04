@@ -13,7 +13,6 @@
     "sync-vocab": "node update-db.js"
   },
   "dependencies": {
-    "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.1.14",
     "@types/morgan": "^1.9.10",
     "@vitejs/plugin-react": "^5.0.4",
@@ -23,11 +22,13 @@
     "csvtojson": "^2.0.14",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.3.2",
     "fs-extra": "^11.3.3",
     "ioredis": "^5.10.1",
     "lucide-react": "^0.546.0",
     "morgan": "^1.10.1",
     "motion": "^12.23.24",
+    "openai": "^6.33.0",
     "papaparse": "^5.5.3",
     "pg": "^8.20.0",
     "pg-format": "^1.0.4",

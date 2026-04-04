@@ -1,89 +1,59 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: var(--bg);
-  --color-surface: var(--panel);
-  --color-primary: var(--accent);
-  --color-primary-glow: var(--glow);
-  --color-text-main: var(--text);
-  --color-border-main: var(--border);
-  --color-muted: var(--muted);
-  --color-placeholder: var(--placeholder);
+  --color-app: var(--bg-app);
+  --color-panel: var(--bg-panel);
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-muted);
+  --color-border-main: var(--border-main);
+  --color-accent: var(--accent);
   
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
-:root {
-  /* Modern SaaS Dark (Default) */
-  --bg: #0b0e14;
-  --panel: rgba(23, 27, 34, 0.8);
-  --text: #f8fafc;
-  --muted: #94a3b8; /* Slate 400 */
-  --placeholder: #64748b; /* Slate 500 */
-  --border: rgba(255, 255, 255, 0.12);
-  --accent: #007AFF; /* Apple Blue */
-  --accent-hover: #005bb5;
-  --accent2: #ec4899; /* Pink 500 */
-  --glow: rgba(0, 122, 255, 0.2);
-  --shadow: rgba(0, 0, 0, 0.1);
-  --input-bg: rgba(30, 41, 59, 0.5); /* bg-slate-800/50 */
-  --btn-text: #ffffff;
-  --btn-secondary-bg: rgba(30, 41, 59, 0.6);
-  --btn-secondary-border: rgba(51, 65, 85, 0.6);
-  --btn-secondary-text: #cbd5e1;
-  --card-radius: 16px;
-  --glass-blur: 16px;
+:root { /* Light Mode */
+  --bg-app: #f8fafc;
+  --bg-panel: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border-main: #e2e8f0;
+  --accent: #2563eb;
 }
 
-:root[data-theme="light"] {
-  --bg: #f8fafc;
-  --panel: #ffffff;
-  --text: #0f172a;
-  --muted: #475569; /* Slate 600 */
-  --placeholder: #94a3b8; /* Slate 400 */
-  --border: #cbd5e1; /* Slate 300 */
-  --accent: #007AFF; /* Apple Blue */
-  --accent-hover: #005bb5;
-  --accent2: #db2777;
-  --glow: rgba(0, 122, 255, 0.1);
-  --shadow: rgba(15, 23, 42, 0.05);
-  --input-bg: rgba(241, 245, 249, 0.5); /* bg-slate-100/50 */
-  --btn-text: #ffffff;
-  --btn-secondary-bg: #f1f5f9;
-  --btn-secondary-border: #cbd5e1;
-  --btn-secondary-text: #334155;
+:root[data-theme="dark"], .dark { /* Dark Mode */
+  --bg-app: #020617;
+  --bg-panel: #0f172a;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --border-main: #1e293b;
+  --accent: #3b82f6;
 }
 
 @layer base {
   body {
-    @apply bg-background text-text-main antialiased selection:bg-primary/30;
+    @apply bg-app text-text-main antialiased selection:bg-accent/30 transition-colors duration-300;
     font-family: var(--font-sans);
     line-height: 1.6;
     min-height: 100vh;
-    transition: background-color 0.3s ease, color 0.3s ease;
     overflow-x: hidden;
   }
 
   /* Viewport aware height for mobile */
   #root {
-    @apply min-h-screen flex flex-col;
+    @apply min-h-screen flex flex-col transition-colors duration-300;
   }
 }
 
 @layer components {
   .glass-panel {
-    @apply backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 shadow-sm;
-    background-color: var(--panel);
-    border-radius: var(--card-radius);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    @apply bg-panel/80 backdrop-blur-md border border-border-main shadow-sm transition-colors duration-300;
+    border-radius: 16px;
   }
 
   .premium-card {
-    @apply backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 shadow-sm p-4 sm:p-6;
-    background-color: var(--panel);
-    border-radius: var(--card-radius);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    @apply bg-panel/80 backdrop-blur-md border border-border-main shadow-sm p-4 sm:p-6 transition-colors duration-300;
+    border-radius: 16px;
   }
 
   .saas-button {
@@ -94,53 +64,41 @@
   }
 
   .primary-button {
-    @apply relative overflow-hidden transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium bg-primary hover:bg-primary/90 shadow-sm;
-    color: var(--btn-text);
+    @apply relative overflow-hidden transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium bg-accent hover:bg-accent/90 shadow-sm text-white;
     border-radius: 14px;
     height: 44px;
     min-width: 44px;
   }
 
   .secondary-button {
-    @apply relative overflow-hidden transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium;
-    background-color: var(--btn-secondary-bg);
-    border: 1px solid var(--btn-secondary-border);
-    color: var(--btn-secondary-text);
+    @apply relative overflow-hidden transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium bg-panel border border-border-main text-text-main hover:bg-border-main/50;
     border-radius: 14px;
     height: 44px;
     min-width: 44px;
   }
 
-  .secondary-button:hover:not(:disabled) {
-    background-color: var(--btn-secondary-bg);
-    filter: brightness(0.95);
-  }
-
   .saas-input {
-    @apply border border-border-main rounded-xl px-4 py-3 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all text-text-main w-full placeholder:text-placeholder;
-    background-color: var(--input-bg);
-    line-height: 1.6;
+    @apply w-full bg-panel border border-border-main rounded-xl px-4 py-3 text-[15px] outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all text-text-main placeholder:text-text-muted;
   }
 
   .segmented-control {
-    @apply flex p-1 bg-muted/10 rounded-lg border border-border-main/50 shadow-inner;
+    @apply flex p-1 bg-text-muted/10 rounded-lg border border-border-main/50 shadow-inner;
   }
 
   .segmented-control-item {
-    @apply px-4 py-1.5 text-[12px] font-medium tracking-widest uppercase rounded-md transition-all duration-200 text-muted hover:text-text-main hover:bg-muted/5;
+    @apply px-4 py-1.5 text-[12px] font-medium tracking-widest uppercase rounded-md transition-all duration-200 text-text-muted hover:text-text-main hover:bg-text-muted/5;
   }
 
   .segmented-control-item.active {
-    @apply bg-primary text-white shadow-lg shadow-primary/20;
+    @apply bg-accent text-white shadow-lg shadow-accent/20;
   }
 
   .bottom-nav-item {
-    @apply flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-all duration-200;
-    color: var(--muted);
+    @apply flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-all duration-200 text-text-muted;
   }
 
   .bottom-nav-item.active {
-    @apply text-primary;
+    @apply text-accent;
   }
 
   .shimmer {
@@ -179,7 +137,7 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 dark:bg-slate-700 rounded-full hover:bg-slate-400 dark:hover:bg-slate-600 transition-colors;
+  @apply bg-border-main rounded-full hover:bg-text-muted transition-colors;
 }
 
 .no-scrollbar::-webkit-scrollbar {

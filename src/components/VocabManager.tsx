@@ -68,7 +68,7 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
         </h2>
         <div className="flex gap-2 w-full sm:w-auto items-center">
           {lastSynced && (
-            <span className="text-xs text-slate-500 flex items-center gap-1 mr-2">
+            <span className="text-xs text-text-muted flex items-center gap-1 mr-2">
               <Clock size={12} /> Last synced: {lastSynced}
             </span>
           )}
@@ -80,39 +80,39 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
       </div>
 
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={18} />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
         <input 
           type="text"
           placeholder={t('searchVocab')}
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="saas-input pl-10 w-full bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 border-slate-200 dark:border-slate-700"
+          className="saas-input pl-10"
         />
       </div>
 
-      <div className="flex-1 overflow-auto min-h-[300px] border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900">
+      <div className="flex-1 overflow-auto min-h-[300px] border border-border-main rounded-xl bg-panel">
         {loading ? (
           <div className="p-4"><VocabSkeleton /></div>
         ) : filteredVocab.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400 dark:text-slate-500 gap-4">
+          <div className="flex flex-col items-center justify-center py-20 text-text-muted gap-4">
             <BookOpen size={48} strokeWidth={1} />
             <p>No matching terms found</p>
           </div>
         ) : (
           <table className="w-full text-left text-sm">
-            <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+            <thead className="sticky top-0 z-10 bg-panel border-b border-border-main">
               <tr>
-                <th className="px-4 py-3 font-medium text-[12px] tracking-widest text-slate-500 uppercase w-1/3">VI</th>
-                <th className="px-4 py-3 font-medium text-[12px] tracking-widest text-slate-500 uppercase w-1/3">EN</th>
-                <th className="px-4 py-3 font-medium text-[12px] tracking-widest text-slate-500 uppercase w-1/3">ZH</th>
+                <th className="px-4 py-3 font-medium text-[12px] tracking-widest text-text-muted uppercase w-1/3">VI</th>
+                <th className="px-4 py-3 font-medium text-[12px] tracking-widest text-text-muted uppercase w-1/3">EN</th>
+                <th className="px-4 py-3 font-medium text-[12px] tracking-widest text-text-muted uppercase w-1/3">ZH</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="divide-y divide-border-main/50">
               {filteredVocab.map((item, index) => (
-                <tr key={`${item.id}-${index}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                  <td className="px-4 py-3 text-slate-900 dark:text-slate-100">{item.meaning_vi}</td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.target_en}</td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.target_zh}</td>
+                <tr key={`${item.id}-${index}`} className="hover:bg-border-main/20 transition-colors">
+                  <td className="px-4 py-3 text-text-main">{item.meaning_vi}</td>
+                  <td className="px-4 py-3 text-text-muted">{item.target_en}</td>
+                  <td className="px-4 py-3 text-text-muted">{item.target_zh}</td>
                 </tr>
               ))}
             </tbody>

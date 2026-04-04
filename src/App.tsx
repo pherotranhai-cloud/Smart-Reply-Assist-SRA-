@@ -23,10 +23,10 @@ import {
 } from 'lucide-react';
 import { storage } from './services/storage';
 import { AIService } from './services/ai';
-import { normalizeGeminiModelName } from './services/geminiProvider';
 import { applyTheme, resolveTheme, watchSystemThemeChanges, ThemeMode } from './utils/theme';
 import { generateHash } from './utils/hash';
 import { translations } from './i18n';
+import { SplashScreen } from './components/SplashScreen';
 import { 
   VocabItem, 
   AISettings, 
@@ -79,6 +79,7 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isAppLoading, setIsAppLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'info' | 'error' | 'success' } | null>(null);
   const [context, setContext] = useState<ConversationContext | null>(null);
   const [isContextExpanded, setIsContextExpanded] = useState(false);
@@ -152,31 +153,6 @@ export default function App() {
           }
         }).catch(console.error);
 
-        // Migration: Normalize Gemini model name
-        let migrated = false;
-        const geminiModel = settings.gemini.model || '';
-        
-        // Detect label-like values (contains spaces or starts with "Gemini")
-        if (geminiModel.includes(' ') || geminiModel.startsWith('Gemini')) {
-          settings.gemini.model = ''; // Unset
-          migrated = true;
-          showToast('Gemini model list refreshed. Please select a model again.', 'info');
-        } else if (geminiModel) {
-          try {
-            const normalized = normalizeGeminiModelName(geminiModel);
-            if (normalized && normalized !== geminiModel) {
-              settings.gemini.model = normalized;
-              migrated = true;
-            }
-          } catch (e) {
-            // Ignore
-          }
-        }
-
-        if (migrated) {
-          await storage.setSettings(settings);
-        }
-
         setState(prev => ({ 
           ...prev, 
           settings, 
@@ -195,8 +171,7 @@ export default function App() {
         console.error('Hydration failed:', err);
       } finally {
         setHydrated(true);
-        // Artificial delay for splash screen feel
-        setTimeout(() => setIsAppLoading(false), 1500);
+        setIsAppLoading(false);
       }
     };
     init();
@@ -512,13 +487,22 @@ export default function App() {
   };
 
   return (
-    <Layout
-      activeTab={activeTab}
-      setActiveTab={setActiveTab}
-      isLoading={isAppLoading}
-      toast={toast}
-      onCloseToast={() => setToast(null)}
-    >
+    <>
+      <AnimatePresence>
+        {showSplash && (
+          <SplashScreen 
+            isDataLoaded={!isAppLoading} 
+            onComplete={() => setShowSplash(false)} 
+          />
+        )}
+      </AnimatePresence>
+
+      <Layout
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        toast={toast}
+        onCloseToast={() => setToast(null)}
+      >
       <AnimatePresence mode="wait">
         {activeTab === 'translate' && (
           <motion.div 
@@ -531,7 +515,7 @@ export default function App() {
           >
             <div className="premium-card space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('inputSource')}</h3>
+                <h3 className="text-[12px] font-medium tracking-widest text-text-muted uppercase">{t('inputSource')}</h3>
                 <div className="flex gap-2">
                   <button 
                     onClick={() => setTranslateImage(null)}
@@ -594,13 +578,13 @@ export default function App() {
 
               <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
                 <div className="flex-1 space-y-2">
-                  <label className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('targetLanguage')}</label>
+                  <label className="text-[12px] font-medium tracking-widest text-text-muted uppercase">{t('targetLanguage')}</label>
                   <select 
                     className="saas-input w-full"
                     value={targetLang}
                     onChange={e => setTargetLang(e.target.value as Language)}
                   >
-                    {LANGUAGES.map(l => <option key={l} className="bg-slate-900">{l}</option>)}
+                    {LANGUAGES.map(l => <option key={l} className="bg-panel">{l}</option>)}
                   </select>
                 </div>
                 <button 
@@ -616,7 +600,7 @@ export default function App() {
 
             <div ref={outputRef} className="premium-card flex flex-col gap-4 bg-surface/30">
               <div className="flex justify-between items-center">
-                <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('translatedOutput')}</h3>
+                <h3 className="text-[12px] font-medium tracking-widest text-text-muted uppercase">{t('translatedOutput')}</h3>
                 <div className="flex items-center gap-2">
                   {state.lastOutputs.translatedText && (
                     <button 
@@ -660,7 +644,7 @@ export default function App() {
                       <span>Linked to Context</span>
                     </div>
                   ) : (
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-full text-[13px] font-medium">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-panel border border-border-main text-text-muted rounded-full text-[13px] font-medium">
                       <AlertCircle size={14} />
                       <span>No Context</span>
                     </div>
@@ -668,12 +652,12 @@ export default function App() {
                 </div>
 
                 {/* Primary Focus: Reply Requirements */}
-                <div className="space-y-2">
+                <div className="space-y-2 flex flex-col flex-1">
                   <div className="flex justify-between items-center px-1">
-                    <label className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">{t('replyRequirements')}</label>
+                    <label className="text-[13px] font-semibold text-text-main">{t('replyRequirements')}</label>
                   </div>
                   <textarea 
-                    className="w-full min-h-[40vh] p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm resize-none text-[17px] leading-relaxed focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    className="w-full flex-1 min-h-[30vh] p-4 bg-panel text-text-main border border-border-main rounded-2xl shadow-sm resize-none text-[17px] leading-relaxed focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
                     placeholder={t('replyPlaceholder')}
                     value={composeReq}
                     onChange={e => setComposeReq(e.target.value)}
@@ -683,9 +667,9 @@ export default function App() {
                 {/* Configuration Grid */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-[12px] font-medium text-slate-500 px-1">{t('audience')}</label>
+                    <label className="text-[12px] font-medium text-text-muted px-1">{t('audience')}</label>
                     <select 
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-panel text-text-main border border-border-main rounded-xl px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-accent transition-colors duration-300"
                       value={composeParams.audience}
                       onChange={e => setComposeParams({ ...composeParams, audience: e.target.value as Audience })}
                     >
@@ -693,9 +677,9 @@ export default function App() {
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[12px] font-medium text-slate-500 px-1">{t('tone')}</label>
+                    <label className="text-[12px] font-medium text-text-muted px-1">{t('tone')}</label>
                     <select 
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-panel text-text-main border border-border-main rounded-xl px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-accent transition-colors duration-300"
                       value={composeParams.tone}
                       onChange={e => setComposeParams({ ...composeParams, tone: e.target.value as Tone })}
                     >
@@ -703,9 +687,9 @@ export default function App() {
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[12px] font-medium text-slate-500 px-1">{t('language')}</label>
+                    <label className="text-[12px] font-medium text-text-muted px-1">{t('language')}</label>
                     <select 
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-panel text-text-main border border-border-main rounded-xl px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-accent transition-colors duration-300"
                       value={composeParams.lang}
                       onChange={e => setComposeParams({ ...composeParams, lang: e.target.value as Language })}
                     >
@@ -713,9 +697,9 @@ export default function App() {
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[12px] font-medium text-slate-500 px-1">{t('format')}</label>
+                    <label className="text-[12px] font-medium text-text-muted px-1">{t('format')}</label>
                     <select 
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-panel text-text-main border border-border-main rounded-xl px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-accent transition-colors duration-300"
                       value={composeParams.format}
                       onChange={e => setComposeParams({ ...composeParams, format: e.target.value as Format })}
                     >
@@ -729,7 +713,7 @@ export default function App() {
               {state.lastOutputs.generatedReply && (
                 <div className="premium-card space-y-4 bg-surface/30">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-[12px] font-medium tracking-widest text-slate-500 uppercase">{t('generatedOutput')}</h3>
+                    <h3 className="text-[12px] font-medium tracking-widest text-text-muted uppercase">{t('generatedOutput')}</h3>
                     <button 
                       onClick={() => copyToClipboard(state.lastOutputs.generatedReply)}
                       className="p-2 text-muted hover:text-accent transition-colors"
@@ -751,12 +735,12 @@ export default function App() {
             </div>
 
             {/* Sticky Action Button */}
-            <div className="fixed bottom-[80px] left-0 right-0 p-4 bg-gradient-to-t from-bg-main via-bg-main to-transparent pointer-events-none z-10">
+            <div className="fixed bottom-[90px] left-0 right-0 p-4 bg-gradient-to-t from-app via-app/80 to-transparent pointer-events-none z-40">
               <div className="max-w-3xl mx-auto pointer-events-auto">
                 <button 
                   onClick={handleCompose}
                   disabled={loading || !composeReq.trim()}
-                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-2xl py-4 text-[17px] font-semibold flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 transition-all active:scale-[0.98]"
+                  className="w-full bg-accent hover:bg-accent/90 disabled:bg-panel disabled:border disabled:border-border-main disabled:text-text-muted text-white rounded-2xl py-4 text-[17px] font-semibold flex items-center justify-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-[0.98]"
                 >
                   {loading ? <Loader2 className="animate-spin" size={20} /> : <PenTool size={20} />}
                   <span>{t('generateReply')}</span>
@@ -810,10 +794,6 @@ export default function App() {
                 storage.setSettings(s);
                 setState(prev => ({ ...prev, settings: s }));
               }}
-              onTestConnection={async () => {
-                const ai = new AIService(state.settings);
-                return await ai.testConnection();
-              }}
               t={t}
             />
             
@@ -832,5 +812,6 @@ export default function App() {
         )}
       </AnimatePresence>
     </Layout>
+    </>
   );
 }

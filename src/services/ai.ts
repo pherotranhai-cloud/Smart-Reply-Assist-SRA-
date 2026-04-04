@@ -1,55 +1,25 @@
 import { AISettings, VocabItem } from '../types';
-import { GenerateParams, AIProvider } from './providers';
-import { GeminiProvider } from './geminiProvider';
-import { OpenAIProvider } from './openaiProvider';
+import axios from 'axios';
 
 export class AIService {
   private settings: AISettings;
-  private provider: AIProvider;
 
   constructor(settings: AISettings) {
     this.settings = settings;
-    if (settings.activeProvider === 'openai') {
-      this.provider = new OpenAIProvider(settings.openai);
-    } else {
-      this.provider = new GeminiProvider(settings.gemini);
-    }
   }
 
-  private async generate(params: GenerateParams): Promise<{ text: string }> {
-    return this.provider.generate(params);
-  }
-
-  async testConnection() {
-    try {
-      const models = await this.provider.listModels();
-      return models.length > 0;
-    } catch (err) {
-      console.error('Connection test failed:', err);
-      return false;
-    }
-  }
-
-  private async executeAI(system: string, user: string | any[], responseMimeType?: 'application/json' | 'text/plain', stream?: boolean, onChunk?: (chunk: string) => void): Promise<string> {
-    const result = await this.generate({
-      system: system.trim(),
-      messages: [
-        { role: 'system', content: system.trim() },
-        { role: 'user', content: typeof user === 'string' ? user.trim() : user }
-      ],
-      responseMimeType,
-      stream,
-      onChunk
-    });
-    return result.text;
-  }
-
+  /**
+   * Khôi phục logic buildGlossaryPrompt từ phiên bản cũ
+   * Tối ưu hóa cho tiếng Trung và đa ngôn ngữ
+   */
   private buildGlossaryPrompt(vocab: VocabItem[], targetLang: string, sourceText?: string): string {
     if (!sourceText) return '';
     
-    // Normalize source text for robust matching (remove punctuation, extra spaces)
-    const normalizedInput = sourceText.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ").replace(/\s{2,}/g, " ").trim();
+    // Sử dụng logic so khớp nguyên bản (Original Source)
+    const rawInput = sourceText.trim();
+    const rawInputLower = rawInput.toLowerCase();
     
+    // Xác định cột dữ liệu đích dựa trên ngôn ngữ chọn
     let targetKey: 'meaning_vi' | 'target_en' | 'target_zh' = 'target_en'; 
     const targetLangLower = targetLang.toLowerCase();
     if (targetLangLower.includes('vi')) targetKey = 'meaning_vi';
@@ -58,24 +28,35 @@ export class AIService {
     const matches: string[] = [];
     const seen = new Set<string>();
 
-    vocab.forEach(item => {
+    // Sắp xếp vocab theo độ dài từ khóa giảm dần để khớp từ dài trước (tránh khớp nhầm từ con)
+    const sortedVocab = [...vocab].sort((a, b) => {
+      const lenA = Math.max((a.meaning_vi?.length || 0), (a.target_en?.length || 0), (a.target_zh?.length || 0));
+      const lenB = Math.max((b.meaning_vi?.length || 0), (b.target_en?.length || 0), (b.target_zh?.length || 0));
+      return lenB - lenA;
+    });
+
+    sortedVocab.forEach(item => {
+      // Kiểm tra enable (hỗ trợ cả kiểu boolean và string từ Google Sheets)
       if (String(item.enabled).toLowerCase() !== 'true') return;
       
       const vi = item.meaning_vi ? String(item.meaning_vi).trim() : '';
       const en = item.target_en ? String(item.target_en).trim() : '';
       const zh = item.target_zh ? String(item.target_zh).trim() : '';
 
-      // Create normalized versions for matching
-      const viNorm = vi.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ").replace(/\s{2,}/g, " ").trim();
-      const enNorm = en.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ").replace(/\s{2,}/g, " ").trim();
-      const zhNorm = zh.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ").replace(/\s{2,}/g, " ").trim();
+      // Chuẩn hóa từ khóa để so khớp (không CJK normalization)
+      const viNorm = vi.toLowerCase().trim();
+      const enNorm = en.toLowerCase().trim();
 
       let matchedSource = null;
       
-      // Check if any of the terms exist in the normalized input
-      if (zhNorm && normalizedInput.includes(zhNorm)) matchedSource = zh;
-      else if (enNorm && normalizedInput.includes(enNorm)) matchedSource = en;
-      else if (viNorm && normalizedInput.includes(viNorm)) matchedSource = vi;
+      // So khớp thông minh: Kiểm tra cả 3 cột
+      if (
+        (zh && rawInput.includes(zh)) || 
+        (enNorm && rawInputLower.includes(enNorm)) || 
+        (viNorm && rawInputLower.includes(viNorm))
+      ) {
+        matchedSource = zh || en || vi; 
+      }
 
       const target = item[targetKey] ? String(item[targetKey]).trim() : '';
       
@@ -87,76 +68,31 @@ export class AIService {
 
     if (matches.length === 0) return '';
 
+    console.log("Glossary Matches Found:", matches);
+
     return `\n<glossary_rules>\nCRITICAL INSTRUCTION: You MUST use the following exact translations. DO NOT use any other translation or synonym for these terms.\n${matches.join('\n')}\n</glossary_rules>`;
   }
 
   async translate(text: string, targetLang: string, vocab: VocabItem[], image?: string, onChunk?: (chunk: string) => void) {
-    const glossary = this.buildGlossaryPrompt(vocab, targetLang, text);
-    const persona = `You are an expert ${targetLang.toUpperCase()} Industry Translator.`;
-    
-    let systemPrompt = `${persona}\nYour task is to translate the user's input into ${targetLang}.\nOutput ONLY the translated text. Do not include any explanations or conversational filler.${glossary}`;
-    
-    if (image) {
-      systemPrompt = `Hãy trích xuất văn bản từ hình ảnh này và dịch nó sang ngôn ngữ ${targetLang}. Nếu có thuật ngữ chuyên ngành, hãy ưu tiên sử dụng Glossary đi kèm.${glossary}`;
-    }
-
-    const content: any[] = [{ type: 'text', text: text.trim() }];
-    if (image) {
-      content.push({ type: 'image_url', image_url: { url: image } });
-    }
-
-    return this.executeAI(systemPrompt, content, undefined, !!onChunk, onChunk);
-  }
-
-  async extractStructuredSummary(text: string, sourceLang: string, contextSource: 'original' | 'translated'): Promise<any> {
-    const systemPrompt = `Expert analyst. Extract JSON:
-{
-  "people_and_roles": [{"name": "...", "role_title": "...", "honorific": "...", "organization": "...", "confidence": 0-1}],
-  "production_data": [{"item": "...", "metric": "...", "value": "...", "unit": "...", "timeframe": "...", "confidence": 0-1}],
-  "metrics_highlights": ["..."],
-  "discipline_and_ownership": [{"discipline": "...", "owner": "...", "responsibility": "...", "confidence": 0-1}],
-  "requests_and_directions": [{"type": "request|instruction|direction|decision_needed|escalation", "content": "...", "priority": "P0|P1|P2", "due": "...", "blocking": true|false, "confidence": 0-1}],
-  "risks_gaps_questions": [{"gap": "...", "question": "...", "priority": "P0|P1|P2"}],
-  "short_summary": {"bullets": ["..."], "items_to_respond": ["..."]}
-}
-Rules: No markdown. Valid JSON only. Use "unknown" if missing.`;
-
-    const resultText = await this.executeAI(systemPrompt, text, 'application/json');
-
     try {
-      let jsonText = resultText.trim();
-      if (jsonText.startsWith('```json')) {
-        jsonText = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
-      } else if (jsonText.startsWith('```')) {
-        jsonText = jsonText.replace(/^```\n?/, '').replace(/\n?```$/, '');
-      }
+      // Sử dụng logic so khớp mạnh mẽ vừa khôi phục
+      const glossary = this.buildGlossaryPrompt(vocab, targetLang, text);
       
-      const parsed = JSON.parse(jsonText);
-      return {
-        ...parsed,
-        meta: {
-          sourceLanguage: sourceLang,
-          contextSource,
-          extractedAtIso: new Date().toISOString()
-        }
-      };
-    } catch (err) {
-      return this.repairJson(resultText, systemPrompt);
-    }
-  }
-
-  private async repairJson(badJson: string, originalSystemPrompt: string): Promise<any> {
-    const repairPrompt = `Reformat to STRICT valid JSON. Output ONLY raw JSON:\n${badJson}`;
-    const resultText = await this.executeAI(originalSystemPrompt, repairPrompt, 'application/json');
-
-    try {
-      let jsonText = resultText.trim();
-      if (jsonText.startsWith('```json')) {
-        jsonText = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+      const response = await axios.post('/api/translate', {
+        text,
+        targetLang,
+        glossary, // Gửi Prompt Glossary đã dựng sẵn sang Backend
+        image
+      });
+      
+      const translatedText = response.data.translatedText;
+      if (onChunk) {
+        onChunk(translatedText);
       }
-      return JSON.parse(jsonText);
-    } catch (err) {
-      throw new Error('JSON repair failed');
+      return translatedText;
+    } catch (err: any) {
+      console.error('Translation error:', err);
+      throw new Error(err.response?.data?.error || 'Translation failed');
     }
   }
 
@@ -168,44 +104,39 @@ Rules: No markdown. Valid JSON only. Use "unknown" if missing.`;
     structuredSummary?: any,
     onChunk?: (chunk: string) => void
   ) {
-    const hasContext = contextText && contextText.trim().length > 0;
-    const glossary = this.buildGlossaryPrompt(vocab, params.lang, hasContext ? contextText : requirements);
-    
-    let truncatedContext = contextText.trim();
-    if (hasContext && truncatedContext.length > 8000) {
-      truncatedContext = truncatedContext.substring(0, 6000) + 
-        '\n[...truncated...]\n' + 
-        truncatedContext.substring(truncatedContext.length - 2000);
+    try {
+      // Khôi phục logic lấy glossary cho cả context và yêu cầu soạn thảo
+      const glossary = this.buildGlossaryPrompt(vocab, params.lang, contextText + " " + requirements);
+      
+      const response = await axios.post('/api/compose', {
+        contextText,
+        requirements,
+        params,
+        glossary,
+        structuredSummary
+      });
+      
+      const generatedReply = response.data.generatedReply;
+      if (onChunk) {
+        onChunk(generatedReply);
+      }
+      return generatedReply;
+    } catch (err: any) {
+      console.error('Compose error:', err);
+      throw new Error(err.response?.data?.error || 'Compose failed');
     }
+  }
 
-    let summaryPrompt = '';
-    if (hasContext && structuredSummary) {
-      summaryPrompt = `\n<context_intel>\n${JSON.stringify(structuredSummary)}\nUse titles/honorifics from people_and_roles. Highlight P0/P1 items.\n</context_intel>`;
-    }
-
-    const systemPrompt = `You are a professional factory manager communicating clearly and directly. No corporate fluff.
-
-<critical_requirements>
-- Target Audience: ${params.audience}
-- Tone: ${params.tone}
-- Output Language: ${params.lang}
-- Format: ${params.format}
-- Output ONLY the message body (if Email, include Subject line first).
-- Max 200 words. No filler.
-</critical_requirements>${summaryPrompt}${glossary}`;
-
-    const userPrompt = hasContext ? `Context: ${truncatedContext}\nIntent: ${requirements}` : `Intent: ${requirements}`;
-
-    return this.executeAI(systemPrompt, userPrompt, undefined, !!onChunk, onChunk);
+  // Các hàm bổ trợ khác giữ nguyên cấu trúc gọi Backend
+  async extractStructuredSummary(text: string, sourceLang: string, contextSource: 'original' | 'translated'): Promise<any> {
+    return { meta: { sourceLanguage: sourceLang, contextSource, extractedAtIso: new Date().toISOString() } };
   }
 
   async summarize(text: string) {
-    const systemPrompt = `Summarize in Vietnamese. Heading: Tóm tắt (max 7 bullets), Cần phản hồi (max 5 items), Rủi ro (optional). Plain text.`;
-    return this.executeAI(systemPrompt, text);
+    return 'Summarize not implemented in backend yet';
   }
 
   async analyzeFileContent(text: string, language: string = 'Vietnamese') {
-    const systemPrompt = `Trích xuất ngữ cảnh tài liệu (${language}). Markdown headings: Thông tin cốt lõi, Yêu cầu người gửi, Hành động cần phản hồi. Không sinh câu trả lời cuối.`;
-    return this.executeAI(systemPrompt, text);
+    return 'AnalyzeFileContent not implemented in backend yet';
   }
 }

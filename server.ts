@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
 import Papa from 'papaparse';
+import rateLimit from 'express-rate-limit';
 
 dotenv.config();
 
@@ -14,9 +15,18 @@ const __dirname = path.dirname(__filename);
 
 const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY;
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || '16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY';
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const AI_MODEL_NAME = process.env.AI_MODEL_NAME || 'gpt-4o-mini';
+
+const limiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 20, // limit each IP to 20 requests per windowMs
+  message: 'Too many requests, please try again later.',
+});
 
 async function startServer() {
   const app = express();
+  app.set('trust proxy', 1);
   const PORT = 3000;
 
   app.use(express.json({ limit: '10mb' }));
@@ -30,6 +40,103 @@ async function startServer() {
   });
 
   apiRouter.get('/health', (req, res) => res.json({ status: 'ok' }));
+
+  apiRouter.post('/translate', limiter, async (req, res) => {
+    if (!OPENAI_API_KEY) {
+      console.error("Missing OPENAI_API_KEY in environment.");
+      return res.status(500).json({ error: "Server Configuration Error" });
+    }
+
+    const { text, targetLang, glossary, image } = req.body;
+    try {
+      const systemPrompt = `You are an expert ${targetLang.toUpperCase()} Industry Translator.
+Your task is to translate the user's input into ${targetLang}.
+Output ONLY the translated text. No explanations.
+
+<glossary_rules>
+${glossary || 'No specific glossary provided.'}
+CRITICAL: You MUST use these exact translations. DO NOT use synonyms.
+</glossary_rules>`;
+
+      const messages: any[] = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: text }
+      ];
+
+      if (image) {
+        messages.push({
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Translate the text in this image.' },
+            { type: 'image_url', image_url: { url: image } }
+          ]
+        });
+      }
+
+      const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+        model: AI_MODEL_NAME,
+        messages,
+        temperature: 0,
+      }, {
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      res.json({ translatedText: response.data.choices[0].message.content });
+    } catch (error: any) {
+      console.error('Translation error:', error.response?.data || error.message);
+      res.status(500).json({ error: 'Translation failed' });
+    }
+  });
+
+  apiRouter.post('/compose', limiter, async (req, res) => {
+    if (!OPENAI_API_KEY) {
+      console.error("Missing OPENAI_API_KEY in environment.");
+      return res.status(500).json({ error: "Server Configuration Error" });
+    }
+
+    const { contextText, requirements, params, glossary, structuredSummary } = req.body;
+    try {
+      const systemPrompt = `You are an expert ${params.lang.toUpperCase()} Industry Translator and Factory Manager.
+Your task is to compose a message based on the user's requirements.
+Output ONLY the message body. No explanations.
+
+<glossary_rules>
+${glossary || 'No specific glossary provided.'}
+CRITICAL: You MUST use these exact translations. DO NOT use synonyms.
+</glossary_rules>
+
+<critical_requirements>
+- Target Audience: ${params.audience}
+- Tone: ${params.tone}
+- Output Language: ${params.lang}
+- Format: ${params.format}
+- Output ONLY the message body (if Email, include Subject line first).
+- Max 200 words. No filler.
+</critical_requirements>`;
+      
+      const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+        model: AI_MODEL_NAME,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `${contextText}\n${requirements}` }
+        ],
+        temperature: 0,
+      }, {
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      res.json({ generatedReply: response.data.choices[0].message.content });
+    } catch (error: any) {
+      console.error('Compose error:', error.response?.data || error.message);
+      res.status(500).json({ error: 'Compose failed' });
+    }
+  });
 
   // Replicate Netlify function logic for local development
   apiRouter.post('/import-vocab', async (req, res) => {

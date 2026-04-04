@@ -1,29 +1,24 @@
 import pg from 'pg';
-import { GoogleGenAI } from '@google/genai';
-// Assuming OpenAI is also available if needed, but we'll use Gemini for embeddings by default or based on env.
+import OpenAI from 'openai';
 
 const { Pool } = pg;
 
 export class VectorSearchService {
   private pool: pg.Pool;
-  private ai: GoogleGenAI;
+  private openai: OpenAI;
 
   constructor(pool: pg.Pool) {
     this.pool = pool;
-    // Initialize Gemini for embeddings
-    this.ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+    this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
   }
 
   async generateEmbedding(text: string): Promise<number[]> {
     try {
-      const result = await this.ai.models.embedContent({
-        model: 'gemini-embedding-2-preview',
-        contents: text,
+      const response = await this.openai.embeddings.create({
+        model: 'text-embedding-3-small',
+        input: text,
       });
-      // Gemini embeddings are 768 dimensions.
-      // If the DB is set to 1536, we might need to pad it, or better, alter the DB to 768 if we use Gemini.
-      // Let's assume the DB is 768 for Gemini.
-      return result.embeddings?.[0]?.values || [];
+      return response.data[0].embedding || [];
     } catch (error) {
       console.error('Error generating embedding:', error);
       return [];
