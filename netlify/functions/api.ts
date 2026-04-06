@@ -10,7 +10,7 @@ import OpenAI from 'openai';
 dotenv.config();
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const AI_MODEL_NAME = process.env.AI_MODEL_NAME || 'gpt-4o-mini';
+const AI_MODEL_NAME = process.env.AI_MODEL_NAME || 'gpt-5_4-mini-2026-03-17';
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || '16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY';
 
 const openai = new OpenAI({
