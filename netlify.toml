@@ -4,13 +4,14 @@
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["serverless-http", "express", "cors", "openai"]
+  external_node_modules = ["serverless-http", "express", "cors", "openai", "pg"]
 
 # Map /api/* to Netlify functions
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
+  force = true
 
 [[redirects]]
   from = "/*"
