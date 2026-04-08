@@ -742,7 +742,15 @@ export default function App() {
                         <span className="text-[10px] font-bold text-red-500 uppercase tracking-widest">{t('listeningActive')}</span>
                       </div>
                     )}
-                    <div className="absolute bottom-3 right-3">
+                    <div className="absolute bottom-3 right-3 flex gap-2">
+                      {composeReq && (
+                        <button 
+                          onClick={() => setComposeReq('')}
+                          className="p-2 glass-panel rounded-xl text-muted hover:text-red-400 transition-colors"
+                        >
+                          <X size={18} />
+                        </button>
+                      )}
                       <VoiceVisualizer
                         isListening={isListening}
                         onClick={() => {
