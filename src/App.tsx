@@ -97,18 +97,6 @@ export default function App() {
   const outputRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setTranslateImage(event.target?.result as string);
-        showToast('Image uploaded', 'success');
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   // Tab States
   const [translateInput, setTranslateInput] = useState('');
   const [translateImage, setTranslateImage] = useState<string | null>(null);
