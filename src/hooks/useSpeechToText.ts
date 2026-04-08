@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 
 export const useSpeechToText = () => {
   const [isListening, setIsListening] = useState(false);
@@ -54,6 +54,15 @@ export const useSpeechToText = () => {
       recognitionRef.current.stop();
       setIsListening(false);
     }
+  }, []);
+
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
   }, []);
 
   return {

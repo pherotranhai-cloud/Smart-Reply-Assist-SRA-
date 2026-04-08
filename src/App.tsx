@@ -30,6 +30,7 @@ import { generateHash } from './utils/hash';
 import { translations } from './i18n';
 import { SplashScreen } from './components/SplashScreen';
 import { useSpeechToText } from './hooks/useSpeechToText';
+import { VoiceVisualizer } from './components/common/VoiceVisualizer';
 import { 
   VocabItem, 
   AISettings, 
@@ -101,6 +102,7 @@ export default function App() {
   const [translateInput, setTranslateInput] = useState('');
   const [translateImage, setTranslateImage] = useState<string | null>(null);
   const [targetLang, setTargetLang] = useState<Language>('Vietnamese');
+  const [speechLang, setSpeechLang] = useState<string>('vi-VN');
   
   const [composeReq, setComposeReq] = useState('');
   const [composeParams, setComposeParams] = useState({
@@ -123,10 +125,20 @@ export default function App() {
 
   useEffect(() => {
     if (transcript) {
-      setTranslateInput(prev => prev + (prev ? ' ' : '') + transcript);
+      if (activeTab === 'translate') {
+        setTranslateInput(prev => prev + (prev ? ' ' : '') + transcript);
+      } else if (activeTab === 'compose') {
+        setComposeReq(prev => prev + (prev ? ' ' : '') + transcript);
+      }
       setTranscript('');
     }
-  }, [transcript, setTranscript]);
+  }, [transcript, setTranscript, activeTab]);
+
+  useEffect(() => {
+    if (isListening) {
+      stopListening();
+    }
+  }, [activeTab, stopListening]);
 
   useEffect(() => {
     if (speechError) {
@@ -151,6 +163,19 @@ export default function App() {
       outputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [state.lastOutputs.translatedText]);
+
+  useEffect(() => {
+    const langMap: Record<string, string> = {
+      'en': 'en-US',
+      'vi': 'vi-VN',
+      'zh-CN': 'zh-CN',
+      'zh-TW': 'zh-TW',
+      'id': 'id-ID'
+    };
+    if (langMap[state.globalLanguage]) {
+      setSpeechLang(langMap[state.globalLanguage]);
+    }
+  }, [state.globalLanguage]);
 
   useEffect(() => {
     const init = async () => {
@@ -585,29 +610,17 @@ export default function App() {
                   >
                     <Camera size={18} />
                   </button>
-                  <button 
+                  <VoiceVisualizer
+                    isListening={isListening}
                     onClick={() => {
                       if (isListening) {
                         stopListening();
                       } else {
-                        const langMap: Record<string, string> = {
-                          'en': 'en-US',
-                          'vi': 'vi-VN',
-                          'zh-CN': 'zh-CN',
-                          'zh-TW': 'zh-TW'
-                        };
-                        startListening(langMap[state.globalLanguage] || 'vi-VN');
+                        startListening(speechLang);
                       }
                     }}
-                    className={`p-2 glass-panel rounded-xl transition-all duration-300 ${
-                      isListening 
-                        ? 'text-red-500 bg-red-500/10 border-red-500/30 animate-pulse-red' 
-                        : 'text-muted hover:text-accent'
-                    }`}
                     title={isListening ? t('listening') : t('startVoice')}
-                  >
-                    {isListening ? <MicOff size={18} /> : <Mic size={18} />}
-                  </button>
+                  />
                   <button 
                     onClick={handlePasteFromClipboard}
                     className="p-2 glass-panel rounded-xl text-muted hover:text-accent transition-colors"
@@ -716,12 +729,33 @@ export default function App() {
                   <div className="flex justify-between items-center px-1">
                     <label className="text-[13px] font-semibold text-text-main">{t('replyRequirements')}</label>
                   </div>
-                  <textarea 
-                    className="w-full flex-1 min-h-[30vh] p-4 bg-panel text-text-main border border-border-main rounded-2xl shadow-sm resize-none text-[17px] leading-relaxed focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
-                    placeholder={t('replyPlaceholder')}
-                    value={composeReq}
-                    onChange={e => setComposeReq(e.target.value)}
-                  />
+                  <div className="relative flex-1 flex flex-col">
+                    <textarea 
+                      className="w-full flex-1 min-h-[30vh] p-4 bg-panel text-text-main border border-border-main rounded-2xl shadow-sm resize-none text-[17px] leading-relaxed focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
+                      placeholder={t('replyPlaceholder')}
+                      value={composeReq}
+                      onChange={e => setComposeReq(e.target.value)}
+                    />
+                    {isListening && (
+                      <div className="absolute top-3 right-3 flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full animate-pulse">
+                        <div className="w-2 h-2 bg-red-500 rounded-full" />
+                        <span className="text-[10px] font-bold text-red-500 uppercase tracking-widest">{t('listeningActive')}</span>
+                      </div>
+                    )}
+                    <div className="absolute bottom-3 right-3">
+                      <VoiceVisualizer
+                        isListening={isListening}
+                        onClick={() => {
+                          if (isListening) {
+                            stopListening();
+                          } else {
+                            startListening(speechLang);
+                          }
+                        }}
+                        title={isListening ? t('listeningActive') : t('holdToSpeak')}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Configuration Grid */}
