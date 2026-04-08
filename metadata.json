@@ -1,5 +1,8 @@
 {
   "name": "Smart Reply Assist",
   "description": "A professional AI assistant for translation, composition, and review of messages with glossary enforcement.",
-  "requestFramePermissions": ["clipboardRead", "clipboardWrite"]
+  "requestFramePermissions": [
+    "microphone",
+    "clipboard-read"
+  ]
 }

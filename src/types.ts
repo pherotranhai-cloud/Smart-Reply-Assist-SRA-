@@ -37,7 +37,7 @@ export interface ConversationContext {
 
 export type ThemeMode = 'dark' | 'light' | 'system';
 export type Theme = 'dark' | 'light';
-export type GlobalLanguage = 'en' | 'vi' | 'ja' | 'zh-CN' | 'zh-TW';
+export type GlobalLanguage = 'en' | 'vi' | 'zh-CN' | 'zh-TW';
 
 export interface StructuredSummary {
   meta: {

@@ -96,7 +96,7 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
         ) : filteredVocab.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-text-muted gap-4">
             <BookOpen size={48} strokeWidth={1} />
-            <p>No matching terms found</p>
+            <p>{t('noMatchingTerms')}</p>
           </div>
         ) : (
           <table className="w-full text-left text-sm">

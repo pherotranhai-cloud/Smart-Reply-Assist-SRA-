@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface SplashScreenProps {
   isDataLoaded: boolean;
   onComplete: () => void;
+  t: (key: string) => string;
 }
 
-export const SplashScreen: React.FC<SplashScreenProps> = ({ isDataLoaded, onComplete }) => {
+export const SplashScreen: React.FC<SplashScreenProps> = ({ isDataLoaded, onComplete, t }) => {
   const [minTimePassed, setMinTimePassed] = useState(false);
 
   // 1. Đảm bảo animation chạy ít nhất 3.5s để người dùng thấy hết độ "ngầu"
@@ -36,8 +37,8 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ isDataLoaded, onComp
       pathLength: 1, 
       fillOpacity: 1,
       transition: { 
-        pathLength: { duration: 1.5, ease: "easeInOut" },
-        fillOpacity: { duration: 0.8, delay: 1.5, ease: "easeOut" }
+        pathLength: { duration: 1.5, ease: "easeInOut" as const },
+        fillOpacity: { duration: 0.8, delay: 1.5, ease: "easeOut" as const }
       }
     }
   };
@@ -48,8 +49,8 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ isDataLoaded, onComp
       pathLength: 1, 
       fillOpacity: 1,
       transition: { 
-        pathLength: { duration: 0.8, delay: 1.8, ease: "easeInOut" },
-        fillOpacity: { duration: 0.8, delay: 2.6, ease: "easeOut" }
+        pathLength: { duration: 0.8, delay: 1.8, ease: "easeInOut" as const },
+        fillOpacity: { duration: 0.8, delay: 2.6, ease: "easeOut" as const }
       }
     }
   };
@@ -71,7 +72,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ isDataLoaded, onComp
     animate: {
       opacity: [0.2, 0.5, 0.2],
       scale: [0.9, 1.1, 0.9],
-      transition: { duration: 3, repeat: Infinity, ease: "easeInOut" }
+      transition: { duration: 3, repeat: Infinity, ease: "easeInOut" as const }
     }
   };
 
@@ -163,7 +164,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ isDataLoaded, onComp
         transition={{ delay: 3.5 }}
         className="absolute bottom-10 text-[10px] text-slate-400 tracking-widest uppercase"
       >
-        Manufacturing Excellence
+        {t('manufacturingExcellence')}
       </motion.div>
     </motion.div>
   );

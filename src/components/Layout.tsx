@@ -8,6 +8,7 @@ interface LayoutProps {
   setActiveTab: (tab: any) => void;
   toast: { message: string; type: 'info' | 'error' | 'success' } | null;
   onCloseToast: () => void;
+  t: (key: string) => string;
 }
 
 export const Layout: React.FC<LayoutProps> = ({ 
@@ -15,7 +16,8 @@ export const Layout: React.FC<LayoutProps> = ({
   activeTab, 
   setActiveTab, 
   toast, 
-  onCloseToast 
+  onCloseToast,
+  t
 }) => {
   return (
     <div className="flex flex-col min-h-screen bg-app text-text-main">
@@ -33,25 +35,25 @@ export const Layout: React.FC<LayoutProps> = ({
         <div className="pointer-events-auto w-full max-w-md backdrop-blur-lg bg-panel/80 border border-border-main rounded-2xl flex items-center justify-around py-2 px-2 shadow-sm mx-4">
             <NavItem 
               icon={<Languages size={20} />} 
-              label="Translate" 
+              label={t('translate')} 
               active={activeTab === 'translate'} 
               onClick={() => setActiveTab('translate')} 
             />
             <NavItem 
               icon={<PenTool size={20} />} 
-              label="Compose" 
+              label={t('compose')} 
               active={activeTab === 'compose'} 
               onClick={() => setActiveTab('compose')} 
             />
             <NavItem 
               icon={<BookOpen size={20} />} 
-              label="Vocab" 
+              label={t('vocab')} 
               active={activeTab === 'vocab'} 
               onClick={() => setActiveTab('vocab')} 
             />
             <NavItem 
               icon={<Settings size={20} />} 
-              label="Settings" 
+              label={t('settings')} 
               active={activeTab === 'settings'} 
               onClick={() => setActiveTab('settings')} 
             />

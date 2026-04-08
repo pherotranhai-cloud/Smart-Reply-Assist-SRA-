@@ -19,7 +19,9 @@ import {
   ChevronUp,
   RotateCcw,
   Monitor,
-  Camera
+  Camera,
+  Mic,
+  MicOff
 } from 'lucide-react';
 import { storage } from './services/storage';
 import { AIService } from './services/ai';
@@ -27,6 +29,7 @@ import { applyTheme, resolveTheme, watchSystemThemeChanges, ThemeMode } from './
 import { generateHash } from './utils/hash';
 import { translations } from './i18n';
 import { SplashScreen } from './components/SplashScreen';
+import { useSpeechToText } from './hooks/useSpeechToText';
 import { 
   VocabItem, 
   AISettings, 
@@ -89,6 +92,7 @@ export default function App() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [isCached, setIsCached] = useState(false);
+  const [useContextInCompose, setUseContextInCompose] = useState(true);
   
   const outputRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -120,15 +124,45 @@ export default function App() {
 
   const [reviewToggle, setReviewToggle] = useState<'reply' | 'summary'>('reply');
 
+  const t = (key: string) => {
+    const lang = state.globalLanguage as keyof typeof translations;
+    const dict = translations[lang] as any;
+    const fallback = translations['en'] as any;
+    return dict[key] || fallback[key] || key;
+  };
+
+  const { isListening, transcript, error: speechError, startListening, stopListening, setTranscript } = useSpeechToText();
+
+  useEffect(() => {
+    if (transcript) {
+      setTranslateInput(prev => prev + (prev ? ' ' : '') + transcript);
+      setTranscript('');
+    }
+  }, [transcript, setTranscript]);
+
+  useEffect(() => {
+    if (speechError) {
+      showToast(t(speechError), 'error');
+    }
+  }, [speechError, t]);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setTranslateImage(event.target?.result as string);
+        showToast(t('imageUploaded'), 'success');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   useEffect(() => {
     if (state.lastOutputs.translatedText && outputRef.current) {
       outputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [state.lastOutputs.translatedText]);
-
-  const t = (key: keyof typeof translations['en']) => {
-    return translations[state.globalLanguage][key] || translations['en'][key] || key;
-  };
 
   useEffect(() => {
     const init = async () => {
@@ -216,7 +250,7 @@ export default function App() {
       await storage.setStructuredSummary(summary);
       return summary;
     } catch (err: any) {
-      showToast('Could not extract priorities; reply will use raw context.', 'error');
+      showToast(t('extractPrioritiesError'), 'error');
       return null;
     } finally {
       setExtracting(false);
@@ -225,7 +259,7 @@ export default function App() {
 
   const handleTranslate = async () => {
     if (!translateInput && !translateImage) {
-      showToast('Please provide text or an image', 'error');
+      showToast(t('provideTextOrImage'), 'error');
       return;
     }
     setLoading(true);
@@ -250,7 +284,7 @@ export default function App() {
         }));
       }
       setIsCached(true);
-      showToast('Instant translation from cache', 'success');
+      showToast(t('instantTranslation'), 'success');
       setLoading(false);
       return;
     }
@@ -258,7 +292,7 @@ export default function App() {
     try {
       setIsCached(false);
       setLoading(true); // Ensure loading is set
-      if (translateImage) showToast('Đang đọc dữ liệu từ ảnh...', 'info');
+      if (translateImage) showToast(t('readingImage'), 'info');
       
       const ai = new AIService(state.settings);
       
@@ -300,7 +334,7 @@ export default function App() {
       cache[hashKey] = { translatedText: result, timestamp: Date.now() };
       await storage.setTranslationCache(cache);
       
-      showToast('Translation & Context updated', 'success');
+      showToast(t('translationUpdated'), 'success');
     } catch (err: any) {
       showToast(err.message, 'error');
     } finally {
@@ -310,7 +344,7 @@ export default function App() {
 
   const handleCompose = async () => {
     if (!composeReq.trim()) {
-      showToast('Please provide requirements', 'error');
+      showToast(t('provideRequirements'), 'error');
       return;
     }
 
@@ -318,8 +352,8 @@ export default function App() {
     try {
       const ai = new AIService(state.settings);
       
-      // Pull context if available
-      const currentContext = context;
+      // Pull context if available and enabled by user
+      const currentContext = useContextInCompose ? context : null;
       let contextText = '';
       let currentStructuredSummary = null;
 
@@ -393,7 +427,7 @@ export default function App() {
       setState(prev => ({ ...prev, lastOutputs: newOutputs }));
       await storage.setLastOutputs(newOutputs);
       await storage.addHistory({ type: 'compose', input: composeReq, output: result });
-      showToast('Reply generated', 'success');
+      showToast(t('replyGenerated'), 'success');
     } catch (err: any) {
       showToast(err.message, 'error');
     } finally {
@@ -410,7 +444,7 @@ export default function App() {
           const reader = new FileReader();
           reader.onload = (event) => {
             setTranslateImage(event.target?.result as string);
-            showToast('Image pasted from clipboard', 'success');
+            showToast(t('imagePasted'), 'success');
           };
           reader.readAsDataURL(blob);
         }
@@ -423,11 +457,11 @@ export default function App() {
       const text = await navigator.clipboard.readText();
       if (text) {
         setTranslateInput(prev => prev + (prev ? '\n' : '') + text);
-        showToast('Text pasted from clipboard', 'success');
+        showToast(t('textPasted'), 'success');
       }
     } catch (err) {
       console.error('Failed to read clipboard:', err);
-      showToast('Clipboard access denied', 'error');
+      showToast(t('clipboardDenied'), 'error');
     }
   };
 
@@ -467,9 +501,9 @@ export default function App() {
       // 3. Trigger Re-hydration guard
       setResetNonce(prev => prev + 1);
       
-      showToast('All context and outputs cleared', 'success');
+      showToast(t('contextCleared'), 'success');
     } catch (err: any) {
-      showToast('Reset failed: ' + err.message, 'error');
+      showToast(t('resetFailed') + err.message, 'error');
     }
   };
 
@@ -477,13 +511,13 @@ export default function App() {
     if (!text) return;
     navigator.clipboard.writeText(text);
     setIsCopied(true);
-    showToast('Copied to clipboard', 'success');
+    showToast(t('copiedToClipboard'), 'success');
     setTimeout(() => setIsCopied(false), 2000);
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    showToast('Copied to clipboard', 'success');
+    showToast(t('copiedToClipboard'), 'success');
   };
 
   return (
@@ -493,6 +527,7 @@ export default function App() {
           <SplashScreen 
             isDataLoaded={!isAppLoading} 
             onComplete={() => setShowSplash(false)} 
+            t={t}
           />
         )}
       </AnimatePresence>
@@ -502,6 +537,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         toast={toast}
         onCloseToast={() => setToast(null)}
+        t={t}
       >
       <AnimatePresence mode="wait">
         {activeTab === 'translate' && (
@@ -534,6 +570,12 @@ export default function App() {
                   onChange={e => setTranslateInput(e.target.value)}
                   onPaste={handlePaste}
                 />
+                {isListening && (
+                  <div className="absolute top-3 right-3 flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full animate-pulse">
+                    <div className="w-2 h-2 bg-red-500 rounded-full" />
+                    <span className="text-[10px] font-bold text-red-500 uppercase tracking-widest">{t('listening')}</span>
+                  </div>
+                )}
                 <div className="absolute bottom-3 right-3 flex gap-2">
                   <button 
                     onClick={handleClearInput}
@@ -551,9 +593,32 @@ export default function App() {
                   <button 
                     onClick={() => fileInputRef.current?.click()}
                     className="p-2 glass-panel rounded-xl text-muted hover:text-accent transition-colors"
-                    title="Upload Image"
+                    title={t('uploadImage')}
                   >
                     <Camera size={18} />
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (isListening) {
+                        stopListening();
+                      } else {
+                        const langMap: Record<string, string> = {
+                          'en': 'en-US',
+                          'vi': 'vi-VN',
+                          'zh-CN': 'zh-CN',
+                          'zh-TW': 'zh-TW'
+                        };
+                        startListening(langMap[state.globalLanguage] || 'vi-VN');
+                      }
+                    }}
+                    className={`p-2 glass-panel rounded-xl transition-all duration-300 ${
+                      isListening 
+                        ? 'text-red-500 bg-red-500/10 border-red-500/30 animate-pulse-red' 
+                        : 'text-muted hover:text-accent'
+                    }`}
+                    title={isListening ? t('listening') : t('startVoice')}
+                  >
+                    {isListening ? <MicOff size={18} /> : <Mic size={18} />}
                   </button>
                   <button 
                     onClick={handlePasteFromClipboard}
@@ -617,7 +682,7 @@ export default function App() {
               </div>
               {state.lastOutputs.translatedText && isCached && (
                 <div className="flex justify-end">
-                  <span className="text-[10px] uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">Instant</span>
+                  <span className="text-[10px] uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">{t('instant')}</span>
                 </div>
               )}
             </div>
@@ -636,17 +701,24 @@ export default function App() {
             <div className="flex-1 overflow-y-auto pb-32 space-y-4">
               <div className="premium-card space-y-6">
                 
-                {/* Minimalist Status Badge */}
+                {/* Context Toggle */}
                 <div className="flex justify-center">
                   {context ? (
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-[13px] font-medium">
-                      <CheckCircle2 size={14} />
-                      <span>Linked to Context</span>
-                    </div>
+                    <button
+                      onClick={() => setUseContextInCompose(!useContextInCompose)}
+                      className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[13px] font-medium transition-all duration-300 border ${
+                        useContextInCompose 
+                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
+                          : 'bg-panel border-border-main text-text-muted hover:text-text-main'
+                      }`}
+                    >
+                      <div className={`w-2 h-2 rounded-full transition-colors duration-300 ${useContextInCompose ? 'bg-emerald-500' : 'bg-text-muted'}`} />
+                      <span>{useContextInCompose ? t('linkedToContext') : t('independentMode')}</span>
+                    </button>
                   ) : (
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-panel border border-border-main text-text-muted rounded-full text-[13px] font-medium">
                       <AlertCircle size={14} />
-                      <span>No Context</span>
+                      <span>{t('noContext')}</span>
                     </div>
                   )}
                 </div>
@@ -724,7 +796,7 @@ export default function App() {
                   <div className="flex-1 min-h-[100px] text-base leading-relaxed text-text-main whitespace-pre-wrap">
                     {state.lastOutputs.subject && (
                       <div className="mb-4 pb-4 border-b border-border-main/50">
-                        <span className="text-[11px] text-accent uppercase font-medium block mb-1 tracking-widest">Subject</span>
+                        <span className="text-[11px] text-accent uppercase font-medium block mb-1 tracking-widest">{t('subject')}</span>
                         <div className="text-text-main font-bold">{state.lastOutputs.subject}</div>
                       </div>
                     )}
@@ -780,13 +852,13 @@ export default function App() {
                 storage.setTheme(mode);
                 setState(prev => ({ ...prev, themeMode: mode }));
                 applyTheme(resolveTheme(mode));
-                showToast(`Theme: ${mode}`, 'info');
+                showToast(t('themeChanged'), 'info');
               }}
               globalLanguage={state.globalLanguage}
               onLanguageChange={async (lang) => {
                 await storage.setGlobalLanguage(lang);
                 setState(prev => ({ ...prev, globalLanguage: lang }));
-                showToast(`Language set to ${lang}`, 'info');
+                showToast(t('languageChanged'), 'info');
               }}
               onReset={handleReset}
               settings={state.settings}

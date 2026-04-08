@@ -55,9 +55,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   };
 
   const themeOptions: { mode: ThemeMode; label: string }[] = [
-    { mode: 'light', label: 'Light' },
-    { mode: 'dark', label: 'Dark' },
-    { mode: 'system', label: 'System' },
+    { mode: 'light', label: t('light') },
+    { mode: 'dark', label: t('dark') },
+    { mode: 'system', label: t('systemTheme') },
   ];
 
   const languageOptions: { lang: GlobalLanguage; label: string }[] = [
@@ -126,7 +126,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       {/* System Actions */}
       <section>
         <h3 className="text-[13px] font-medium text-text-muted uppercase tracking-wide px-4 mb-2">
-          System
+          {t('system')}
         </h3>
         <div className="bg-panel rounded-xl overflow-hidden shadow-sm border border-border-main">
           <button
@@ -147,7 +147,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       {/* About */}
       <section>
         <h3 className="text-[13px] font-medium text-text-muted uppercase tracking-wide px-4 mb-2">
-          About
+          {t('about')}
         </h3>
         <div className="bg-panel rounded-xl overflow-hidden shadow-sm border border-border-main p-4">
           <div className="flex items-center gap-4 mb-3">
@@ -155,13 +155,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               <Languages size={24} />
             </div>
             <div>
-              <p className="text-[17px] font-semibold text-text-main">Smart Reply Assist</p>
-              <p className="text-[13px] text-text-muted">Version 1.0.3</p>
+              <p className="text-[17px] font-semibold text-text-main">{t('appName')}</p>
+              <p className="text-[13px] text-text-muted">{t('version')}</p>
             </div>
           </div>
           <p className="text-[15px] text-text-muted leading-relaxed">
-            A premium enterprise translation and composition tool powered by advanced AI. 
-            Designed for Manufacturing Excellence and global communication.
+            {t('appDescription')}
           </p>
         </div>
       </section>
