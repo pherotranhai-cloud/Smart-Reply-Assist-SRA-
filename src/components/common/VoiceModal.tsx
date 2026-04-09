@@ -23,7 +23,13 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({ isOpen, textListening, o
 
   // Handle global mouse up / touch end in case they release outside
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      document.body.style.overflow = '';
+      return;
+    }
+
+    // Lock body scroll
+    document.body.style.overflow = 'hidden';
 
     const handleRelease = () => {
       onRelease();
@@ -33,6 +39,7 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({ isOpen, textListening, o
     window.addEventListener('touchend', handleRelease);
 
     return () => {
+      document.body.style.overflow = '';
       window.removeEventListener('mouseup', handleRelease);
       window.removeEventListener('touchend', handleRelease);
     };
