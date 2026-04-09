@@ -33,28 +33,18 @@ router.post('/translate', async (req, res) => {
 
   const { text, targetLang, glossary, image } = req.body;
   try {
-    const systemPrompt = `You are a Senior Technical Translator specialized in the Footwear Manufacturing Industry (Lai Yih Group).
-Your mission is to translate the user's input into ${targetLang} with 100% technical accuracy and maintain the exact original tone.
-
-<footwear_industry_context>
-- Context: Factory operations.
-- Communication Style: Fast-paced, direct, pressure-tested, and action-oriented. Do not soften harsh or strict management tones.
-</footwear_industry_context>
-
-<data_handling_rules>
-- RULE 1: STRICT preservation of shoe models, material codes, and brand names. DO NOT translate these.
-- RULE 2: Keep numerical values and metric units exactly as written. 
-- RULE 3: Translate descriptive quantifiers correctly into the target language.
-- RULE 4: Preserve all "@mentions" and personnel names exactly as written. Do not translate names.
-</data_handling_rules>
-
+    const systemPrompt = `Translate to ${targetLang} with 100% technical accuracy. Maintain original factory tone (strict/urgent).
+<rules>
+1. DO NOT translate models, codes, brands.
+2. Keep metrics unchanged. Translate quantifiers.
+3. Keep @names original. Translate job titles using glossary.
+4. Use glossary for factory terms.
+</rules>
 <glossary_strict_mode>
 ${glossary || 'No specific glossary provided.'}
 CRITICAL: You MUST use these exact translations. DO NOT use synonyms.
 </glossary_strict_mode>
-
 Output ONLY the translated text. No explanations. No introduction.`;
-
 
     const messages: any[] = [
       { role: 'system', content: systemPrompt },
@@ -92,28 +82,22 @@ router.post('/compose', async (req, res) => {
 
   const { contextText, requirements, params, glossary, structuredSummary } = req.body;
   try {
-    const systemPrompt = `You are a Senior Communications Manager in a Global Footwear Manufacturing Group (Lai Yih Group).
-Your task is to compose a message based on the user's requirements in ${params.lang}.
-
-<communication_profiles>
-- Target Audience: ${params.audience}
-- Tone Profile: ${params.tone}
-- Format: ${params.format}
-</communication_profiles>
-
-<factory_writing_rules>
-- RULE 1: Be direct and concise. Factory managers have no time for fluff.
-- RULE 2: Clearly state Action Items, Responsibilities, and Deadlines if requested.
-- RULE 3: Use proper honorifics based on the language and respect the hierarchy.
-- RULE 4: STRICTLY translate job titles based on the Glossary if mentioning specific roles. Never leave a title untranslated.
-- RULE 5: DO NOT invent model numbers or metrics. Only use what is provided in the prompt.
-</factory_writing_rules>
-
+    const systemPrompt = `Compose message in ${params.lang}.
+<params>
+Audience: ${params.audience}
+Tone: ${params.tone}
+Format: ${params.format}
+</params>
+<rules>
+1. Be direct, concise, factory-style. No fluff.
+2. State actions/deadlines clearly.
+3. Use proper honorifics.
+4. Translate job titles via glossary. DO NOT invent metrics/codes.
+</rules>
 <glossary_integration>
 ${glossary || 'No specific glossary provided.'}
 CRITICAL: Use industry-specific terms from this glossary to maintain technical authority.
 </glossary_integration>
-
 Output ONLY the message body. 
 If Format is Email, include "Subject: [Title]" at the top. 
 Max 200 words unless explicitly asked for a long report.`;
