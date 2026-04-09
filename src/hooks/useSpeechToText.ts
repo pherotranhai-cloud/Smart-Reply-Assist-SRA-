@@ -36,6 +36,10 @@ export const useSpeechToText = () => {
     };
 
     recognition.onerror = (event: any) => {
+      if (event.error === 'aborted') {
+        setIsListening(false);
+        return;
+      }
       console.error('Speech recognition error:', event.error);
       setError('voiceError');
       setIsListening(false);
@@ -56,6 +60,13 @@ export const useSpeechToText = () => {
     }
   }, []);
 
+  const abortListening = useCallback(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+      setIsListening(false);
+    }
+  }, []);
+
   // Cleanup on unmount
   React.useEffect(() => {
     return () => {
@@ -71,6 +82,7 @@ export const useSpeechToText = () => {
     error,
     startListening,
     stopListening,
+    abortListening,
     setTranscript // Allow clearing it from outside
   };
 };

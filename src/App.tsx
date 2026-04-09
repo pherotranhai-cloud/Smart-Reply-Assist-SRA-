@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Languages, 
@@ -31,6 +31,7 @@ import { translations } from './i18n';
 import { SplashScreen } from './components/SplashScreen';
 import { useSpeechToText } from './hooks/useSpeechToText';
 import { VoiceVisualizer } from './components/common/VoiceVisualizer';
+import { VoiceModal } from './components/common/VoiceModal';
 import { 
   VocabItem, 
   AISettings, 
@@ -114,14 +115,36 @@ export default function App() {
 
   const [reviewToggle, setReviewToggle] = useState<'reply' | 'summary'>('reply');
 
-  const t = (key: string) => {
+  const t = useCallback((key: string) => {
     const lang = state.globalLanguage as keyof typeof translations;
     const dict = translations[lang] as any;
     const fallback = translations['en'] as any;
     return dict[key] || fallback[key] || key;
+  }, [state.globalLanguage]);
+
+  const showToast = useCallback((message: string, type: 'info' | 'error' | 'success' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  const { isListening, transcript, error: speechError, startListening, stopListening, abortListening, setTranscript } = useSpeechToText();
+  const [pressStartTime, setPressStartTime] = useState<number>(0);
+
+  const handlePressStart = () => {
+    setPressStartTime(Date.now());
+    startListening(speechLang);
   };
 
-  const { isListening, transcript, error: speechError, startListening, stopListening, setTranscript } = useSpeechToText();
+  const handlePressEnd = () => {
+    if (!isListening) return;
+    const duration = Date.now() - pressStartTime;
+    if (duration < 500) {
+      abortListening();
+      showToast(t('tooShort'), 'error');
+    } else {
+      stopListening();
+    }
+  };
 
   useEffect(() => {
     if (transcript) {
@@ -144,7 +167,7 @@ export default function App() {
     if (speechError) {
       showToast(t(speechError), 'error');
     }
-  }, [speechError, t]);
+  }, [speechError, t, showToast]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -247,11 +270,6 @@ export default function App() {
     if (outcome === 'accepted') {
       setDeferredPrompt(null);
     }
-  };
-
-  const showToast = (message: string, type: 'info' | 'error' | 'success' = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
   };
 
   const handleExtract = async (text: string, sourceLang: string, contextSource: 'original' | 'translated') => {
@@ -612,14 +630,9 @@ export default function App() {
                   </button>
                   <VoiceVisualizer
                     isListening={isListening}
-                    onClick={() => {
-                      if (isListening) {
-                        stopListening();
-                      } else {
-                        startListening(speechLang);
-                      }
-                    }}
-                    title={isListening ? t('listening') : t('startVoice')}
+                    onPressStart={handlePressStart}
+                    onPressEnd={handlePressEnd}
+                    title={isListening ? t('releaseToStop') : t('holdHint')}
                   />
                   <button 
                     onClick={handlePasteFromClipboard}
@@ -753,14 +766,9 @@ export default function App() {
                       )}
                       <VoiceVisualizer
                         isListening={isListening}
-                        onClick={() => {
-                          if (isListening) {
-                            stopListening();
-                          } else {
-                            startListening(speechLang);
-                          }
-                        }}
-                        title={isListening ? t('listeningActive') : t('holdToSpeak')}
+                        onPressStart={handlePressStart}
+                        onPressEnd={handlePressEnd}
+                        title={isListening ? t('releaseToStop') : t('holdHint')}
                       />
                     </div>
                   </div>
@@ -913,6 +921,12 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <VoiceModal 
+        isOpen={isListening} 
+        textListening={t('releaseToStop')} 
+        onRelease={handlePressEnd}
+      />
     </Layout>
     </>
   );
