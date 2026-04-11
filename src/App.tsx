@@ -57,23 +57,6 @@ import { Skeleton, VocabSkeleton } from './components/Skeleton';
 import { VocabManager } from './components/VocabManager';
 import { SettingsPanel } from './components/SettingsPanel';
 
-const Toast = ({ message, type = 'info', onClose }: { message: string, type?: 'info' | 'error' | 'success', onClose: () => void }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: 20 }}
-    className={`fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg z-[100] flex items-center gap-2 border backdrop-blur-md ${
-      type === 'error' ? 'bg-red-500/20 border-red-500/50 text-red-500' : 
-      type === 'success' ? 'bg-green-500/20 border-green-500/50 text-green-500' :
-      'bg-blue-500/20 border-blue-500/50 text-blue-400'
-    }`}
-  >
-    {type === 'error' && <AlertCircle size={16} />}
-    <span>{message}</span>
-    <button onClick={onClose} className="ml-2 hover:opacity-70"><X size={14} /></button>
-  </motion.div>
-);
-
 // --- Main App ---
 
 export default function App() {
@@ -107,10 +90,10 @@ export default function App() {
   
   const [composeReq, setComposeReq] = useState('');
   const [composeParams, setComposeParams] = useState({
-    audience: 'Internal-Team' as Audience,
-    tone: 'Professional' as Tone,
+    audience: 'cross_dept' as Audience,
+    tone: 'professional' as Tone,
     lang: 'English' as Language,
-    format: 'Email' as Format
+    format: 'wechat_zalo' as Format
   });
 
   const [reviewToggle, setReviewToggle] = useState<'reply' | 'summary'>('reply');
@@ -428,7 +411,7 @@ export default function App() {
           
           let subject = '';
           let body = fullReply;
-          if (composeParams.format === 'Email' && fullReply.toLowerCase().startsWith('subject:')) {
+          if (composeParams.format === 'formal_email' && fullReply.toLowerCase().startsWith('subject:')) {
             const lines = fullReply.split('\n');
             subject = lines[0].replace(/subject:/i, '').trim();
             body = lines.slice(1).join('\n').trim();
@@ -444,7 +427,7 @@ export default function App() {
       // Final extraction of subject
       let subject = '';
       let body = result;
-      if (composeParams.format === 'Email' && result.toLowerCase().startsWith('subject:')) {
+      if (composeParams.format === 'formal_email' && result.toLowerCase().startsWith('subject:')) {
         const lines = result.split('\n');
         subject = lines[0].replace(/subject:/i, '').trim();
         body = lines.slice(1).join('\n').trim();
@@ -783,7 +766,7 @@ export default function App() {
                       value={composeParams.audience}
                       onChange={e => setComposeParams({ ...composeParams, audience: e.target.value as Audience })}
                     >
-                      {AUDIENCES.map(a => <option key={a}>{a}</option>)}
+                      {AUDIENCES.map(a => <option key={a.value} value={a.value}>{t(a.labelKey)}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
@@ -793,7 +776,7 @@ export default function App() {
                       value={composeParams.tone}
                       onChange={e => setComposeParams({ ...composeParams, tone: e.target.value as Tone })}
                     >
-                      {TONES.map(t => <option key={t}>{t}</option>)}
+                      {TONES.map(to => <option key={to.value} value={to.value}>{t(to.labelKey)}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
@@ -813,7 +796,7 @@ export default function App() {
                       value={composeParams.format}
                       onChange={e => setComposeParams({ ...composeParams, format: e.target.value as Format })}
                     >
-                      {FORMATS.map(f => <option key={f}>{f}</option>)}
+                      {FORMATS.map(f => <option key={f.value} value={f.value}>{t(f.labelKey)}</option>)}
                     </select>
                   </div>
                 </div>

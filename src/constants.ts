@@ -31,6 +31,19 @@ export const LANGUAGES = [
   'Burmese',
 ];
 
-export const AUDIENCES = ['Internal-Team', 'Taiwan-Manager', 'Foreigner-Manager', 'Customer'];
-export const TONES = ['Professional', 'Polite', 'Firm', 'Friendly', 'Apologetic'];
-export const FORMATS = ['Email', 'WeChat', 'Chat', 'Report-Short', 'Report-Detailed'];
+export const AUDIENCES = [
+  { value: 'brand_client', labelKey: 'audience.brandClient' },
+  { value: 'top_management', labelKey: 'audience.topManagement' },
+  { value: 'cross_dept', labelKey: 'audience.crossDept' },
+  { value: 'subordinates', labelKey: 'audience.subordinates' }
+];
+export const TONES = [
+  { value: 'professional', labelKey: 'tone.professional' },
+  { value: 'strict_urgent', labelKey: 'tone.strictUrgent' },
+  { value: 'collaborative', labelKey: 'tone.collaborative' }
+];
+export const FORMATS = [
+  { value: 'wechat_zalo', labelKey: 'format.groupChat' },
+  { value: 'formal_email', labelKey: 'format.formalEmail' },
+  { value: 'action_list', labelKey: 'format.actionList' }
+];
