@@ -33,6 +33,7 @@ router.post('/translate', async (req, res) => {
 
   const { text, targetLang, glossary, image } = req.body;
   try {
+    // 1. Minified System Prompt (Already optimized for Factory Context)
     const systemPrompt = `Translate to ${targetLang} with 100% technical accuracy. Maintain original factory tone (strict/urgent).
 <rules>
 1. DO NOT translate models, codes, brands.
@@ -41,25 +42,37 @@ router.post('/translate', async (req, res) => {
 4. Use glossary for factory terms.
 </rules>
 <glossary_strict_mode>
-${glossary || 'No specific glossary provided.'}
-CRITICAL: You MUST use these exact translations. DO NOT use synonyms.
+The following is a JSON array of technical terms and their required translations:
+${glossary || '[]'}
+CRITICAL: You MUST use these exact translations for the corresponding terms. DO NOT use synonyms.
 </glossary_strict_mode>
 Output ONLY the translated text. No explanations. No introduction.`;
 
     const messages: any[] = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: text }
+      { role: 'system', content: systemPrompt }
     ];
 
-    if (image) {
-      messages.push({
-        role: 'user',
-        content: [
-          { type: 'text', text: 'Translate the text in this image.' },
-          { type: 'image_url', image_url: { url: image } }
-        ]
-      });
+    // 2. Build a single unified user content array
+    const userContent: any[] = [];
+
+    const hasText = text && text.trim() !== '';
+
+    if (hasText) {
+      userContent.push({ type: 'text', text: text });
     }
+
+    if (image) {
+      // 3. Robust Vision Instruction
+      const imageInstruction = hasText 
+        ? "\n\n[IMAGE INSTRUCTION]: Additionally, extract and translate any text found in the attached image. Preserve the original layout, tables, and line breaks. You MUST apply the Glossary and Rules to the extracted text."
+        : "[IMAGE INSTRUCTION]: Extract and translate all visible text in this image. Preserve the original layout, bullet points, and line breaks. Strictly follow the System Rules and Glossary above for the translation.";
+      
+      userContent.push({ type: 'text', text: imageInstruction });
+      userContent.push({ type: 'image_url', image_url: { url: image } });
+    }
+
+    // 4. Push the unified content as a single user message
+    messages.push({ role: 'user', content: userContent });
 
     const response = await openai.chat.completions.create({
       model: APP_ENGINE_ID,
@@ -95,8 +108,9 @@ Format: ${params.format}
 4. Translate job titles via glossary. DO NOT invent metrics/codes.
 </rules>
 <glossary_integration>
-${glossary || 'No specific glossary provided.'}
-CRITICAL: Use industry-specific terms from this glossary to maintain technical authority.
+The following is a JSON array of industry-specific terms and their required translations:
+${glossary || '[]'}
+CRITICAL: Use these exact terms from the glossary to maintain technical authority.
 </glossary_integration>
 Output ONLY the message body. 
 If Format is Email, include "Subject: [Title]" at the top. 

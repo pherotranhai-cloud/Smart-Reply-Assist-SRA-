@@ -834,6 +834,7 @@ export default function App() {
                   onClick={handleCompose}
                   disabled={loading || !composeReq.trim()}
                   className="w-full bg-accent hover:bg-accent/90 disabled:bg-panel disabled:border disabled:border-border-main disabled:text-text-muted text-white rounded-2xl py-4 text-[17px] font-semibold flex items-center justify-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-[0.98]"
+                  style={{ height: '40px' }}
                 >
                   {loading ? <Loader2 className="animate-spin" size={20} /> : <PenTool size={20} />}
                   <span>{t('generateReply')}</span>

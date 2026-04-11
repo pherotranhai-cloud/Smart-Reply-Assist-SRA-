@@ -32,7 +32,10 @@ export const Layout: React.FC<LayoutProps> = ({
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-6 pt-2 bg-gradient-to-t from-app via-app/80 to-transparent pointer-events-none">
-        <div className="pointer-events-auto w-full max-w-md backdrop-blur-lg bg-panel/80 border border-border-main rounded-2xl flex items-center justify-around py-2 px-2 shadow-sm mx-4">
+        <div 
+          className="pointer-events-auto w-full max-w-md backdrop-blur-lg bg-panel/80 border border-border-main rounded-2xl flex items-center justify-around py-2 px-2 shadow-sm mx-4"
+          style={{ height: '78px' }}
+        >
             <NavItem 
               icon={<Languages size={20} />} 
               label={t('translate')} 

@@ -15,20 +15,25 @@ export class AIService {
   private buildGlossaryPrompt(vocab: VocabItem[], targetLang: string, sourceText?: string): string {
     if (!sourceText) return '';
     
-    // Sử dụng logic so khớp nguyên bản (Original Source)
     const rawInput = sourceText.trim();
     const rawInputLower = rawInput.toLowerCase();
     
-    // Xác định cột dữ liệu đích dựa trên ngôn ngữ chọn
+    // Helper: Remove Vietnamese tones for fuzzy matching
+    const removeVietnameseTones = (str: string) => {
+      return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+    };
+    
+    const rawInputNoTones = removeVietnameseTones(rawInput);
+
     let targetKey: 'meaning_vi' | 'target_en' | 'target_zh' = 'target_en'; 
     const targetLangLower = targetLang.toLowerCase();
     if (targetLangLower.includes('vi')) targetKey = 'meaning_vi';
     else if (targetLangLower.includes('zh') || targetLangLower.includes('chinese')) targetKey = 'target_zh';
 
-    const matches: string[] = [];
+    const matches: { term: string; translation: string }[] = [];
     const seen = new Set<string>();
 
-    // Sắp xếp vocab theo độ dài từ khóa giảm dần để khớp từ dài trước (tránh khớp nhầm từ con)
+    // Sort by length descending to match longest terms first (preventing sub-term overrides)
     const sortedVocab = [...vocab].sort((a, b) => {
       const lenA = Math.max((a.meaning_vi?.length || 0), (a.target_en?.length || 0), (a.target_zh?.length || 0));
       const lenB = Math.max((b.meaning_vi?.length || 0), (b.target_en?.length || 0), (b.target_zh?.length || 0));
@@ -36,41 +41,55 @@ export class AIService {
     });
 
     sortedVocab.forEach(item => {
-      // Kiểm tra enable (hỗ trợ cả kiểu boolean và string từ Google Sheets)
-      if (String(item.enabled).toLowerCase() !== 'true') return;
+      // Backward compatibility: handle undefined/null as enabled (true)
+      if (item.enabled === false || String(item.enabled).toLowerCase() === 'false') return;
       
       const vi = item.meaning_vi ? String(item.meaning_vi).trim() : '';
       const en = item.target_en ? String(item.target_en).trim() : '';
       const zh = item.target_zh ? String(item.target_zh).trim() : '';
 
-      // Chuẩn hóa từ khóa để so khớp (không CJK normalization)
-      const viNorm = vi.toLowerCase().trim();
-      const enNorm = en.toLowerCase().trim();
+      const viNorm = vi.toLowerCase();
+      const enNorm = en.toLowerCase();
+      const viNoTones = removeVietnameseTones(vi);
 
       let matchedSource = null;
       
-      // So khớp thông minh: Kiểm tra cả 3 cột
-      if (
-        (zh && rawInput.includes(zh)) || 
-        (enNorm && rawInputLower.includes(enNorm)) || 
-        (viNorm && rawInputLower.includes(viNorm))
-      ) {
-        matchedSource = zh || en || vi; 
+      // RULE 1: Chinese (Ideographic) - Safe to use includes
+      if (zh && rawInput.includes(zh)) {
+        matchedSource = zh;
+      } 
+      // RULE 2: English - Use Word Boundary Regex
+      else if (enNorm) {
+        try {
+          const regex = new RegExp(`\\b${enNorm}\\b`, 'i');
+          if (regex.test(rawInput)) matchedSource = en;
+        } catch (e) {
+          if (rawInputLower.includes(enNorm)) matchedSource = en; // Fallback
+        }
+      }
+      // RULE 3: Vietnamese - Scan on tone-removed string + Word Boundary
+      if (!matchedSource && viNorm) {
+        try {
+          const regex = new RegExp(`\\b${viNoTones}\\b`, 'i');
+          if (regex.test(rawInputNoTones)) matchedSource = vi;
+        } catch (e) {
+          if (rawInputNoTones.includes(viNoTones)) matchedSource = vi; // Fallback
+        }
       }
 
       const target = item[targetKey] ? String(item[targetKey]).trim() : '';
       
       if (matchedSource && target && matchedSource.toLowerCase() !== target.toLowerCase() && !seen.has(matchedSource.toLowerCase())) {
         seen.add(matchedSource.toLowerCase());
-        matches.push(`"${matchedSource}" -> "${target}"`);
+        matches.push({ term: matchedSource, translation: target });
       }
     });
 
     if (matches.length === 0) return '';
-
-    console.log("Glossary Matches Found:", matches);
-
-    return `\n<glossary_rules>\nCRITICAL INSTRUCTION: You MUST use the following exact translations. DO NOT use any other translation or synonym for these terms.\n${matches.join('\n')}\n</glossary_rules>`;
+    console.log("RAG Matched Terms (JSON):", matches);
+    
+    // Return raw JSON string. Backend handles the XML tags.
+    return JSON.stringify(matches);
   }
 
   async translate(text: string, targetLang: string, vocab: VocabItem[], image?: string, onChunk?: (chunk: string) => void) {

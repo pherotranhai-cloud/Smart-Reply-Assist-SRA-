@@ -49,29 +49,46 @@ async function startServer() {
 
     const { text, targetLang, glossary, image } = req.body;
     try {
-      const systemPrompt = `You are an expert ${targetLang.toUpperCase()} Industry Translator.
-Your task is to translate the user's input into ${targetLang}.
-Output ONLY the translated text. No explanations.
-
-<glossary_rules>
-${glossary || 'No specific glossary provided.'}
-CRITICAL: You MUST use these exact translations. DO NOT use synonyms.
-</glossary_rules>`;
+      // 1. Minified System Prompt (Already optimized for Factory Context)
+      const systemPrompt = `Translate to ${targetLang} with 100% technical accuracy. Maintain original factory tone (strict/urgent).
+<rules>
+1. DO NOT translate models, codes, brands.
+2. Keep metrics unchanged. Translate quantifiers.
+3. Keep @names original. Translate job titles using glossary.
+4. Use glossary for factory terms.
+</rules>
+<glossary_strict_mode>
+The following is a JSON array of technical terms and their required translations:
+${glossary || '[]'}
+CRITICAL: You MUST use these exact translations for the corresponding terms. DO NOT use synonyms.
+</glossary_strict_mode>
+Output ONLY the translated text. No explanations. No introduction.`;
 
       const messages: any[] = [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: text }
+        { role: 'system', content: systemPrompt }
       ];
 
-      if (image) {
-        messages.push({
-          role: 'user',
-          content: [
-            { type: 'text', text: 'Translate the text in this image.' },
-            { type: 'image_url', image_url: { url: image } }
-          ]
-        });
+      // 2. Build a single unified user content array
+      const userContent: any[] = [];
+
+      const hasText = text && text.trim() !== '';
+
+      if (hasText) {
+        userContent.push({ type: 'text', text: text });
       }
+
+      if (image) {
+        // 3. Robust Vision Instruction
+        const imageInstruction = hasText 
+          ? "\n\n[IMAGE INSTRUCTION]: Additionally, extract and translate any text found in the attached image. Preserve the original layout, tables, and line breaks. You MUST apply the Glossary and Rules to the extracted text."
+          : "[IMAGE INSTRUCTION]: Extract and translate all visible text in this image. Preserve the original layout, bullet points, and line breaks. Strictly follow the System Rules and Glossary above for the translation.";
+        
+        userContent.push({ type: 'text', text: imageInstruction });
+        userContent.push({ type: 'image_url', image_url: { url: image } });
+      }
+
+      // 4. Push the unified content as a single user message
+      messages.push({ role: 'user', content: userContent });
 
       const response = await axios.post('https://api.openai.com/v1/chat/completions', {
         model: AI_MODEL_NAME,
@@ -99,23 +116,24 @@ CRITICAL: You MUST use these exact translations. DO NOT use synonyms.
 
     const { contextText, requirements, params, glossary, structuredSummary } = req.body;
     try {
-      const systemPrompt = `You are an expert ${params.lang.toUpperCase()} Industry Translator and Factory Manager.
-Your task is to compose a message based on the user's requirements.
-Output ONLY the message body. No explanations.
+        const systemPrompt = `You are an expert ${params.lang.toUpperCase()} Industry Translator and Factory Manager.
+  Your task is to compose a message based on the user's requirements.
+  Output ONLY the message body. No explanations.
 
-<glossary_rules>
-${glossary || 'No specific glossary provided.'}
-CRITICAL: You MUST use these exact translations. DO NOT use synonyms.
-</glossary_rules>
+  <glossary_integration>
+  The following is a JSON array of industry-specific terms and their required translations:
+  ${glossary || '[]'}
+  CRITICAL: Use these exact terms from the glossary to maintain technical authority.
+  </glossary_integration>
 
-<critical_requirements>
-- Target Audience: ${params.audience}
-- Tone: ${params.tone}
-- Output Language: ${params.lang}
-- Format: ${params.format}
-- Output ONLY the message body (if Email, include Subject line first).
-- Max 200 words. No filler.
-</critical_requirements>`;
+  <critical_requirements>
+  - Target Audience: ${params.audience}
+  - Tone: ${params.tone}
+  - Output Language: ${params.lang}
+  - Format: ${params.format}
+  - Output ONLY the message body (if Email, include Subject line first).
+  - Max 200 words. No filler.
+  </critical_requirements>`;
       
       const response = await axios.post('https://api.openai.com/v1/chat/completions', {
         model: AI_MODEL_NAME,
