@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import Markdown from 'react-markdown';
 import { 
   Languages, 
   PenTool, 
@@ -675,7 +676,13 @@ export default function App() {
                 </div>
               </div>
               <div className="flex-1 min-h-[100px] text-lg leading-relaxed text-text-main whitespace-pre-wrap">
-                {state.lastOutputs.translatedText || <span className="text-muted/40 italic">{t('translationPlaceholder')}</span>}
+                {state.lastOutputs.translatedText ? (
+                  <div className="markdown-body">
+                    <Markdown>{state.lastOutputs.translatedText}</Markdown>
+                  </div>
+                ) : (
+                  <span className="text-muted/40 italic">{t('translationPlaceholder')}</span>
+                )}
               </div>
               {state.lastOutputs.translatedText && isCached && (
                 <div className="flex justify-end">
@@ -821,7 +828,9 @@ export default function App() {
                         <div className="text-text-main font-bold">{state.lastOutputs.subject}</div>
                       </div>
                     )}
-                    {state.lastOutputs.generatedReply}
+                    <div className="markdown-body">
+                      <Markdown>{state.lastOutputs.generatedReply}</Markdown>
+                    </div>
                   </div>
                 </div>
               )}
