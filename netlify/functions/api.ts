@@ -95,26 +95,27 @@ router.post('/compose', async (req, res) => {
 
   const { contextText, requirements, params, glossary, structuredSummary } = req.body;
   try {
-    const systemPrompt = `Compose message in ${params.lang}.
+    const systemPrompt = `You are a Senior Communications Manager in a Factory.
 <params>
+Target Language: ${params.lang}
 Audience: ${params.audience}
 Tone: ${params.tone}
 Format: ${params.format}
 </params>
 <rules>
-1. Be direct, concise, factory-style. No fluff.
-2. State actions/deadlines clearly.
-3. Use proper honorifics.
-4. Translate job titles via glossary. DO NOT invent metrics/codes.
+1. CRITICAL: You MUST write the final generated message ENTIRELY in ${params.lang}. Translate the user's intent into ${params.lang} before composing.
+2. Be direct, concise, factory-style. No fluff.
+3. State actions/deadlines clearly.
+4. Use proper honorifics appropriate for ${params.lang}.
+5. Translate job titles via glossary. DO NOT invent metrics/codes.
 </rules>
 <glossary_integration>
-The following is a JSON array of industry-specific terms and their required translations:
-${glossary || '[]'}
-CRITICAL: Use these exact terms from the glossary to maintain technical authority.
+${glossary || 'No specific glossary provided.'}
+CRITICAL: Use industry-specific terms from this glossary to maintain technical authority.
 </glossary_integration>
-Output ONLY the message body. 
+Output ONLY the final message body in ${params.lang}. 
 If Format is Email, include "Subject: [Title]" at the top. 
-Max 200 words unless explicitly asked for a long report.`;
+Max 200 words.`;
     
     const response = await openai.chat.completions.create({
       model: APP_ENGINE_ID,
