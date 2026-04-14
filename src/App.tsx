@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { 
   Languages, 
   PenTool, 
@@ -678,7 +681,7 @@ export default function App() {
               <div className="flex-1 min-h-[100px] text-lg leading-relaxed text-text-main whitespace-pre-wrap">
                 {state.lastOutputs.translatedText ? (
                   <div className="markdown-body">
-                    <Markdown>{state.lastOutputs.translatedText}</Markdown>
+                    <Markdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{state.lastOutputs.translatedText}</Markdown>
                   </div>
                 ) : (
                   <span className="text-muted/40 italic">{t('translationPlaceholder')}</span>
@@ -829,7 +832,7 @@ export default function App() {
                       </div>
                     )}
                     <div className="markdown-body">
-                      <Markdown>{state.lastOutputs.generatedReply}</Markdown>
+                      <Markdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{state.lastOutputs.generatedReply}</Markdown>
                     </div>
                   </div>
                 </div>
