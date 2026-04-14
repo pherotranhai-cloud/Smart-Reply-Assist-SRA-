@@ -80,15 +80,17 @@ export const storage = {
         }
       });
 
+      const text = await response.text();
+
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error('Không tìm thấy file Google Sheets. Vui lòng kiểm tra ID hoặc quyền chia sẻ');
         }
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        // const errorData = await response.json().catch(() => ({})); // Removed to avoid parsing error
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result = await response.json();
+      const result = JSON.parse(text); // Parse manually
       
       if (result.status === 'success' && Array.isArray(result.data)) {
         await this.setVocab(result.data);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -8,24 +8,13 @@ import {
   Languages, 
   PenTool, 
   ClipboardCheck, 
-  Settings, 
-  Moon, 
-  Sun, 
   Copy, 
   Check, 
   Loader2,
   Download,
-  Upload,
   AlertCircle,
-  CheckCircle2,
   X,
-  ChevronDown,
-  ChevronUp,
-  RotateCcw,
-  Monitor,
-  Camera,
-  Mic,
-  MicOff
+  Camera
 } from 'lucide-react';
 import { storage } from './services/storage';
 import { AIService } from './services/ai';
@@ -58,8 +47,10 @@ import {
 // --- Components ---
 import { Layout } from './components/Layout';
 import { Skeleton, VocabSkeleton } from './components/Skeleton';
-import { VocabManager } from './components/VocabManager';
-import { SettingsPanel } from './components/SettingsPanel';
+import { FallbackSpinner } from './components/FallbackSpinner';
+
+const VocabManager = lazy(() => import('./components/VocabManager').then(module => ({ default: module.VocabManager })));
+const SettingsPanel = lazy(() => import('./components/SettingsPanel').then(module => ({ default: module.SettingsPanel })));
 
 // --- Main App ---
 
@@ -117,12 +108,12 @@ export default function App() {
   const { isListening, transcript, error: speechError, startListening, stopListening, abortListening, setTranscript } = useSpeechToText();
   const [pressStartTime, setPressStartTime] = useState<number>(0);
 
-  const handlePressStart = () => {
+  const handlePressStart = useCallback(() => {
     setPressStartTime(Date.now());
     startListening(speechLang);
-  };
+  }, [startListening, speechLang]);
 
-  const handlePressEnd = () => {
+  const handlePressEnd = useCallback(() => {
     if (!isListening) return;
     const duration = Date.now() - pressStartTime;
     if (duration < 500) {
@@ -131,7 +122,7 @@ export default function App() {
     } else {
       stopListening();
     }
-  };
+  }, [isListening, pressStartTime, abortListening, stopListening, showToast, t]);
 
   useEffect(() => {
     if (transcript) {
@@ -156,7 +147,7 @@ export default function App() {
     }
   }, [speechError, t, showToast]);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -166,7 +157,7 @@ export default function App() {
       };
       reader.readAsDataURL(file);
     }
-  };
+  }, [showToast, t]);
 
   useEffect(() => {
     if (state.lastOutputs.translatedText && outputRef.current) {
@@ -275,7 +266,7 @@ export default function App() {
     }
   };
 
-  const handleTranslate = async () => {
+  const handleTranslate = useCallback(async () => {
     if (!translateInput && !translateImage) {
       showToast(t('provideTextOrImage'), 'error');
       return;
@@ -358,9 +349,9 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [translateInput, translateImage, targetLang, state.settings, state.lastOutputs, t, showToast]);
 
-  const handleCompose = async () => {
+  const handleCompose = useCallback(async () => {
     if (!composeReq.trim()) {
       showToast(t('provideRequirements'), 'error');
       return;
@@ -451,9 +442,9 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [composeReq, composeParams, context, useContextInCompose, state.settings, state.lastOutputs, state.structuredSummary, vocab, handleExtract, t, showToast]);
 
-  const handlePaste = (e: React.ClipboardEvent) => {
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const items = e.clipboardData.items;
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf('image') !== -1) {
@@ -468,9 +459,9 @@ export default function App() {
         }
       }
     }
-  };
+  }, [showToast, t]);
 
-  const handlePasteFromClipboard = async () => {
+  const handlePasteFromClipboard = useCallback(async () => {
     try {
       const text = await navigator.clipboard.readText();
       if (text) {
@@ -481,12 +472,12 @@ export default function App() {
       console.error('Failed to read clipboard:', err);
       showToast(t('clipboardDenied'), 'error');
     }
-  };
+  }, [showToast, t]);
 
-  const handleClearInput = () => {
+  const handleClearInput = useCallback(() => {
     setTranslateInput('');
     setTranslateImage(null);
-  };
+  }, []);
 
   const handleReset = async () => {
     if (!window.confirm(t('clearContextConfirm'))) return;
@@ -525,18 +516,18 @@ export default function App() {
     }
   };
 
-  const handleCopy = (text: string) => {
+  const handleCopy = useCallback((text: string) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
     setIsCopied(true);
     showToast(t('copiedToClipboard'), 'success');
     setTimeout(() => setIsCopied(false), 2000);
-  };
+  }, [showToast, t]);
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = useCallback((text: string) => {
     navigator.clipboard.writeText(text);
     showToast(t('copiedToClipboard'), 'success');
-  };
+  }, [showToast, t]);
 
   return (
     <>
@@ -866,7 +857,9 @@ export default function App() {
             className="h-full"
           >
             <div className="premium-card h-full flex flex-col">
-              <VocabManager t={t} />
+              <Suspense fallback={<FallbackSpinner />}>
+                <VocabManager t={t} />
+              </Suspense>
             </div>
           </motion.div>
         )}
@@ -880,28 +873,30 @@ export default function App() {
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="h-full overflow-y-auto"
           >
-            <SettingsPanel 
-              themeMode={state.themeMode}
-              onThemeChange={(mode) => {
-                storage.setTheme(mode);
-                setState(prev => ({ ...prev, themeMode: mode }));
-                applyTheme(resolveTheme(mode));
-                showToast(t('themeChanged'), 'info');
-              }}
-              globalLanguage={state.globalLanguage}
-              onLanguageChange={async (lang) => {
-                await storage.setGlobalLanguage(lang);
-                setState(prev => ({ ...prev, globalLanguage: lang }));
-                showToast(t('languageChanged'), 'info');
-              }}
-              onReset={handleReset}
-              settings={state.settings}
-              onSaveSettings={(s) => {
-                storage.setSettings(s);
-                setState(prev => ({ ...prev, settings: s }));
-              }}
-              t={t}
-            />
+            <Suspense fallback={<FallbackSpinner />}>
+              <SettingsPanel 
+                themeMode={state.themeMode}
+                onThemeChange={(mode) => {
+                  storage.setTheme(mode);
+                  setState(prev => ({ ...prev, themeMode: mode }));
+                  applyTheme(resolveTheme(mode));
+                  showToast(t('themeChanged'), 'info');
+                }}
+                globalLanguage={state.globalLanguage}
+                onLanguageChange={async (lang) => {
+                  await storage.setGlobalLanguage(lang);
+                  setState(prev => ({ ...prev, globalLanguage: lang }));
+                  showToast(t('languageChanged'), 'info');
+                }}
+                onReset={handleReset}
+                settings={state.settings}
+                onSaveSettings={(s) => {
+                  storage.setSettings(s);
+                  setState(prev => ({ ...prev, settings: s }));
+                }}
+                t={t}
+              />
+            </Suspense>
             
             {deferredPrompt && (
               <div className="px-4 pb-8">

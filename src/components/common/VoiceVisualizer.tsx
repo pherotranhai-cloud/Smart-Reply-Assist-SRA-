@@ -9,8 +9,6 @@ interface VoiceVisualizerProps {
 }
 
 export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({ isListening, onPressStart, onPressEnd, title }) => {
-  const pressTimer = useRef<NodeJS.Timeout | null>(null);
-
   const handlePressStart = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault(); // Prevent default touch behavior like scrolling
     onPressStart();
