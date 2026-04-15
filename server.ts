@@ -108,6 +108,46 @@ Output ONLY the translated text. No explanations. No introduction.`;
     }
   });
 
+  apiRouter.post('/ocr', limiter, async (req, res) => {
+    if (!OPENAI_API_KEY) {
+      console.error("Missing OPENAI_API_KEY in environment.");
+      return res.status(500).json({ error: "Server Configuration Error" });
+    }
+
+    const { image } = req.body;
+    if (!image) {
+      return res.status(400).json({ error: "No image provided" });
+    }
+
+    try {
+      const systemPrompt = `You are an OCR engine. Extract all visible text from this image exactly as written. Preserve all line breaks, lists, and spacing. DO NOT translate. DO NOT explain. Output ONLY the extracted text.`;
+
+      const messages: any[] = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: [
+            { type: 'image_url', image_url: { url: image } }
+          ]
+        }
+      ];
+
+      const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+        model: AI_MODEL_NAME,
+        messages,
+        temperature: 0,
+      }, {
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      res.json({ extractedText: response.data.choices[0].message.content });
+    } catch (error: any) {
+      console.error('OCR error:', error.response?.data || error.message);
+      res.status(500).json({ error: 'OCR extraction failed' });
+    }
+  });
+
   apiRouter.post('/compose', limiter, async (req, res) => {
     if (!OPENAI_API_KEY) {
       console.error("Missing OPENAI_API_KEY in environment.");

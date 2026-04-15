@@ -86,10 +86,21 @@ export class AIService {
     });
 
     if (matches.length === 0) return '';
-    console.log("RAG Matched Terms (JSON):", matches);
     
     // Return raw JSON string. Backend handles the XML tags.
     return JSON.stringify(matches);
+  }
+
+  async extractTextFromImage(imagePayload: string): Promise<string> {
+    try {
+      const response = await axios.post('/api/ocr', {
+        image: imagePayload
+      });
+      return response.data.extractedText;
+    } catch (err: any) {
+      console.error('OCR error:', err);
+      throw new Error(err.response?.data?.error || 'Image text extraction failed');
+    }
   }
 
   async translate(text: string, targetLang: string, vocab: VocabItem[], image?: string, onChunk?: (chunk: string) => void) {

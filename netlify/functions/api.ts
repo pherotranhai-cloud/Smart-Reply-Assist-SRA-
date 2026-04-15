@@ -87,6 +87,41 @@ Output ONLY the translated text. No explanations. No introduction.`;
   }
 });
 
+router.post('/ocr', async (req, res) => {
+  if (!OPENAI_API_KEY) {
+    console.error("Missing OPENAI_API_KEY in environment.");
+    return res.status(500).json({ error: "Server Configuration Error" });
+  }
+
+  const { image } = req.body;
+  if (!image) {
+    return res.status(400).json({ error: "No image provided" });
+  }
+
+  try {
+    const systemPrompt = `You are an OCR engine. Extract all visible text from this image exactly as written. Preserve all line breaks, lists, and spacing. DO NOT translate. DO NOT explain. Output ONLY the extracted text.`;
+
+    const messages: any[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: [
+          { type: 'image_url', image_url: { url: image } }
+        ]
+      }
+    ];
+
+    const response = await openai.chat.completions.create({
+      model: APP_ENGINE_ID,
+      messages,
+      temperature: 0,
+    });
+
+    res.json({ extractedText: response.choices[0].message.content });
+  } catch (error: any) {
+    console.error('OCR error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'OCR extraction failed', details: error.message });
+  }
+});
+
 router.post('/compose', async (req, res) => {
   if (!OPENAI_API_KEY) {
     console.error("Missing OPENAI_API_KEY in environment.");

@@ -301,9 +301,22 @@ export default function App() {
     try {
       setIsCached(false);
       setLoading(true); // Ensure loading is set
-      if (translateImage) showToast(t('readingImage'), 'info');
       
       const ai = new AIService(state.settings);
+      
+      let finalSourceText = translateInput;
+
+      if (translateImage) {
+        showToast(t('readingImage'), 'info');
+        const extractedText = await ai.extractTextFromImage(translateImage);
+        
+        if (translateInput.trim()) {
+          finalSourceText = `${translateInput}\n\n--- [Image Content] ---\n${extractedText}`;
+        } else {
+          finalSourceText = extractedText;
+        }
+        showToast(t('translating'), 'info');
+      }
       
       // Reset translated text for typewriter effect
       setState(prev => ({ 
@@ -313,7 +326,7 @@ export default function App() {
 
       let fullTranslation = '';
       
-      const result = await ai.translate(translateInput, targetLang, currentVocab, translateImage || undefined, (chunk) => {
+      const result = await ai.translate(finalSourceText, targetLang, currentVocab, undefined, (chunk) => {
         fullTranslation += chunk;
         setState(prev => ({ 
           ...prev, 
@@ -327,7 +340,7 @@ export default function App() {
       
       // Update Conversation Context
       const newContext: ConversationContext = {
-        sourceText: translateInput,
+        sourceText: finalSourceText,
         translatedText: result,
         summaryText: '',
         targetTranslationLanguage: targetLang,
@@ -337,7 +350,7 @@ export default function App() {
       setContext(newContext);
       await storage.setContext(newContext);
 
-      await storage.addHistory({ type: 'translate', input: translateInput, output: result });
+      await storage.addHistory({ type: 'translate', input: finalSourceText, output: result });
       
       // Save to cache
       cache[hashKey] = { translatedText: result, timestamp: Date.now() };
