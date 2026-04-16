@@ -14,7 +14,9 @@ import {
   Download,
   AlertCircle,
   X,
-  Camera
+  Camera,
+  Volume2,
+  Square
 } from 'lucide-react';
 import { storage } from './services/storage';
 import { AIService } from './services/ai';
@@ -23,6 +25,7 @@ import { generateHash } from './utils/hash';
 import { translations } from './i18n';
 import { SplashScreen } from './components/SplashScreen';
 import { useSpeechToText } from './hooks/useSpeechToText';
+import { useTextToSpeech } from './hooks/useTextToSpeech';
 import { VoiceVisualizer } from './components/common/VoiceVisualizer';
 import { VoiceModal } from './components/common/VoiceModal';
 import { 
@@ -106,6 +109,7 @@ export default function App() {
   }, []);
 
   const { isListening, transcript, interimTranscript, error: speechError, startListening, stopListening, setTranscript } = useSpeechToText();
+  const { speak, stop: stopSpeaking, isSpeaking } = useTextToSpeech();
 
   const handleToggleListening = useCallback(() => {
     if (isListening) {
@@ -130,7 +134,8 @@ export default function App() {
     if (isListening) {
       stopListening();
     }
-  }, [activeTab, stopListening]);
+    stopSpeaking();
+  }, [activeTab, stopListening, stopSpeaking]);
 
   useEffect(() => {
     if (speechError) {
@@ -258,6 +263,7 @@ export default function App() {
   };
 
   const handleTranslate = useCallback(async () => {
+    stopSpeaking();
     if (!translateInput && !translateImage) {
       showToast(t('provideTextOrImage'), 'error');
       return;
@@ -356,6 +362,7 @@ export default function App() {
   }, [translateInput, translateImage, targetLang, state.settings, state.lastOutputs, t, showToast]);
 
   const handleCompose = useCallback(async () => {
+    stopSpeaking();
     const currentContext = useContextInCompose ? context : null;
     const hasContext = currentContext && (currentContext.sourceText || currentContext.translatedText);
 
@@ -665,12 +672,20 @@ export default function App() {
                 <h3 className="text-[12px] font-medium tracking-widest text-text-muted uppercase">{t('translatedOutput')}</h3>
                 <div className="flex items-center gap-2">
                   {state.lastOutputs.translatedText && (
-                    <button 
-                      onClick={() => handleCopy(state.lastOutputs.translatedText)}
-                      className="p-2 text-muted hover:text-accent transition-colors"
-                    >
-                      {isCopied ? <Check size={18} className="text-emerald-500" /> : <Copy size={18} />}
-                    </button>
+                    <>
+                      <button 
+                        onClick={() => isSpeaking ? stopSpeaking() : speak(state.lastOutputs.translatedText, targetLang)}
+                        className={`p-2 transition-colors ${isSpeaking ? 'text-accent animate-pulse' : 'text-muted hover:text-accent'}`}
+                      >
+                        {isSpeaking ? <Square size={18} /> : <Volume2 size={18} />}
+                      </button>
+                      <button 
+                        onClick={() => handleCopy(state.lastOutputs.translatedText)}
+                        className="p-2 text-muted hover:text-accent transition-colors"
+                      >
+                        {isCopied ? <Check size={18} className="text-emerald-500" /> : <Copy size={18} />}
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -812,12 +827,20 @@ export default function App() {
                 <div className="premium-card space-y-4 bg-surface/30">
                   <div className="flex justify-between items-center">
                     <h3 className="text-[12px] font-medium tracking-widest text-text-muted uppercase">{t('generatedOutput')}</h3>
-                    <button 
-                      onClick={() => copyToClipboard(state.lastOutputs.generatedReply)}
-                      className="p-2 text-muted hover:text-accent transition-colors"
-                    >
-                      <Copy size={18} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => isSpeaking ? stopSpeaking() : speak(state.lastOutputs.generatedReply, composeParams.lang)}
+                        className={`p-2 transition-colors ${isSpeaking ? 'text-accent animate-pulse' : 'text-muted hover:text-accent'}`}
+                      >
+                        {isSpeaking ? <Square size={18} /> : <Volume2 size={18} />}
+                      </button>
+                      <button 
+                        onClick={() => copyToClipboard(state.lastOutputs.generatedReply)}
+                        className="p-2 text-muted hover:text-accent transition-colors"
+                      >
+                        <Copy size={18} />
+                      </button>
+                    </div>
                   </div>
                   <div className="flex-1 min-h-[100px] text-base leading-relaxed text-text-main whitespace-pre-wrap">
                     {state.lastOutputs.subject && (
