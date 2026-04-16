@@ -5,10 +5,10 @@ import { Mic } from 'lucide-react';
 interface VoiceModalProps {
   isOpen: boolean;
   textListening: string;
-  onRelease: () => void;
+  onClick: () => void;
 }
 
-export const VoiceModal: React.FC<VoiceModalProps> = ({ isOpen, textListening, onRelease }) => {
+export const VoiceModal: React.FC<VoiceModalProps> = ({ isOpen, textListening, onClick }) => {
   const [intensity, setIntensity] = useState<number[]>([0.2, 0.4, 0.3, 0.5, 0.2]);
 
   useEffect(() => {
@@ -31,19 +31,10 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({ isOpen, textListening, o
     // Lock body scroll
     document.body.style.overflow = 'hidden';
 
-    const handleRelease = () => {
-      onRelease();
-    };
-
-    window.addEventListener('mouseup', handleRelease);
-    window.addEventListener('touchend', handleRelease);
-
     return () => {
       document.body.style.overflow = '';
-      window.removeEventListener('mouseup', handleRelease);
-      window.removeEventListener('touchend', handleRelease);
     };
-  }, [isOpen, onRelease]);
+  }, [isOpen]);
 
   return (
     <AnimatePresence>
@@ -52,9 +43,8 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({ isOpen, textListening, o
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40 backdrop-blur-md"
-          onMouseUp={onRelease}
-          onTouchEnd={onRelease}
+          className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40 backdrop-blur-md cursor-pointer"
+          onClick={onClick}
         >
           <div className="relative flex flex-col items-center justify-center pointer-events-none">
             {/* Expanding Rings */}

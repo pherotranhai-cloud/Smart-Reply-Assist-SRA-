@@ -105,31 +105,22 @@ export default function App() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const { isListening, transcript, error: speechError, startListening, stopListening, abortListening, setTranscript } = useSpeechToText();
-  const [pressStartTime, setPressStartTime] = useState<number>(0);
+  const { isListening, transcript, interimTranscript, error: speechError, startListening, stopListening, setTranscript } = useSpeechToText();
 
-  const handlePressStart = useCallback(() => {
-    setPressStartTime(Date.now());
-    startListening(speechLang);
-  }, [startListening, speechLang]);
-
-  const handlePressEnd = useCallback(() => {
-    if (!isListening) return;
-    const duration = Date.now() - pressStartTime;
-    if (duration < 500) {
-      abortListening();
-      showToast(t('tooShort'), 'error');
-    } else {
+  const handleToggleListening = useCallback(() => {
+    if (isListening) {
       stopListening();
+    } else {
+      startListening(speechLang);
     }
-  }, [isListening, pressStartTime, abortListening, stopListening, showToast, t]);
+  }, [isListening, startListening, stopListening, speechLang]);
 
   useEffect(() => {
     if (transcript) {
       if (activeTab === 'translate') {
-        setTranslateInput(prev => prev + (prev ? ' ' : '') + transcript);
+        setTranslateInput(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + transcript);
       } else if (activeTab === 'compose') {
-        setComposeReq(prev => prev + (prev ? ' ' : '') + transcript);
+        setComposeReq(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + transcript);
       }
       setTranscript('');
     }
@@ -365,7 +356,10 @@ export default function App() {
   }, [translateInput, translateImage, targetLang, state.settings, state.lastOutputs, t, showToast]);
 
   const handleCompose = useCallback(async () => {
-    if (!composeReq.trim()) {
+    const currentContext = useContextInCompose ? context : null;
+    const hasContext = currentContext && (currentContext.sourceText || currentContext.translatedText);
+
+    if (!composeReq.trim() && !hasContext) {
       showToast(t('provideRequirements'), 'error');
       return;
     }
@@ -375,7 +369,6 @@ export default function App() {
       const ai = new AIService(state.settings);
       
       // Pull context if available and enabled by user
-      const currentContext = useContextInCompose ? context : null;
       let contextText = '';
       let currentStructuredSummary = null;
 
@@ -588,7 +581,7 @@ export default function App() {
                 <textarea 
                   className="saas-input w-full h-40 min-h-[120px] resize-none text-base"
                   placeholder={t('inputPlaceholder')}
-                  value={translateInput}
+                  value={translateInput + (isListening && interimTranscript ? (translateInput && !translateInput.endsWith(' ') ? ' ' : '') + interimTranscript : '')}
                   onChange={e => setTranslateInput(e.target.value)}
                   onPaste={handlePaste}
                 />
@@ -621,9 +614,8 @@ export default function App() {
                   </button>
                   <VoiceVisualizer
                     isListening={isListening}
-                    onPressStart={handlePressStart}
-                    onPressEnd={handlePressEnd}
-                    title={isListening ? t('releaseToStop') : t('holdHint')}
+                    onClick={handleToggleListening}
+                    title={isListening ? t('listeningActive') : t('startVoice')}
                   />
                   <button 
                     onClick={handlePasteFromClipboard}
@@ -743,7 +735,7 @@ export default function App() {
                     <textarea 
                       className="w-full flex-1 min-h-[30vh] p-4 bg-panel text-text-main border border-border-main rounded-2xl shadow-sm resize-none text-[17px] leading-relaxed focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
                       placeholder={t('replyPlaceholder')}
-                      value={composeReq}
+                      value={composeReq + (isListening && interimTranscript ? (composeReq && !composeReq.endsWith(' ') ? ' ' : '') + interimTranscript : '')}
                       onChange={e => setComposeReq(e.target.value)}
                     />
                     {isListening && (
@@ -763,9 +755,8 @@ export default function App() {
                       )}
                       <VoiceVisualizer
                         isListening={isListening}
-                        onPressStart={handlePressStart}
-                        onPressEnd={handlePressEnd}
-                        title={isListening ? t('releaseToStop') : t('holdHint')}
+                        onClick={handleToggleListening}
+                        title={isListening ? t('listeningActive') : t('startVoice')}
                       />
                     </div>
                   </div>
@@ -848,7 +839,7 @@ export default function App() {
               <div className="max-w-3xl mx-auto pointer-events-auto">
                 <button 
                   onClick={handleCompose}
-                  disabled={loading || !composeReq.trim()}
+                  disabled={loading || (!composeReq.trim() && !(useContextInCompose && context && (context.sourceText || context.translatedText)))}
                   className="w-full bg-accent hover:bg-accent/90 disabled:bg-panel disabled:border disabled:border-border-main disabled:text-text-muted text-white rounded-2xl py-4 text-[17px] font-semibold flex items-center justify-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-[0.98]"
                   style={{ height: '40px' }}
                 >
@@ -928,8 +919,8 @@ export default function App() {
 
       <VoiceModal 
         isOpen={isListening} 
-        textListening={t('releaseToStop')} 
-        onRelease={handlePressEnd}
+        textListening={t('listeningActive')} 
+        onClick={handleToggleListening}
       />
     </Layout>
     </>

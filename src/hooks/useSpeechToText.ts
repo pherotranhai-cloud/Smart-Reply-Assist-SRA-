@@ -3,6 +3,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 export const useSpeechToText = () => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [interimTranscript, setInterimTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
 
@@ -20,19 +21,33 @@ export const useSpeechToText = () => {
 
     const recognition = new SpeechRecognition();
     recognition.lang = languageCode;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.maxAlternatives = 1;
-    recognition.continuous = false; // Stop automatically after silence
+    recognition.continuous = true;
 
     recognition.onstart = () => {
       setIsListening(true);
       setError(null);
+      setTranscript('');
+      setInterimTranscript('');
     };
 
     recognition.onresult = (event: any) => {
-      const last = event.results.length - 1;
-      const text = event.results[last][0].transcript;
-      setTranscript(text);
+      let currentInterim = '';
+      let currentFinal = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          currentFinal += event.results[i][0].transcript;
+        } else {
+          currentInterim += event.results[i][0].transcript;
+        }
+      }
+      
+      if (currentFinal) {
+        setTranscript(currentFinal);
+      }
+      setInterimTranscript(currentInterim);
     };
 
     recognition.onerror = (event: any) => {
@@ -47,6 +62,7 @@ export const useSpeechToText = () => {
 
     recognition.onend = () => {
       setIsListening(false);
+      setInterimTranscript('');
     };
 
     recognitionRef.current = recognition;
@@ -79,6 +95,7 @@ export const useSpeechToText = () => {
   return {
     isListening,
     transcript,
+    interimTranscript,
     error,
     startListening,
     stopListening,

@@ -3,20 +3,14 @@ import { Mic } from 'lucide-react';
 
 interface VoiceVisualizerProps {
   isListening: boolean;
-  onPressStart: () => void;
-  onPressEnd: () => void;
+  onClick: () => void;
   title?: string;
 }
 
-export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({ isListening, onPressStart, onPressEnd, title }) => {
-  const handlePressStart = (e: React.MouseEvent | React.TouchEvent) => {
+export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({ isListening, onClick, title }) => {
+  const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault(); // Prevent default touch behavior like scrolling
-    onPressStart();
-  };
-
-  const handlePressEnd = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    onPressEnd();
+    onClick();
   };
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -25,10 +19,7 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({ isListening, o
 
   return (
     <button
-      onMouseDown={handlePressStart}
-      onMouseUp={handlePressEnd}
-      onTouchStart={handlePressStart}
-      onTouchEnd={handlePressEnd}
+      onClick={handleClick}
       onContextMenu={handleContextMenu}
       style={{
         WebkitUserSelect: 'none',
@@ -38,7 +29,7 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({ isListening, o
       }}
       className={`relative z-10 flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 select-none ${
         isListening 
-          ? 'bg-red-500 text-white shadow-lg shadow-red-500/30' 
+          ? 'bg-red-500 text-white shadow-lg shadow-red-500/30 animate-pulse' 
           : 'bg-panel border border-border-main text-text-muted hover:text-accent hover:border-accent/30'
       }`}
       title={title}
