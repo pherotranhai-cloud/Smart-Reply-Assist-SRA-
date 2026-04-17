@@ -119,6 +119,17 @@ export default function App() {
     }
   }, [isListening, startListening, stopListening, speechLang]);
 
+  const handleSpeak = useCallback((text: string, lang: string) => {
+    if (isSpeaking) {
+      stopSpeaking();
+    } else {
+      const result = speak(text, lang);
+      if (!result.success && result.message) {
+        showToast(result.message, 'error');
+      }
+    }
+  }, [isSpeaking, speak, stopSpeaking, showToast]);
+
   useEffect(() => {
     if (transcript) {
       if (activeTab === 'translate') {
@@ -674,7 +685,7 @@ export default function App() {
                   {state.lastOutputs.translatedText && (
                     <>
                       <button 
-                        onClick={() => isSpeaking ? stopSpeaking() : speak(state.lastOutputs.translatedText, targetLang)}
+                        onClick={() => handleSpeak(state.lastOutputs.translatedText, targetLang)}
                         className={`p-2 transition-colors ${isSpeaking ? 'text-accent animate-pulse' : 'text-muted hover:text-accent'}`}
                       >
                         {isSpeaking ? <Square size={18} /> : <Volume2 size={18} />}
@@ -829,7 +840,7 @@ export default function App() {
                     <h3 className="text-[12px] font-medium tracking-widest text-text-muted uppercase">{t('generatedOutput')}</h3>
                     <div className="flex items-center gap-2">
                       <button 
-                        onClick={() => isSpeaking ? stopSpeaking() : speak(state.lastOutputs.generatedReply, composeParams.lang)}
+                        onClick={() => handleSpeak(state.lastOutputs.generatedReply, composeParams.lang)}
                         className={`p-2 transition-colors ${isSpeaking ? 'text-accent animate-pulse' : 'text-muted hover:text-accent'}`}
                       >
                         {isSpeaking ? <Square size={18} /> : <Volume2 size={18} />}
