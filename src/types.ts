@@ -1,7 +1,8 @@
 export type Language = 'Auto' | 'Vietnamese' | 'English' | 'Chinese (Simplified)' | 'Chinese (Traditional)' | 'Indonesian' | 'Burmese';
 
-export type Audience = 'brand_client' | 'top_management' | 'cross_dept' | 'subordinates';
-export type Tone = 'professional' | 'strict_urgent' | 'collaborative';
+export type Audience = 'brand_client' | 'top_management' | 'cross_dept' | 'subordinates' | 'expert';
+export type Tone = 'professional' | 'strict_urgent' | 'collaborative' | 'persuasive' | 'humble';
+export type Length = 'short' | 'standard' | 'detailed';
 export type Format = 'wechat_zalo' | 'formal_email' | 'action_list';
 
 export interface VocabItem {

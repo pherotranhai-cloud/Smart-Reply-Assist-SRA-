@@ -129,7 +129,7 @@ export class AIService {
   async compose(
     contextText: string, 
     requirements: string, 
-    params: { audience: string; tone: string; lang: string; format: string }, 
+    params: { audience: string; tone: string; length?: string; lang: string; format: string; goal?: string }, 
     vocab: VocabItem[],
     structuredSummary?: any,
     onChunk?: (chunk: string) => void

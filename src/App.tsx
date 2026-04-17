@@ -28,6 +28,7 @@ import { useSpeechToText } from './hooks/useSpeechToText';
 import { useTextToSpeech } from './hooks/useTextToSpeech';
 import { VoiceVisualizer } from './components/common/VoiceVisualizer';
 import { VoiceModal } from './components/common/VoiceModal';
+import { PresetGrid } from './components/common/PresetGrid';
 import { 
   VocabItem, 
   AISettings, 
@@ -35,6 +36,7 @@ import {
   Language, 
   Audience, 
   Tone, 
+  Length,
   Format,
   ConversationContext,
   GlobalLanguage
@@ -44,7 +46,8 @@ import {
   LANGUAGES, 
   AUDIENCES, 
   TONES, 
-  FORMATS 
+  FORMATS,
+  ComposePreset
 } from './constants';
 
 // --- Components ---
@@ -87,9 +90,11 @@ export default function App() {
   const [speechLang, setSpeechLang] = useState<string>('vi-VN');
   
   const [composeReq, setComposeReq] = useState('');
+  const [activePresetId, setActivePresetId] = useState('custom');
   const [composeParams, setComposeParams] = useState({
     audience: 'cross_dept' as Audience,
     tone: 'professional' as Tone,
+    length: 'standard' as Length,
     lang: 'English' as Language,
     format: 'wechat_zalo' as Format
   });
@@ -420,8 +425,10 @@ export default function App() {
         {
           audience: composeParams.audience,
           tone: composeParams.tone,
+          length: composeParams.length,
           lang: composeParams.lang,
-          format: composeParams.format
+          format: composeParams.format,
+          goal: activePresetId === 'custom' ? 'Custom' : activePresetId.charAt(0).toUpperCase() + activePresetId.slice(1)
         }, 
         vocab,
         currentStructuredSummary || undefined,
@@ -789,48 +796,16 @@ export default function App() {
                 </div>
 
                 {/* Configuration Grid */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-[12px] font-medium text-text-muted px-1">{t('audience')}</label>
-                    <select 
-                      className="w-full bg-panel text-text-main border border-border-main rounded-xl px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-accent transition-colors duration-300"
-                      value={composeParams.audience}
-                      onChange={e => setComposeParams({ ...composeParams, audience: e.target.value as Audience })}
-                    >
-                      {AUDIENCES.map(a => <option key={a.value} value={a.value}>{t(a.labelKey)}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[12px] font-medium text-text-muted px-1">{t('tone')}</label>
-                    <select 
-                      className="w-full bg-panel text-text-main border border-border-main rounded-xl px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-accent transition-colors duration-300"
-                      value={composeParams.tone}
-                      onChange={e => setComposeParams({ ...composeParams, tone: e.target.value as Tone })}
-                    >
-                      {TONES.map(to => <option key={to.value} value={to.value}>{t(to.labelKey)}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[12px] font-medium text-text-muted px-1">{t('language')}</label>
-                    <select 
-                      className="w-full bg-panel text-text-main border border-border-main rounded-xl px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-accent transition-colors duration-300"
-                      value={composeParams.lang}
-                      onChange={e => setComposeParams({ ...composeParams, lang: e.target.value as Language })}
-                    >
-                      {LANGUAGES.filter(l => l !== 'Auto').map(l => <option key={l}>{l}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[12px] font-medium text-text-muted px-1">{t('format')}</label>
-                    <select 
-                      className="w-full bg-panel text-text-main border border-border-main rounded-xl px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-accent transition-colors duration-300"
-                      value={composeParams.format}
-                      onChange={e => setComposeParams({ ...composeParams, format: e.target.value as Format })}
-                    >
-                      {FORMATS.map(f => <option key={f.value} value={f.value}>{t(f.labelKey)}</option>)}
-                    </select>
-                  </div>
-                </div>
+                <PresetGrid
+                  activePresetId={activePresetId}
+                  onSelectPreset={(preset) => {
+                    setActivePresetId(preset.id);
+                    setComposeParams(prev => ({ ...prev, ...preset.settings }));
+                  }}
+                  customParams={composeParams}
+                  onUpdateCustomParams={(params) => setComposeParams(prev => ({ ...prev, ...params }))}
+                  t={t}
+                />
               </div>
 
               {/* Generated Output */}

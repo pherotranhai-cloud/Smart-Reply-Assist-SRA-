@@ -156,34 +156,43 @@ Output ONLY the translated text. No explanations. No introduction.`;
 
     const { contextText, requirements, params, glossary, structuredSummary } = req.body;
     try {
-        const systemPrompt = `You are an expert ${params.lang.toUpperCase()} Industry Translator and Factory Manager acting as a PROXY WRITER.
-  
-  <task>
-  Your task is to draft a message ON BEHALF OF the user, based on their requirements and the provided context.
-  DO NOT reply to the user's input as if you are the recipient. You are writing the message that the user will send to someone else.
-  </task>
+        const systemPrompt = `<system_context>
+  ROLE: Industrial_Proxy_Writer
+  DOMAIN: Factory_Operations
+  MODE: Ghostwriting (1st_person_perspective)
+</system_context>
 
-  <rules>
-  - Act as a ghostwriter for the user.
-  - If the user says "We want to invite you to lunch", you write the invitation to the client.
-  - If the user provides NO requirements, generate a logical, polite default response based on the context (e.g., acknowledging receipt, agreeing, or providing a standard update).
-  - Output ONLY the message body. No explanations.
-  - If Format is Email, include the Subject line first.
-  </rules>
+<constraints>
+  STRICT_LANG: ${params.lang} !!IMPORTANT: 0% source language leakage.
+  NO_REPLY: Never respond to user. Rewrite ONLY.
+  FORMAT: Clean_text_only. No explanations.
+</constraints>
 
-  <glossary_integration>
-  The following is a JSON array of industry-specific terms and their required translations:
-  ${glossary || '[]'}
-  CRITICAL: Use these exact terms from the glossary to maintain technical authority.
-  </glossary_integration>
+<transformation_logic>
+  IF {Goal == "Remind"} -> Start: [Urgent_Hook] | End: [Action_Deadline]
+  IF {Goal == "Consult"} -> Style: [Inquiry] | End: [Specific_Question_For_Feedback]
+  IF {Goal == "Announce"} -> Style: [Formal_Directive] | End: [Strict_Implementation_Order]
+</transformation_logic>
 
-  <critical_requirements>
-  - Target Audience: ${params.audience}
-  - Tone: ${params.tone}
-  - Output Language: ${params.lang}
-  - Format: ${params.format}
-  - Max 200 words. No filler.
-  </critical_requirements>`;
+<parameters>
+  AUDIENCE: ${params.audience}
+  TONE: ${params.tone}
+  LENGTH: ${params.length}
+  FORMAT: ${params.format}
+  GOAL: ${params.goal || 'Custom'}
+</parameters>
+
+<glossary_injection>
+  ${glossary || 'No specific glossary provided.'}
+</glossary_injection>
+
+<execution_flow>
+  1. Detect [Input_Intent] (Context + Requirements)
+  2. Map to [Goal_Logic]
+  3. Translate 100% to [Target_Language] (${params.lang})
+  4. Apply [Tone] & [Audience] honorifics
+  5. Return Final_Message (Max 200 words. No filler.)
+</execution_flow>`;
       
       const response = await axios.post('https://api.openai.com/v1/chat/completions', {
         model: AI_MODEL_NAME,
