@@ -185,6 +185,8 @@ export class AIService {
       let fullText = '';
       let buffer = '';
 
+      const isChineseOrSimilar = (lang: string) => lang.includes('Chinese') || lang.includes('Burmese');
+
       while (!done) {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
@@ -201,8 +203,13 @@ export class AIService {
                 fullText += token;
                 buffer += token;
 
-                // Check for sentence boundaries
-                if (/[.!?。！？]\s*$/.test(buffer)) {
+                // Module 1: Check for complete thought (15 chars or punctuation)
+                const isContinuousLang = isChineseOrSimilar(targetLang);
+                
+                const hasPunctuation = /[.!?。！？,，]\s*$/.test(buffer);
+                const hasEnoughWords = isContinuousLang ? buffer.length > 15 : buffer.trim().split(/\s+/).length >= 5;
+
+                if (hasPunctuation || hasEnoughWords) {
                   onSentence(buffer.trim());
                   buffer = ''; 
                 }

@@ -154,7 +154,9 @@ router.post('/talk', async (req, res) => {
         { role: 'user', content: text }
       ],
       temperature: 0.1,
-      top_p: 0.9,
+      top_p: 0.8,
+      presence_penalty: 0,
+      frequency_penalty: 0,
       max_tokens: 80,
       stream: true,
     });

@@ -47,7 +47,7 @@ export const useTextToSpeech = () => {
     }
   }, []);
 
-  const speak = useCallback((text: string, lang: string): { success: boolean; message?: string } => {
+  const speak = useCallback((text: string, lang: string, queueMode: boolean = false, onStart?: () => void, onEnd?: () => void): { success: boolean; message?: string } => {
     if (!synthRef.current) {
       return { success: false, message: 'Speech synthesis not supported in this browser.' };
     }
@@ -56,8 +56,10 @@ export const useTextToSpeech = () => {
       return { success: false, message: 'Hệ thống giọng nói đang khởi động, vui lòng thử lại trong giây lát.' };
     }
 
-    // Stop any ongoing speech
-    stop();
+    // Stop any ongoing speech UNLESS queueMode is true
+    if (!queueMode) {
+      stop();
+    }
 
     if (!text.trim()) {
       return { success: false, message: 'No text to speak.' };
@@ -96,7 +98,7 @@ export const useTextToSpeech = () => {
       const actualLang = detectLang(text);
 
       utterance.lang = actualLang;
-      utterance.rate = 0.95; // Slightly slower for clarity
+      utterance.rate = queueMode ? 1.15 : 0.95; // Faster for Talk tab conversations, slower for dictionary/compose
       utterance.pitch = 1.0;
 
       const voices = synthRef.current.getVoices();
@@ -121,6 +123,7 @@ export const useTextToSpeech = () => {
 
       utterance.onstart = () => {
         setIsSpeaking(true);
+        if (onStart) onStart();
         // Chrome 15-second pause bug workaround
         if (intervalRef.current) clearInterval(intervalRef.current);
         intervalRef.current = setInterval(() => {
@@ -132,23 +135,20 @@ export const useTextToSpeech = () => {
       };
 
       utterance.onend = () => {
-        setIsSpeaking(false);
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
+        if (onEnd) onEnd();
+        // If there's nothing else in the native queue, set speaking to false
+        if (!synthRef.current?.pending && !synthRef.current?.speaking) {
+          setIsSpeaking(false);
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
         }
       };
 
       utterance.onerror = (event) => {
         console.error('Final TTS Error:', event);
-        if (synthRef.current) {
-          synthRef.current.cancel(); // Reset the engine on error
-        }
-        setIsSpeaking(false);
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
+        if (onEnd) onEnd();
       };
 
       // 3. Small timeout to prevent the "interrupted" race condition
@@ -159,10 +159,11 @@ export const useTextToSpeech = () => {
       return { success: true };
     } catch (error) {
       console.error('Speech Synthesis trigger failed:', error);
-      if (synthRef.current) {
+      if (!queueMode && synthRef.current) {
         synthRef.current.cancel();
       }
       setIsSpeaking(false);
+      if (onEnd) onEnd();
       return { success: false, message: 'Đã xảy ra lỗi hệ thống, vui lòng thử lại.' };
     }
   }, [stop, voicesLoaded]);
