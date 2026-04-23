@@ -47,7 +47,8 @@ import {
   AUDIENCES, 
   TONES, 
   FORMATS,
-  ComposePreset
+  ComposePreset,
+  LANGUAGE_FLAGS
 } from './constants';
 
 // --- Components ---
@@ -57,11 +58,12 @@ import { FallbackSpinner } from './components/FallbackSpinner';
 
 const VocabManager = lazy(() => import('./components/VocabManager').then(module => ({ default: module.VocabManager })));
 const SettingsPanel = lazy(() => import('./components/SettingsPanel').then(module => ({ default: module.SettingsPanel })));
+const TalkTab = lazy(() => import('./components/TalkTab').then(module => ({ default: module.TalkTab })));
 
 // --- Main App ---
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'translate' | 'compose' | 'vocab' | 'settings'>('translate');
+  const [activeTab, setActiveTab] = useState<'translate' | 'compose' | 'talk' | 'vocab' | 'settings'>('translate');
   const [state, setState] = useState<AppState>(DEFAULT_STATE);
   const [vocab, setVocab] = useState<VocabItem[]>([]);
   const [isVocabOpen, setIsVocabOpen] = useState(false);
@@ -671,7 +673,7 @@ export default function App() {
                     value={targetLang}
                     onChange={e => setTargetLang(e.target.value as Language)}
                   >
-                    {LANGUAGES.map(l => <option key={l} className="bg-panel">{l}</option>)}
+                    {LANGUAGES.map(l => <option key={l} value={l} className="bg-panel">{LANGUAGE_FLAGS[l]} {l}</option>)}
                   </select>
                 </div>
                 <button 
@@ -874,6 +876,21 @@ export default function App() {
                 <VocabManager t={t} />
               </Suspense>
             </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'talk' && (
+          <motion.div 
+            key="talk"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="h-[calc(100vh-120px)]"
+          >
+            <Suspense fallback={<FallbackSpinner />}>
+              <TalkTab settings={state.settings} vocab={vocab} t={t} />
+            </Suspense>
           </motion.div>
         )}
 

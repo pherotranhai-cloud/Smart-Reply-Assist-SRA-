@@ -25,18 +25,21 @@ export class AIService {
     
     const rawInputNoTones = removeVietnameseTones(rawInput);
 
-    let targetKey: 'meaning_vi' | 'target_en' | 'target_zh' = 'target_en'; 
+    let targetKey: keyof VocabItem = 'target_en'; 
     const targetLangLower = targetLang.toLowerCase();
     if (targetLangLower.includes('vi')) targetKey = 'meaning_vi';
-    else if (targetLangLower.includes('zh') || targetLangLower.includes('chinese')) targetKey = 'target_zh';
+    else if (targetLangLower.includes('zh') && targetLangLower.includes('traditional')) targetKey = 'target_zh_tw';
+    else if (targetLangLower.includes('zh') || targetLangLower.includes('chinese')) targetKey = 'target_zh_cn';
+    else if (targetLangLower.includes('id') || targetLangLower.includes('indonesian')) targetKey = 'target_id';
+    else if (targetLangLower.includes('my') || targetLangLower.includes('burmese')) targetKey = 'target_my';
 
     const matches: { term: string; translation: string }[] = [];
     const seen = new Set<string>();
 
     // Sort by length descending to match longest terms first (preventing sub-term overrides)
     const sortedVocab = [...vocab].sort((a, b) => {
-      const lenA = Math.max((a.meaning_vi?.length || 0), (a.target_en?.length || 0), (a.target_zh?.length || 0));
-      const lenB = Math.max((b.meaning_vi?.length || 0), (b.target_en?.length || 0), (b.target_zh?.length || 0));
+      const lenA = Math.max((a.meaning_vi?.length || 0), (a.target_en?.length || 0), (a.target_zh_cn?.length || 0));
+      const lenB = Math.max((b.meaning_vi?.length || 0), (b.target_en?.length || 0), (b.target_zh_cn?.length || 0));
       return lenB - lenA;
     });
 
@@ -46,7 +49,8 @@ export class AIService {
       
       const vi = item.meaning_vi ? String(item.meaning_vi).trim() : '';
       const en = item.target_en ? String(item.target_en).trim() : '';
-      const zh = item.target_zh ? String(item.target_zh).trim() : '';
+      const zh_cn = item.target_zh_cn ? String(item.target_zh_cn).trim() : '';
+      const zh_tw = item.target_zh_tw ? String(item.target_zh_tw).trim() : '';
 
       const viNorm = vi.toLowerCase();
       const enNorm = en.toLowerCase();
@@ -55,9 +59,11 @@ export class AIService {
       let matchedSource = null;
       
       // RULE 1: Chinese (Ideographic) - Safe to use includes
-      if (zh && rawInput.includes(zh)) {
-        matchedSource = zh;
-      } 
+      if (zh_cn && rawInput.includes(zh_cn)) {
+        matchedSource = zh_cn;
+      } else if (zh_tw && rawInput.includes(zh_tw)) {
+        matchedSource = zh_tw;
+      }
       // RULE 2: English - Use Word Boundary Regex
       else if (enNorm) {
         try {
@@ -154,6 +160,70 @@ export class AIService {
     } catch (err: any) {
       console.error('Compose error:', err);
       throw new Error(err.response?.data?.error || 'Compose failed');
+    }
+  }
+
+  async talkStream(text: string, targetLang: string, onSentence: (sentence: string) => void, onComplete: (fullText: string) => void) {
+    try {
+      const response = await fetch('/api/talk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, targetLang }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Talk HTTP error! status: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error('ReadableStream not yet supported in this browser.');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let done = false;
+      let fullText = '';
+      let buffer = '';
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        const chunkValue = decoder.decode(value, { stream: true });
+        
+        // Parse SSE stream
+        const lines = chunkValue.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            try {
+              const data = JSON.parse(line.substring(6));
+              if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
+                const token = data.choices[0].delta.content;
+                fullText += token;
+                buffer += token;
+
+                // Check for sentence boundaries
+                if (/[.!?。！？]\s*$/.test(buffer)) {
+                  onSentence(buffer.trim());
+                  buffer = ''; 
+                }
+              }
+            } catch (e) {
+              // Ignore parse errors on incomplete JSON chunks
+            }
+          }
+        }
+      }
+      
+      // Flush remaining buffer
+      if (buffer.trim()) {
+        onSentence(buffer.trim());
+      }
+
+      onComplete(fullText);
+      return fullText;
+    } catch (err: any) {
+      console.error('Talk stream error:', err);
+      throw new Error(err.message || 'Talk sequence failed');
     }
   }
 

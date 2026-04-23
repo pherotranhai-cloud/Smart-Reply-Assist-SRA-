@@ -3,22 +3,43 @@ import {
   Search, 
   Download, 
   BookOpen,
-  Clock
+  Clock,
+  Volume2
 } from 'lucide-react';
 import { VocabItem } from '../types';
 import { storage } from '../services/storage';
 import { VocabSkeleton } from './Skeleton';
 import Papa from 'papaparse';
+import { useTextToSpeech } from '../hooks/useTextToSpeech';
 
 interface VocabManagerProps {
   t: (key: any) => string;
 }
+
+const VocabCell = ({ label, text, lang, speak }: { label: string, text: string, lang: string, speak: (text: string, lang: string) => void }) => {
+  if (!text) return null;
+  return (
+    <div className="flex flex-col p-3 rounded-lg bg-white dark:bg-panel shadow-sm border border-border-main hover:border-[#004A99] transition-colors relative group">
+      <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-1">{label}</span>
+      <span className="text-text-main font-bold pr-6">{text}</span>
+      <button 
+        onClick={() => speak(text, lang)}
+        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-[#004A99] opacity-0 group-hover:opacity-100 transition-all rounded-md hover:bg-[#004A99]/10"
+        title={`Listen in ${label}`}
+      >
+        <Volume2 size={16} />
+      </button>
+    </div>
+  );
+};
 
 export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
   const [vocab, setVocab] = useState<VocabItem[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
+  
+  const { speak } = useTextToSpeech();
 
   useEffect(() => {
     const loadVocab = async () => {
@@ -45,7 +66,10 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
   const filteredVocab = vocab.filter(v => 
     v.meaning_vi?.toLowerCase().includes(search.toLowerCase()) ||
     v.target_en?.toLowerCase().includes(search.toLowerCase()) ||
-    v.target_zh?.toLowerCase().includes(search.toLowerCase())
+    v.target_zh_cn?.toLowerCase().includes(search.toLowerCase()) ||
+    v.target_zh_tw?.toLowerCase().includes(search.toLowerCase()) ||
+    v.target_id?.toLowerCase().includes(search.toLowerCase()) ||
+    v.target_my?.toLowerCase().includes(search.toLowerCase())
   );
 
   const handleExport = () => {
@@ -60,7 +84,7 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
   };
 
   return (
-    <div className="flex flex-col h-full gap-4">
+    <div className="flex flex-col h-full gap-4 relative">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-xl font-bold flex items-center gap-2">
           <BookOpen className="text-accent" />
@@ -69,7 +93,7 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
         <div className="flex gap-2 w-full sm:w-auto items-center">
           {lastSynced && (
             <span className="text-xs text-text-muted flex items-center gap-1 mr-2">
-              <Clock size={12} /> Last synced: {lastSynced}
+              <Clock size={12} /> {lastSynced}
             </span>
           )}
           <button onClick={handleExport} className="saas-button secondary-button flex items-center justify-center gap-2">
@@ -79,46 +103,66 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
-        <input 
-          type="text"
-          placeholder={t('searchVocab')}
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="saas-input pl-10"
-        />
-      </div>
-
-      <div className="flex-1 overflow-auto min-h-[300px] border border-border-main rounded-xl bg-panel">
-        {loading ? (
-          <div className="p-4"><VocabSkeleton /></div>
-        ) : filteredVocab.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-text-muted gap-4">
-            <BookOpen size={48} strokeWidth={1} />
-            <p>{t('noMatchingTerms')}</p>
+      {!search.trim() ? (
+        <div className="flex-1 flex flex-col items-center justify-center py-20 px-4">
+          <div className="w-full max-w-2xl relative group">
+            <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+              <Search size={24} className="text-gray-400 group-focus-within:text-[#004A99] transition-colors" />
+            </div>
+            <input
+              type="text"
+              className="w-full pl-14 pr-6 py-5 text-lg bg-panel border-2 border-border-main shadow-sm rounded-2xl focus:border-[#004A99] focus:ring-4 focus:ring-[#004A99]/10 transition-all text-text-main placeholder-gray-400 outline-none"
+              placeholder="Tìm từ vựng chuyên ngành (VI/EN/ZH/ID/MY)..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
-        ) : (
-          <table className="w-full text-left text-sm">
-            <thead className="sticky top-0 z-10 bg-panel border-b border-border-main">
-              <tr>
-                <th className="px-4 py-3 font-medium text-[12px] tracking-widest text-text-muted uppercase w-1/3">VI</th>
-                <th className="px-4 py-3 font-medium text-[12px] tracking-widest text-text-muted uppercase w-1/3">EN</th>
-                <th className="px-4 py-3 font-medium text-[12px] tracking-widest text-text-muted uppercase w-1/3">ZH</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border-main/50">
-              {filteredVocab.map((item, index) => (
-                <tr key={`${item.id}-${index}`} className="hover:bg-border-main/20 transition-colors">
-                  <td className="px-4 py-3 text-text-main">{item.meaning_vi}</td>
-                  <td className="px-4 py-3 text-text-muted">{item.target_en}</td>
-                  <td className="px-4 py-3 text-text-muted">{item.target_zh}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+          <p className="mt-6 text-sm text-text-muted flex items-center gap-2">
+            <BookOpen size={16} />
+            Start typing to search across {vocab.length} terms in 6 languages.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col h-full gap-4">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <input 
+              type="text"
+              placeholder="Tìm từ vựng chuyên ngành (VI/EN/ZH/ID/MY)..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 bg-panel border-2 border-[#004A99]/30 rounded-xl focus:border-[#004A99] focus:ring-4 focus:ring-[#004A99]/10 transition-all text-text-main placeholder-gray-400 outline-none"
+              autoFocus
+            />
+          </div>
+
+          <div className="flex-1 overflow-auto min-h-[300px]">
+            {loading ? (
+              <div className="p-4"><VocabSkeleton /></div>
+            ) : filteredVocab.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-text-muted gap-4">
+                <Search size={48} strokeWidth={1} className="text-gray-300" />
+                <p>No matching terms found for "{search}"</p>
+              </div>
+            ) : (
+              <div className="space-y-4 pb-12">
+                {filteredVocab.map((item, index) => (
+                  <div key={`${item.id}-${index}`} className="flex flex-col bg-surface rounded-xl shadow-sm border border-border-main p-4 gap-3 transition-colors hover:border-[#004A99]/30">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <VocabCell label="VI" text={item.meaning_vi || ''} lang="vi" speak={speak} />
+                      <VocabCell label="EN" text={item.target_en || ''} lang="en" speak={speak} />
+                      <VocabCell label="ZH-CN" text={item.target_zh_cn || ''} lang="zh-CN" speak={speak} />
+                      <VocabCell label="ZH-TW" text={item.target_zh_tw || ''} lang="zh-TW" speak={speak} />
+                      <VocabCell label="ID" text={item.target_id || ''} lang="id" speak={speak} />
+                      <VocabCell label="MY" text={item.target_my || ''} lang="my" speak={speak} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

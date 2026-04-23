@@ -31,6 +31,16 @@ export const LANGUAGES = [
   'Burmese',
 ];
 
+export const LANGUAGE_FLAGS: Record<string, string> = {
+  'Auto': '✨',
+  'Vietnamese': '🇻🇳',
+  'English': '🇬🇧',
+  'Chinese (Simplified)': '🇨🇳',
+  'Chinese (Traditional)': '🇹🇼',
+  'Indonesian': '🇮🇩',
+  'Burmese': '🇲🇲'
+};
+
 export const AUDIENCES = [
   { value: 'brand_client', labelKey: 'audience.brandClient' },
   { value: 'top_management', labelKey: 'audience.topManagement' },

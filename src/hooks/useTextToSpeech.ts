@@ -77,11 +77,23 @@ export const useTextToSpeech = () => {
       }
 
       // 1. Detect actual content language to prevent 'interrupted' errors
-      let actualLang = langCode;
-      const hasChinese = /[\u4e00-\u9fa5]/.test(text);
-      if (hasChinese && !langCode.startsWith('zh')) {
-        actualLang = 'zh-CN'; 
-      }
+      const detectLang = (text: string): string => {
+        const rules = [
+          { pattern: /[\u1000-\u109F]/, lang: 'my-MM' }, // Burmese
+          { pattern: /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i, lang: 'vi-VN' }, // Vietnamese Latin Accents
+          { pattern: /[\u4e00-\u9fa5]/, lang: 'zh-CN' }, // Chinese Hanzi
+          { pattern: /\b(yang|dan|dengan|untuk|dari|ini|itu|tidak|pada|ke|dalam|kami|bahwa|juga|saya|bisa|ada|mereka|akan|menjadi)\b/i, lang: 'id-ID' }, // Indo heuristics
+        ];
+
+        for (const rule of rules) {
+          if (rule.pattern.test(text)) {
+            return rule.lang;
+          }
+        }
+        return langCode; // Fallback to provided param if no strict match
+      };
+
+      const actualLang = detectLang(text);
 
       utterance.lang = actualLang;
       utterance.rate = 0.95; // Slightly slower for clarity

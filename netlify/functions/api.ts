@@ -122,6 +122,59 @@ router.post('/ocr', async (req, res) => {
   }
 });
 
+router.post('/talk', async (req, res) => {
+  if (!OPENAI_API_KEY) {
+    console.error("Missing OPENAI_API_KEY in environment.");
+    return res.status(500).json({ error: "Server Configuration Error" });
+  }
+
+  const { text, targetLang } = req.body;
+  if (!text || !targetLang) {
+    return res.status(400).json({ error: "Missing text or targetLang" });
+  }
+
+  try {
+    const systemPrompt = `# ROLE: Direct_Interpreter
+# LOGIC: Translate [Input] to [Target_Lang] instantly.
+# RULES: 
+- Keep names/codes as-is.
+- Use natural/spoken factory tone.
+- NO explanations. NO intro. 0% Filler.
+- Format: Plain_String only.
+- Target Lang: ${targetLang}`;
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const stream = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: text }
+      ],
+      temperature: 0.1,
+      top_p: 0.9,
+      max_tokens: 80,
+      stream: true,
+    });
+
+    for await (const chunk of stream) {
+      if (chunk.choices[0]?.delta?.content) {
+        // Mock SSE format
+        res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+      }
+    }
+    
+    res.write('data: [DONE]\n\n');
+    res.end();
+
+  } catch (error: any) {
+    console.error('Talk error:', error.message);
+    res.status(500).json({ error: 'Talk failed', details: error.message });
+  }
+});
+
 router.post('/compose', async (req, res) => {
   if (!OPENAI_API_KEY) {
     console.error("Missing OPENAI_API_KEY in environment.");
@@ -130,6 +183,23 @@ router.post('/compose', async (req, res) => {
 
   const { contextText, requirements, params, glossary, structuredSummary } = req.body;
   try {
+    let mappedLang = params.lang;
+    let scriptRule = '';
+
+    if (params.lang === 'Chinese (Simplified)' || params.lang === 'zh-CN') {
+      mappedLang = 'Chinese (Simplified Hanzi)';
+      scriptRule = "MUST use Simplified Chinese characters.";
+    } else if (params.lang === 'Chinese (Traditional)' || params.lang === 'zh-TW') {
+      mappedLang = 'Chinese (Traditional Hanzi)';
+      scriptRule = "MUST use Traditional Chinese characters. No Simplified.";
+    } else if (params.lang === 'Indonesian' || params.lang === 'id') {
+      mappedLang = 'Indonesian (Bahasa Indonesia)';
+    } else if (params.lang === 'Burmese' || params.lang === 'my') {
+      mappedLang = 'Burmese (Myanmar Unicode)';
+    }
+
+    const scriptEnforcement = scriptRule ? `\n  SCRIPT_ENFORCEMENT: ${scriptRule}` : '';
+
     const systemPrompt = `<system_context>
   ROLE: Industrial_Proxy_Writer
   DOMAIN: Factory_Operations
@@ -137,9 +207,9 @@ router.post('/compose', async (req, res) => {
 </system_context>
 
 <constraints>
-  STRICT_LANG: ${params.lang} !!IMPORTANT: 0% source language leakage.
+  STRICT_LANG: ${mappedLang} !!IMPORTANT: 0% source language leakage.
   NO_REPLY: Never respond to user. Rewrite ONLY.
-  FORMAT: Clean_text_only. No explanations.
+  FORMAT: Clean_text_only. No explanations.${scriptEnforcement}
 </constraints>
 
 <transformation_logic>
@@ -149,6 +219,7 @@ router.post('/compose', async (req, res) => {
 </transformation_logic>
 
 <parameters>
+  TARGET: ${mappedLang}
   AUDIENCE: ${params.audience}
   TONE: ${params.tone}
   LENGTH: ${params.length}
@@ -160,12 +231,18 @@ router.post('/compose', async (req, res) => {
   ${glossary || 'No specific glossary provided.'}
 </glossary_injection>
 
+<mandatory_workflow>
+  STEP_1: IDENTIFY [Target_Language] (${mappedLang})
+  STEP_2: TRANSLATE user_intent 100% into [Target_Language]
+  STEP_3: APPLY [Goal] and [Tone] logic using ONLY [Target_Language]
+  !CRITICAL: If [Target_Language] is ${mappedLang}, every single word in Output must be ${mappedLang}.
+</mandatory_workflow>
+
 <execution_flow>
   1. Detect [Input_Intent] (Context + Requirements)
-  2. Map to [Goal_Logic]
-  3. Translate 100% to [Target_Language] (${params.lang})
-  4. Apply [Tone] & [Audience] honorifics
-  5. Return Final_Message (Max 200 words. No filler.)
+  2. Follow <mandatory_workflow>
+  3. Apply [Tone] & [Audience] honorifics
+  4. Return Final_Message (Max 200 words. No filler.)
 </execution_flow>`;
     
     const response = await openai.chat.completions.create({
@@ -211,7 +288,16 @@ router.post('/import-vocab', async (req, res) => {
       const term = String(item.term || item.category || '').trim();
       const meaning_vi = String(item.meaning_vi || item.vietnamese || item.tieng_viet || item.vi || '').trim();
       const target_en = String(item.target_en || item.english || item.tieng_anh || item.en || '').trim();
-      const target_zh = String(item.target_zh || item.chinese || item.tieng_trung || item.zh || '').trim();
+      
+      // Legacy fallbacks for Chinese
+      const legacyZh = String(item.target_zh || item.chinese || item.tieng_trung || item.zh || '').trim();
+      const target_zh_cn = String(item.target_zh_cn || item.chinese_simplified || item.zh_cn || legacyZh).trim();
+      const target_zh_tw = String(item.target_zh_tw || item.chinese_traditional || item.zh_tw || legacyZh).trim();
+      
+      // New targets
+      const target_id = String(item.target_id || item.indonesian || item.tieng_indo || item.id || '').trim();
+      const target_my = String(item.target_my || item.burmese || item.tieng_myanmar || item.my || '').trim();
+
       const enabledVal = item.enable !== undefined ? item.enable : item.enabled;
       const enabled = enabledVal !== false && String(enabledVal).toLowerCase() !== 'false';
       
@@ -223,7 +309,10 @@ router.post('/import-vocab', async (req, res) => {
         term: term || meaning_vi,
         meaning_vi,
         target_en,
-        target_zh,
+        target_zh_cn,
+        target_zh_tw,
+        target_id,
+        target_my,
         enabled
       };
     }).filter((item: any) => item.meaning_vi);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, FileText, FileSearch, Clock, HelpCircle, Megaphone, Settings2 } from 'lucide-react';
-import { CORE_PRESETS, AUDIENCES, TONES, LENGTHS, FORMATS, ComposePreset } from '../../constants';
+import { CORE_PRESETS, AUDIENCES, TONES, LENGTHS, FORMATS, ComposePreset, LANGUAGES, LANGUAGE_FLAGS } from '../../constants';
 import { Audience, Tone, Length, Format, Language } from '../../types';
 import { useLongPress } from '../../hooks/useLongPress';
 
@@ -113,7 +113,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
           value={customParams.lang}
           onChange={e => onUpdateCustomParams({ lang: e.target.value as Language })}
         >
-          {['English', 'Vietnamese', 'Chinese (Simplified)', 'Chinese (Traditional)'].map(l => <option key={l}>{l}</option>)}
+          {LANGUAGES.filter(l => l !== 'Auto').map(l => <option key={l} value={l}>{LANGUAGE_FLAGS[l]} {l}</option>)}
         </select>
       </div>
 

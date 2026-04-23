@@ -10,7 +10,10 @@ export interface VocabItem {
   term: string;
   meaning_vi: string;
   target_en: string;
-  target_zh: string;
+  target_zh_cn: string;
+  target_zh_tw: string;
+  target_id: string;
+  target_my: string;
   enabled: boolean | string;
 }
 
