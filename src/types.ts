@@ -8,13 +8,13 @@ export type Format = 'wechat_zalo' | 'formal_email' | 'action_list';
 export interface VocabItem {
   id: string;
   term: string;
-  meaning_vi: string;
-  target_en: string;
-  target_zh_cn: string;
-  target_zh_tw: string;
-  target_id: string;
-  target_my: string;
-  enabled: boolean | string;
+  vi: string;
+  en: string;
+  zh_cn: string;
+  zh_tw: string;
+  id_lang: string;
+  my: string;
+  enabled?: boolean | string;
 }
 
 export type ProviderType = 'openai';

@@ -25,21 +25,21 @@ export class AIService {
     
     const rawInputNoTones = removeVietnameseTones(rawInput);
 
-    let targetKey: keyof VocabItem = 'target_en'; 
+    let targetKey: keyof VocabItem = 'en'; 
     const targetLangLower = targetLang.toLowerCase();
-    if (targetLangLower.includes('vi')) targetKey = 'meaning_vi';
-    else if (targetLangLower.includes('zh') && targetLangLower.includes('traditional')) targetKey = 'target_zh_tw';
-    else if (targetLangLower.includes('zh') || targetLangLower.includes('chinese')) targetKey = 'target_zh_cn';
-    else if (targetLangLower.includes('id') || targetLangLower.includes('indonesian')) targetKey = 'target_id';
-    else if (targetLangLower.includes('my') || targetLangLower.includes('burmese')) targetKey = 'target_my';
+    if (targetLangLower.includes('vi')) targetKey = 'vi';
+    else if (targetLangLower.includes('zh') && targetLangLower.includes('traditional')) targetKey = 'zh_tw';
+    else if (targetLangLower.includes('zh') || targetLangLower.includes('chinese')) targetKey = 'zh_cn';
+    else if (targetLangLower.includes('id') || targetLangLower.includes('indonesian')) targetKey = 'id_lang';
+    else if (targetLangLower.includes('my') || targetLangLower.includes('burmese')) targetKey = 'my';
 
     const matches: { term: string; translation: string }[] = [];
     const seen = new Set<string>();
 
     // Sort by length descending to match longest terms first (preventing sub-term overrides)
     const sortedVocab = [...vocab].sort((a, b) => {
-      const lenA = Math.max((a.meaning_vi?.length || 0), (a.target_en?.length || 0), (a.target_zh_cn?.length || 0));
-      const lenB = Math.max((b.meaning_vi?.length || 0), (b.target_en?.length || 0), (b.target_zh_cn?.length || 0));
+      const lenA = Math.max((a.vi?.length || 0), (a.en?.length || 0), (a.zh_cn?.length || 0));
+      const lenB = Math.max((b.vi?.length || 0), (b.en?.length || 0), (b.zh_cn?.length || 0));
       return lenB - lenA;
     });
 
@@ -47,10 +47,10 @@ export class AIService {
       // Backward compatibility: handle undefined/null as enabled (true)
       if (item.enabled === false || String(item.enabled).toLowerCase() === 'false') return;
       
-      const vi = item.meaning_vi ? String(item.meaning_vi).trim() : '';
-      const en = item.target_en ? String(item.target_en).trim() : '';
-      const zh_cn = item.target_zh_cn ? String(item.target_zh_cn).trim() : '';
-      const zh_tw = item.target_zh_tw ? String(item.target_zh_tw).trim() : '';
+      const vi = item.vi ? String(item.vi).trim() : '';
+      const en = item.en ? String(item.en).trim() : '';
+      const zh_cn = item.zh_cn ? String(item.zh_cn).trim() : '';
+      const zh_tw = item.zh_tw ? String(item.zh_tw).trim() : '';
 
       const viNorm = vi.toLowerCase();
       const enNorm = en.toLowerCase();
