@@ -19,12 +19,12 @@ interface VocabManagerProps {
 const VocabCell = ({ label, text, lang, speak }: { label: string, text: string, lang: string, speak: (text: string, lang: string) => void }) => {
   if (!text) return null;
   return (
-    <div className="flex flex-col p-3 rounded-lg bg-white dark:bg-panel shadow-sm border border-border-main hover:border-[#004A99] transition-colors relative group">
+    <div className="flex flex-col p-3 rounded-lg bg-white dark:bg-panel shadow-sm border border-border-main hover:border-[#006D77] transition-colors relative group">
       <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-1">{label}</span>
       <span className="text-text-main font-bold pr-6">{text}</span>
       <button 
         onClick={() => speak(text, lang)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-[#004A99] opacity-0 group-hover:opacity-100 transition-all rounded-md hover:bg-[#004A99]/10"
+        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-[#006D77] opacity-0 group-hover:opacity-100 transition-all rounded-md hover:bg-[#006D77]/10"
         title={`Listen in ${label}`}
       >
         <Volume2 size={16} />
@@ -107,11 +107,11 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
         <div className="flex-1 flex flex-col items-center justify-center py-20 px-4">
           <div className="w-full max-w-2xl relative group">
             <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-              <Search size={24} className="text-gray-400 group-focus-within:text-[#004A99] transition-colors" />
+              <Search size={24} className="text-gray-400 group-focus-within:text-[#006D77] transition-colors" />
             </div>
             <input
               type="text"
-              className="w-full pl-14 pr-6 py-5 text-lg bg-panel border-2 border-border-main shadow-sm rounded-2xl focus:border-[#004A99] focus:ring-4 focus:ring-[#004A99]/10 transition-all text-text-main placeholder-gray-400 outline-none"
+              className="w-full pl-14 pr-6 py-5 text-lg bg-panel border-2 border-border-main shadow-sm rounded-2xl focus:border-[#006D77] focus:ring-4 focus:ring-[#006D77]/10 transition-all text-text-main placeholder-gray-400 outline-none"
               placeholder="Tìm từ vựng chuyên ngành (VI/EN/ZH/ID/MY)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -131,7 +131,7 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
               placeholder="Tìm từ vựng chuyên ngành (VI/EN/ZH/ID/MY)..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-panel border-2 border-[#004A99]/30 rounded-xl focus:border-[#004A99] focus:ring-4 focus:ring-[#004A99]/10 transition-all text-text-main placeholder-gray-400 outline-none"
+              className="w-full pl-12 pr-4 py-3 bg-panel border-2 border-[#006D77]/30 rounded-xl focus:border-[#006D77] focus:ring-4 focus:ring-[#006D77]/10 transition-all text-text-main placeholder-gray-400 outline-none"
               autoFocus
             />
           </div>
@@ -147,7 +147,7 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
             ) : (
               <div className="space-y-4 pb-12">
                 {filteredVocab.map((item, index) => (
-                  <div key={`${item.id}-${index}`} className="flex flex-col bg-surface rounded-xl shadow-sm border border-border-main p-4 gap-3 transition-colors hover:border-[#004A99]/30">
+                  <div key={`${item.id}-${index}`} className="flex flex-col bg-surface rounded-xl shadow-sm border border-border-main p-4 gap-3 transition-colors hover:border-[#006D77]/30">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       <VocabCell label="VI" text={item.meaning_vi || ''} lang="vi" speak={speak} />
                       <VocabCell label="EN" text={item.target_en || ''} lang="en" speak={speak} />
