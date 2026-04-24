@@ -32,7 +32,7 @@ export const handler: Handler = async (event) => {
     const parsed = Papa.parse(response.data, {
       header: true,
       skipEmptyLines: true,
-      transformHeader: (header) => header.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
+      transformHeader: (header) => header.toLowerCase().replace(/-/g, '_').trim()
     });
 
     const rawData = parsed.data;
@@ -42,25 +42,24 @@ export const handler: Handler = async (event) => {
 
     // 3. Sanitize and Prepare Data
     const sanitizedData = rawData.map((item: any, index: number) => {
-      const term = String(item.term || item.category || '').trim();
-      const meaning_vi = String(item.meaning_vi || item.vietnamese || item.tieng_viet || item.vi || '').trim();
-      const target_en = String(item.target_en || item.english || item.tieng_anh || item.en || '').trim();
-      const target_zh = String(item.target_zh || item.chinese || item.tieng_trung || item.zh || '').trim();
-      const enabledVal = item.enable !== undefined ? item.enable : item.enabled;
-      const enabled = enabledVal !== false && String(enabledVal).toLowerCase() !== 'false';
+      const itemData = {
+        term: String(item.term || '').trim(),
+        vi: String(item.vi || '').trim(),
+        en: String(item.en || '').trim(),
+        zh_cn: String(item.zh_cn || '').trim(),
+        zh_tw: String(item.zh_tw || '').trim(),
+        id_lang: String(item.id || '').trim(), // Internal key 'id_lang' to avoid conflict with record 'id'
+        my: String(item.my || '').trim()
+      };
       
-      const hashInput = term ? `${term}-${meaning_vi}-${index}` : `${meaning_vi}-${index}`;
+      const hashInput = `${itemData.vi}-${itemData.en}-${index}`;
       const id = crypto.createHash('md5').update(hashInput).digest('hex');
 
       return {
         id,
-        term: term || meaning_vi,
-        meaning_vi,
-        target_en,
-        target_zh,
-        enabled
+        ...itemData
       };
-    }).filter((item: any) => item.meaning_vi); // Filter by meaning_vi
+    }).filter((item: any) => item.vi); // Filter by vi
 
     if (sanitizedData.length === 0) {
       return { statusCode: 200, headers, body: JSON.stringify({ message: 'No valid items found after filtering', count: 0, data: [] }) };
@@ -72,9 +71,9 @@ export const handler: Handler = async (event) => {
       headers,
       body: JSON.stringify({ 
         status: 'success',
-        message: `Successfully synced ${sanitizedData.length} items from Google Sheets`, 
         count: sanitizedData.length,
         data: sanitizedData,
+        message: `Successfully synced ${sanitizedData.length} items from Google Sheets`, 
         timestamp: new Date().toISOString()
       }),
     };
