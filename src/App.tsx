@@ -103,6 +103,20 @@ export default function App() {
 
   const [reviewToggle, setReviewToggle] = useState<'reply' | 'summary'>('reply');
 
+  const { isListening, transcript, interimTranscript, error: speechError, startListening, stopListening, setTranscript } = useSpeechToText();
+  const { speak, stop: stopSpeaking, isSpeaking } = useTextToSpeech();
+
+  const composeCacheRef = useRef<Map<string, string>>(new Map());
+
+  // Input states with interim transcript for word counting
+  const tInterim = isListening && interimTranscript ? interimTranscript : '';
+  const translateInputWithInterim = translateInput + (activeTab === 'translate' && tInterim ? (translateInput && !translateInput.endsWith(' ') ? ' ' : '') + tInterim : '');
+  const composeInputWithInterim = composeReq + (activeTab === 'compose' && tInterim ? (composeReq && !composeReq.endsWith(' ') ? ' ' : '') + tInterim : '');
+
+  const getWordCount = (text: string) => text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  const translateWordCount = getWordCount(translateInputWithInterim);
+  const composeWordCount = getWordCount(composeInputWithInterim);
+
   const t = useCallback((key: string) => {
     const lang = state.globalLanguage as keyof typeof translations;
     const dict = translations[lang] as any;
@@ -114,9 +128,6 @@ export default function App() {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   }, []);
-
-  const { isListening, transcript, interimTranscript, error: speechError, startListening, stopListening, setTranscript } = useSpeechToText();
-  const { speak, stop: stopSpeaking, isSpeaking } = useTextToSpeech();
 
   const handleToggleListening = useCallback(() => {
     if (isListening) {
@@ -389,6 +400,38 @@ export default function App() {
       return;
     }
 
+    const goal = activePresetId === 'custom' ? 'Custom' : activePresetId.charAt(0).toUpperCase() + activePresetId.slice(1);
+    const cacheKey = `${composeReq}-${composeParams.lang}-${composeParams.tone}-${goal}`;
+
+    if (composeCacheRef.current.has(cacheKey)) {
+      const cachedResult = composeCacheRef.current.get(cacheKey)!;
+      
+      let subject = '';
+      let body = cachedResult;
+      if (composeParams.format === 'formal_email' && cachedResult.toLowerCase().startsWith('subject:')) {
+        const lines = cachedResult.split('\n');
+        subject = lines[0].replace(/subject:/i, '').trim();
+        body = lines.slice(1).join('\n').trim();
+      }
+
+      // Typewriter effect
+      for (let i = 0; i <= body.length; i += 2) {
+        await new Promise(resolve => setTimeout(resolve, 5));
+        setState(prev => ({ 
+          ...prev, 
+          lastOutputs: { ...prev.lastOutputs, generatedReply: body.substring(0, i), subject } 
+        }));
+      }
+
+      setState(prev => ({ 
+        ...prev, 
+        lastOutputs: { ...prev.lastOutputs, generatedReply: body, subject }
+      }));
+      showToast(t('replyGenerated'), 'success');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const ai = new AIService(state.settings);
@@ -466,6 +509,10 @@ export default function App() {
         generatedReply: body, 
         subject
       };
+      
+      // Save result to cache
+      composeCacheRef.current.set(cacheKey, result);
+
       setState(prev => ({ ...prev, lastOutputs: newOutputs }));
       await storage.setLastOutputs(newOutputs);
       await storage.addHistory({ type: 'compose', input: composeReq, output: result });
@@ -608,10 +655,14 @@ export default function App() {
                 <textarea 
                   className="saas-input w-full h-40 min-h-[120px] resize-none text-base"
                   placeholder={t('inputPlaceholder')}
-                  value={translateInput + (isListening && interimTranscript ? (translateInput && !translateInput.endsWith(' ') ? ' ' : '') + interimTranscript : '')}
+                  value={translateInputWithInterim}
                   onChange={e => setTranslateInput(e.target.value)}
                   onPaste={handlePaste}
+                  maxLength={3000}
                 />
+                <div className="absolute bottom-3 right-3 text-[11px] font-medium" style={{ color: translateWordCount > 500 ? '#ef4444' : '#64748b' }}>
+                  {translateWordCount} / 500 words
+                </div>
                 {isListening && (
                   <div className="absolute top-3 right-3 flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full animate-pulse">
                     <div className="w-2 h-2 bg-red-500 rounded-full" />
@@ -678,7 +729,7 @@ export default function App() {
                 </div>
                 <button 
                   onClick={handleTranslate}
-                  disabled={loading || (!translateInput.trim() && !translateImage)}
+                  disabled={loading || (!translateInput.trim() && !translateImage) || translateWordCount > 500}
                   className="saas-button primary-button flex-1 sm:flex-none flex items-center justify-center gap-2"
                 >
                   {loading ? <Loader2 className="animate-spin" size={20} /> : <Languages size={20} />}
@@ -770,9 +821,13 @@ export default function App() {
                     <textarea 
                       className="w-full flex-1 min-h-[30vh] p-4 bg-panel text-text-main border border-border-main rounded-2xl shadow-sm resize-none text-[17px] leading-relaxed focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
                       placeholder={t('replyPlaceholder')}
-                      value={composeReq + (isListening && interimTranscript ? (composeReq && !composeReq.endsWith(' ') ? ' ' : '') + interimTranscript : '')}
+                      value={composeInputWithInterim}
                       onChange={e => setComposeReq(e.target.value)}
+                      maxLength={3000}
                     />
+                    <div className="absolute bottom-3 right-3 text-[11px] font-medium" style={{ color: composeWordCount > 500 ? '#ef4444' : '#64748b' }}>
+                      {composeWordCount} / 500 words
+                    </div>
                     {isListening && (
                       <div className="absolute top-3 right-3 flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full animate-pulse">
                         <div className="w-2 h-2 bg-red-500 rounded-full" />
@@ -850,7 +905,7 @@ export default function App() {
               <div className="max-w-3xl mx-auto pointer-events-auto">
                 <button 
                   onClick={handleCompose}
-                  disabled={loading || (!composeReq.trim() && !(useContextInCompose && context && (context.sourceText || context.translatedText)))}
+                  disabled={loading || (!composeReq.trim() && !(useContextInCompose && context && (context.sourceText || context.translatedText))) || composeWordCount > 500}
                   className="w-full bg-accent hover:bg-accent/90 disabled:bg-panel disabled:border disabled:border-border-main disabled:text-text-muted text-white rounded-2xl py-4 text-[17px] font-semibold flex items-center justify-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-[0.98]"
                   style={{ height: '40px' }}
                 >
