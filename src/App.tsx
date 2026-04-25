@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { storage } from './services/storage';
 import { AIService } from './services/ai';
+import { validateSecurity } from './utils/security';
 import { applyTheme, resolveTheme, watchSystemThemeChanges, ThemeMode } from './utils/theme';
 import { generateHash } from './utils/hash';
 import { translations } from './i18n';
@@ -297,6 +298,14 @@ export default function App() {
       showToast(t('provideTextOrImage'), 'error');
       return;
     }
+
+    const securityCheck = validateSecurity(translateInput);
+    if (!securityCheck.isValid) {
+      showToast(t(securityCheck.errorKey || 'SECURITY_FIREWALL_ERROR'), 'error');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     // Use local storage directly for instant access
@@ -397,6 +406,13 @@ export default function App() {
 
     if (!composeReq.trim() && !hasContext) {
       showToast(t('provideRequirements'), 'error');
+      return;
+    }
+
+    const securityCheck = validateSecurity(composeReq);
+    if (!securityCheck.isValid) {
+      showToast(t(securityCheck.errorKey || 'SECURITY_FIREWALL_ERROR'), 'error');
+      setLoading(false);
       return;
     }
 
