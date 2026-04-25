@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, 
   Download, 
@@ -19,12 +19,12 @@ interface VocabManagerProps {
 const VocabCell = ({ label, text, lang, speak }: { label: string, text: string, lang: string, speak: (text: string, lang: string) => void }) => {
   if (!text) return null;
   return (
-    <div className="flex flex-col p-3 rounded-lg bg-white dark:bg-panel shadow-sm border border-border-main hover:border-[#004A99] transition-colors relative group">
+    <div className="flex flex-col p-3 rounded-lg bg-white dark:bg-panel shadow-sm border border-border-main hover:border-[#006D77] transition-colors relative group">
       <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-1">{label}</span>
       <span className="text-text-main font-bold pr-6">{text}</span>
       <button 
         onClick={() => speak(text, lang)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-[#004A99] opacity-0 group-hover:opacity-100 transition-all rounded-md hover:bg-[#004A99]/10"
+        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-[#006D77] opacity-0 group-hover:opacity-100 transition-all rounded-md hover:bg-[#006D77]/10"
         title={`Listen in ${label}`}
       >
         <Volume2 size={16} />
@@ -63,14 +63,20 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
     loadVocab();
   }, []);
 
-  const filteredVocab = vocab.filter(v => 
-    v.meaning_vi?.toLowerCase().includes(search.toLowerCase()) ||
-    v.target_en?.toLowerCase().includes(search.toLowerCase()) ||
-    v.target_zh_cn?.toLowerCase().includes(search.toLowerCase()) ||
-    v.target_zh_tw?.toLowerCase().includes(search.toLowerCase()) ||
-    v.target_id?.toLowerCase().includes(search.toLowerCase()) ||
-    v.target_my?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredVocab = useMemo(() => {
+    return vocab.filter(v => {
+      const searchTerm = search.toLowerCase();
+      return (
+        v.vi?.toLowerCase().includes(searchTerm) ||
+        v.en?.toLowerCase().includes(searchTerm) ||
+        v.zh_cn?.toLowerCase().includes(searchTerm) ||
+        v.zh_tw?.toLowerCase().includes(searchTerm) ||
+        v.id_lang?.toLowerCase().includes(searchTerm) ||
+        v.my?.toLowerCase().includes(searchTerm) ||
+        v.term?.toLowerCase().includes(searchTerm)
+      );
+    });
+  }, [vocab, search]);
 
   const handleExport = () => {
     const csv = Papa.unparse(vocab);
@@ -107,11 +113,11 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
         <div className="flex-1 flex flex-col items-center justify-center py-20 px-4">
           <div className="w-full max-w-2xl relative group">
             <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-              <Search size={24} className="text-gray-400 group-focus-within:text-[#004A99] transition-colors" />
+              <Search size={24} className="text-gray-400 group-focus-within:text-[#006D77] transition-colors" />
             </div>
             <input
               type="text"
-              className="w-full pl-14 pr-6 py-5 text-lg bg-panel border-2 border-border-main shadow-sm rounded-2xl focus:border-[#004A99] focus:ring-4 focus:ring-[#004A99]/10 transition-all text-text-main placeholder-gray-400 outline-none"
+              className="w-full pl-14 pr-6 py-5 text-lg bg-panel border border-border-main shadow-sm rounded-2xl focus:border-[#006D77] focus:ring-2 focus:ring-[#006D77] transition-all text-text-main placeholder-gray-400 outline-none"
               placeholder="Tìm từ vựng chuyên ngành (VI/EN/ZH/ID/MY)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -131,7 +137,7 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
               placeholder="Tìm từ vựng chuyên ngành (VI/EN/ZH/ID/MY)..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-panel border-2 border-[#004A99]/30 rounded-xl focus:border-[#004A99] focus:ring-4 focus:ring-[#004A99]/10 transition-all text-text-main placeholder-gray-400 outline-none"
+              className="w-full pl-12 pr-4 py-3 bg-panel border border-[#006D77]/30 rounded-xl focus:border-[#006D77] focus:ring-2 focus:ring-[#006D77] transition-all text-text-main placeholder-gray-400 outline-none"
               autoFocus
             />
           </div>
@@ -140,21 +146,21 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
             {loading ? (
               <div className="p-4"><VocabSkeleton /></div>
             ) : filteredVocab.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-text-muted gap-4">
-                <Search size={48} strokeWidth={1} className="text-gray-300" />
-                <p>No matching terms found for "{search}"</p>
+              <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-4">
+                <Search size={48} strokeWidth={1} className="text-slate-300" />
+                <p>No matching terms found for "<span className="font-semibold text-[#006D77]">{search}</span>"</p>
               </div>
             ) : (
               <div className="space-y-4 pb-12">
                 {filteredVocab.map((item, index) => (
-                  <div key={`${item.id}-${index}`} className="flex flex-col bg-surface rounded-xl shadow-sm border border-border-main p-4 gap-3 transition-colors hover:border-[#004A99]/30">
+                  <div key={`${item.id}-${index}`} className="flex flex-col bg-surface rounded-xl shadow-sm border border-border-main p-4 gap-3 transition-colors hover:border-[#006D77]/30">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      <VocabCell label="VI" text={item.meaning_vi || ''} lang="vi" speak={speak} />
-                      <VocabCell label="EN" text={item.target_en || ''} lang="en" speak={speak} />
-                      <VocabCell label="ZH-CN" text={item.target_zh_cn || ''} lang="zh-CN" speak={speak} />
-                      <VocabCell label="ZH-TW" text={item.target_zh_tw || ''} lang="zh-TW" speak={speak} />
-                      <VocabCell label="ID" text={item.target_id || ''} lang="id" speak={speak} />
-                      <VocabCell label="MY" text={item.target_my || ''} lang="my" speak={speak} />
+                      <VocabCell label="VI" text={item.vi || ''} lang="vi" speak={speak} />
+                      <VocabCell label="EN" text={item.en || ''} lang="en" speak={speak} />
+                      <VocabCell label="ZH-CN" text={item.zh_cn || ''} lang="zh-CN" speak={speak} />
+                      <VocabCell label="ZH-TW" text={item.zh_tw || ''} lang="zh-TW" speak={speak} />
+                      <VocabCell label="ID" text={item.id_lang || ''} lang="id" speak={speak} />
+                      <VocabCell label="MY" text={item.my || ''} lang="my" speak={speak} />
                     </div>
                   </div>
                 ))}

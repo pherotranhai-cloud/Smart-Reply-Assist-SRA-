@@ -1,12 +1,12 @@
 {
   "name": "Smart Reply Assist",
-  "short_name": "Smart Reply",
+  "short_name": "SRA",
   "version": "1.0.0",
   "description": "AI assistant for translation and message composition.",
   "start_url": "/",
   "display": "standalone",
-  "theme_color": "#050505",
-  "background_color": "#050505",
+  "theme_color": "#006D77",
+  "background_color": "#006D77",
   "icons": [
     {
       "src": "icon16.png",

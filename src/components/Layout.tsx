@@ -95,7 +95,7 @@ export const Layout: React.FC<LayoutProps> = ({
             <div className={`pointer-events-auto px-4 py-3 rounded-2xl shadow-sm flex items-center gap-3 border backdrop-blur-xl min-w-[280px] ${
               toast.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-500' : 
               toast.type === 'success' ? 'bg-green-500/10 border-green-500/20 text-green-500' :
-              'bg-[#004A99]/10 border-[#004A99]/20 text-[#004A99]'
+              'bg-[#006D77]/10 border-[#006D77]/20 text-[#006D77]'
             }`}>
               {toast.type === 'success' ? <CheckCircle2 size={18} /> : 
                toast.type === 'error' ? <AlertCircle size={18} /> : null}
@@ -117,11 +117,11 @@ const NavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode, labe
     title={label}
     aria-label={label}
     className={`relative flex items-center justify-center w-16 h-16 shrink-0 snap-center rounded-2xl transition-all duration-300 ${
-      active ? 'text-[#004A99] scale-110' : 'text-slate-400 hover:text-slate-500 dark:text-slate-500 dark:hover:text-slate-400'
+      active ? 'text-[#006D77] scale-110' : 'text-slate-400 hover:text-slate-500 dark:text-slate-500 dark:hover:text-slate-400'
     }`}
   >
     {/* Subtle active background glow */}
-    <div className={`absolute inset-1 bg-[#004A99]/5 dark:bg-[#004A99]/20 rounded-xl transition-opacity duration-300 ${
+    <div className={`absolute inset-1 bg-[#006D77]/5 dark:bg-[#006D77]/20 rounded-xl transition-opacity duration-300 ${
       active ? 'opacity-100' : 'opacity-0'
     }`} />
     
@@ -133,7 +133,7 @@ const NavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode, labe
     {active && (
       <motion.div
         layoutId="activeTabIndicator"
-        className="absolute top-1.5 w-1.5 h-1.5 rounded-full bg-[#004A99]"
+        className="absolute top-1.5 w-1.5 h-1.5 rounded-full bg-[#006D77]"
         initial={false}
         transition={{ type: "spring", stiffness: 500, damping: 30 }}
       />

@@ -54,7 +54,7 @@ export class VectorSearchService {
       const distanceThreshold = 1 - threshold;
       
       const result = await client.query(`
-        SELECT id, term, meaning_vi, target_en, target_zh, 
+        SELECT id, term, vi, en, zh_cn, zh_tw, id_lang, my,
                1 - (embedding <=> $1) as similarity
         FROM vocab
         WHERE embedding IS NOT NULL AND (embedding <=> $1) < $2
