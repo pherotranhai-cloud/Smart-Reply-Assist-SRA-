@@ -26,12 +26,18 @@ export class AIService {
     const rawInputNoTones = removeVietnameseTones(rawInput);
 
     let targetKey: keyof VocabItem = 'en'; 
-    const targetLangLower = targetLang.toLowerCase();
-    if (targetLangLower.includes('vi')) targetKey = 'vi';
-    else if (targetLangLower.includes('zh') && targetLangLower.includes('traditional')) targetKey = 'zh_tw';
-    else if (targetLangLower.includes('zh') || targetLangLower.includes('chinese')) targetKey = 'zh_cn';
-    else if (targetLangLower.includes('id') || targetLangLower.includes('indonesian')) targetKey = 'id_lang';
-    else if (targetLangLower.includes('my') || targetLangLower.includes('burmese')) targetKey = 'my';
+    const tl = targetLang.toLowerCase();
+    if (tl === 'vi' || tl === 'vietnamese') {
+      targetKey = 'vi';
+    } else if (tl === 'zh-tw' || tl === 'chinese (traditional)') {
+      targetKey = 'zh_tw';
+    } else if (tl === 'zh-cn' || tl === 'chinese (simplified)' || tl.includes('chinese')) {
+      targetKey = 'zh_cn';
+    } else if (tl === 'id' || tl === 'indonesian' || tl === 'id-id') {
+      targetKey = 'id_lang';
+    } else if (tl === 'my' || tl === 'burmese' || tl === 'my-mm') {
+      targetKey = 'my';
+    }
 
     const matches: { term: string; translation: string }[] = [];
     const seen = new Set<string>();
@@ -87,7 +93,8 @@ export class AIService {
       
       if (matchedSource && target && matchedSource.toLowerCase() !== target.toLowerCase() && !seen.has(matchedSource.toLowerCase())) {
         seen.add(matchedSource.toLowerCase());
-        matches.push({ term: matchedSource, translation: target });
+        const term = en || matchedSource;
+        matches.push({ term, translation: target });
       }
     });
 
