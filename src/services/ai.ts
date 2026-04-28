@@ -93,7 +93,7 @@ export class AIService {
       
       if (matchedSource && target && matchedSource.toLowerCase() !== target.toLowerCase() && !seen.has(matchedSource.toLowerCase())) {
         seen.add(matchedSource.toLowerCase());
-        const term = en || matchedSource;
+        const term = matchedSource;
         matches.push({ term, translation: target });
       }
     });
