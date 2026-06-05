@@ -81,7 +81,7 @@ export default function App() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [isCached, setIsCached] = useState(false);
-  const [useContextInCompose, setUseContextInCompose] = useState(true);
+  const [useContextInCompose, setUseContextInCompose] = useState(false);
   
   const outputRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -148,6 +148,12 @@ export default function App() {
       }
     }
   }, [isSpeaking, speak, stopSpeaking, showToast]);
+
+  useEffect(() => {
+    if (activeTab === 'talk') {
+      setActiveTab('translate');
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (transcript) {
