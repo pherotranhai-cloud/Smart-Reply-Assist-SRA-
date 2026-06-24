@@ -152,8 +152,12 @@ export const storage = {
       id: crypto.randomUUID(),
       timestamp: Date.now(),
     };
-    const updated = [newItem, ...history].slice(0, 20);
+    const updated = [newItem, ...history].slice(0, 100);
     await adapter.set(STORAGE_KEYS.HISTORY, updated);
+  },
+
+  async clearHistory(): Promise<void> {
+    await adapter.remove(STORAGE_KEYS.HISTORY);
   },
 
   async clearSessionData(): Promise<void> {

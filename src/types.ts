@@ -106,8 +106,14 @@ export interface AppState {
 
 export interface HistoryItem {
   id: string;
+  type: 'translate' | 'compose' | 'talk';
   timestamp: number;
-  type: 'translate' | 'compose';
   input: string;
   output: string;
+  fromLang?: string;
+  toLang?: string;
+  meta?: {
+    tone?: string;
+    format?: string;
+  };
 }

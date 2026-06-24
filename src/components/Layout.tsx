@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Languages, PenTool, BookOpen, Settings, CheckCircle2, AlertCircle, X, MessagesSquare } from 'lucide-react';
+import { Languages, PenTool, BookOpen, Settings, CheckCircle2, AlertCircle, X, MessagesSquare, History } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -74,6 +74,12 @@ export const Layout: React.FC<LayoutProps> = ({
               label={t('vocab')}
               active={activeTab === 'vocab'} 
               onClick={(e) => handleTabClick('vocab', e)} 
+            />
+            <NavItem 
+              icon={<History size={24} />} 
+              label={t('history') || 'History'}
+              active={activeTab === 'history'} 
+              onClick={(e) => handleTabClick('history', e)} 
             />
             <NavItem 
               icon={<Settings size={24} />} 

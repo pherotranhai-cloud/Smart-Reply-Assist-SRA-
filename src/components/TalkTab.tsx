@@ -5,6 +5,7 @@ import { LANGUAGE_FLAGS } from '../constants';
 import { AIService } from '../services/ai';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
+import { storage } from '../services/storage';
 
 export interface TalkMessage {
   id: string;
@@ -96,6 +97,13 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
         },
         (fullText) => {
           setMessages(prev => prev.map(m => m.id === messageId ? { ...m, translatedText: fullText } : m));
+          storage.addHistory({
+            type: 'talk',
+            input: text,
+            output: fullText,
+            fromLang: sourceLang,
+            toLang: targetLang
+          }).catch(console.error);
           setCurrentlySpeakingId(messageId);
           speak(fullText, targetLang, false, () => {}, () => setCurrentlySpeakingId(null));
         }

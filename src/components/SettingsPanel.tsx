@@ -11,7 +11,8 @@ import {
   Info,
   Database,
   Cpu,
-  Globe
+  Globe,
+  History
 } from 'lucide-react';
 import { ThemeMode, GlobalLanguage, AISettings } from '../types';
 import { AIService } from '../services/ai';
@@ -22,6 +23,7 @@ interface SettingsPanelProps {
   globalLanguage: GlobalLanguage;
   onLanguageChange: (lang: GlobalLanguage) => void;
   onReset: () => void;
+  onClearHistory?: () => void;
   settings: AISettings;
   onSaveSettings: (s: AISettings) => void;
   t: (key: string) => string;
@@ -33,6 +35,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   globalLanguage,
   onLanguageChange,
   onReset,
+  onClearHistory,
   settings,
   onSaveSettings,
   t
@@ -131,13 +134,30 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         <div className="bg-panel rounded-xl overflow-hidden shadow-sm border border-border-main">
           <button
             onClick={onReset}
-            className="w-full flex items-center justify-between px-4 py-3 bg-panel transition-colors hover:bg-border-main/20"
+            className="w-full flex items-center justify-between px-4 py-3 bg-panel transition-colors hover:bg-border-main/20 border-b border-border-main"
           >
             <div className="flex items-center gap-3">
               <div className="w-7 h-7 rounded-md bg-red-500 flex items-center justify-center text-white">
                 <RotateCcw size={16} />
               </div>
               <span className="text-[17px] text-text-main">{t('resetApp')}</span>
+            </div>
+            <ChevronRight size={20} className="text-text-muted" />
+          </button>
+          
+          <button
+            onClick={() => {
+              if (window.confirm(t('confirmClearHistory') || 'Are you sure you want to clear all history?')) {
+                onClearHistory?.();
+              }
+            }}
+            className="w-full flex items-center justify-between px-4 py-3 bg-panel transition-colors hover:bg-border-main/20"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-md bg-red-600 flex items-center justify-center text-white">
+                <History size={16} />
+              </div>
+              <span className="text-[17px] text-red-500 font-medium">{t('clearHistory') || 'Clear History'}</span>
             </div>
             <ChevronRight size={20} className="text-text-muted" />
           </button>

@@ -40,7 +40,8 @@ import {
   Length,
   Format,
   ConversationContext,
-  GlobalLanguage
+  GlobalLanguage,
+  HistoryItem
 } from './types';
 import { 
   DEFAULT_STATE, 
@@ -60,11 +61,12 @@ import { FallbackSpinner } from './components/FallbackSpinner';
 const VocabManager = lazy(() => import('./components/VocabManager').then(module => ({ default: module.VocabManager })));
 const SettingsPanel = lazy(() => import('./components/SettingsPanel').then(module => ({ default: module.SettingsPanel })));
 const TalkTab = lazy(() => import('./components/TalkTab').then(module => ({ default: module.TalkTab })));
+const HistoryTab = lazy(() => import('./components/HistoryTab').then(module => ({ default: module.HistoryTab })));
 
 // --- Main App ---
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'translate' | 'compose' | 'talk' | 'vocab' | 'settings'>('translate');
+  const [activeTab, setActiveTab] = useState<'translate' | 'compose' | 'talk' | 'vocab' | 'history' | 'settings'>('translate');
   const [state, setState] = useState<AppState>(DEFAULT_STATE);
   const [vocab, setVocab] = useState<VocabItem[]>([]);
   const [isVocabOpen, setIsVocabOpen] = useState(false);
@@ -391,7 +393,12 @@ export default function App() {
       setContext(newContext);
       await storage.setContext(newContext);
 
-      await storage.addHistory({ type: 'translate', input: finalSourceText, output: result });
+      await storage.addHistory({ 
+        type: 'translate', 
+        input: finalSourceText, 
+        output: result,
+        toLang: targetLang 
+      });
       
       // Save to cache
       cache[hashKey] = { translatedText: result, timestamp: Date.now() };
@@ -537,7 +544,16 @@ export default function App() {
 
       setState(prev => ({ ...prev, lastOutputs: newOutputs }));
       await storage.setLastOutputs(newOutputs);
-      await storage.addHistory({ type: 'compose', input: composeReq, output: result });
+      await storage.addHistory({ 
+        type: 'compose', 
+        input: composeReq, 
+        output: result,
+        toLang: composeParams.lang,
+        meta: {
+          tone: composeParams.tone,
+          format: composeParams.format
+        }
+      });
       showToast(t('replyGenerated'), 'success');
     } catch (err: any) {
       showToast(err.message, 'error');
@@ -617,6 +633,38 @@ export default function App() {
       showToast(t('resetFailed') + err.message, 'error');
     }
   };
+
+  const handleClearHistory = useCallback(async () => {
+    try {
+      await storage.clearHistory();
+      showToast(t('historyCleared') || 'History cleared successfully', 'success');
+    } catch (err: any) {
+      showToast('Failed to clear history: ' + err.message, 'error');
+    }
+  }, [showToast, t]);
+
+  const handleReuse = useCallback((item: HistoryItem) => {
+    if (item.type === 'translate') {
+      setTranslateInput(item.input);
+      if (item.toLang) setTargetLang(item.toLang as Language);
+      setActiveTab('translate');
+    } else if (item.type === 'compose') {
+      setComposeReq(item.input);
+      if (item.meta) {
+        setComposeParams(prev => ({
+          ...prev,
+          tone: (item.meta?.tone as Tone) || prev.tone,
+          format: (item.meta?.format as Format) || prev.format,
+          lang: (item.toLang as Language) || prev.lang
+        }));
+      } else if (item.toLang) {
+        setComposeParams(prev => ({ ...prev, lang: item.toLang as Language }));
+      }
+      setActiveTab('compose');
+    } else if (item.type === 'talk') {
+      setActiveTab('talk');
+    }
+  }, []);
 
   const handleCopy = useCallback((text: string) => {
     if (!text) return;
@@ -971,6 +1019,21 @@ export default function App() {
           </motion.div>
         )}
 
+        {activeTab === 'history' && (
+          <motion.div 
+            key="history"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="h-full overflow-y-auto"
+          >
+            <Suspense fallback={<FallbackSpinner />}>
+              <HistoryTab t={t} showToast={showToast} onReuse={handleReuse} />
+            </Suspense>
+          </motion.div>
+        )}
+
         {activeTab === 'settings' && (
           <motion.div 
             key="settings"
@@ -996,6 +1059,7 @@ export default function App() {
                   showToast(t('languageChanged'), 'info');
                 }}
                 onReset={handleReset}
+                onClearHistory={handleClearHistory}
                 settings={state.settings}
                 onSaveSettings={(s) => {
                   storage.setSettings(s);
