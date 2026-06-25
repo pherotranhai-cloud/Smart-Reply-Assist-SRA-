@@ -152,6 +152,7 @@ export const translations = {
     browserNotSupported: 'Browser does not support speech recognition',
     listening: 'Listening...',
     SECURITY_FIREWALL_ERROR: '⚠️ SRA Security: Request rejected due to inappropriate keywords. SRA only supports translating and composing text for work purposes at Lai Yih.',
+    summaryMode: 'Summary Mode',
   },
   vi: {
     translate: 'Dịch',
@@ -306,6 +307,7 @@ export const translations = {
     browserNotSupported: 'Trình duyệt không hỗ trợ giọng nói',
     listening: 'Đang nghe...',
     SECURITY_FIREWALL_ERROR: '⚠️ SRA Security: Yêu cầu bị từ chối do chứa từ khóa không phù hợp. SRA chỉ hỗ trợ dịch thuật và soạn thảo văn bản phục vụ công việc tại Lai Yih.',
+    summaryMode: 'Tóm tắt văn bản',
   },
   'zh-CN': {
     translate: '翻译',
@@ -460,6 +462,7 @@ export const translations = {
     browserNotSupported: '浏览器不支持语音识别',
     listening: '正在聆听...',
     SECURITY_FIREWALL_ERROR: '⚠️ SRA Security: 请求因包含不适宜的关键字而被拒绝。SRA 仅支持在来亿(Lai Yih)进行工作相关的文本翻译和编写。',
+    summaryMode: '摘要模式',
   },
   'zh-TW': {
     translate: '翻譯',
@@ -614,5 +617,6 @@ export const translations = {
     browserNotSupported: '瀏覽器不支持語音識別',
     listening: '正在聆聽...',
     SECURITY_FIREWALL_ERROR: '⚠️ SRA Security: 請求因包含不適宜的關鍵字而遭到拒絕。SRA 僅支援在來億(Lai Yih)進行工作相關的文字翻譯和編寫。',
+    summaryMode: '摘要模式',
   }
 };

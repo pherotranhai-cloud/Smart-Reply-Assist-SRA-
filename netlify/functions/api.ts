@@ -222,6 +222,37 @@ router.post('/compose', async (req, res) => {
 
     const scriptEnforcement = scriptRule ? `\n  SCRIPT_ENFORCEMENT: ${scriptRule}` : '';
 
+    let structureInstruction = '';
+    const formatStr = (params.format || '').toLowerCase();
+    const goalStr = (params.goal || '').toLowerCase();
+
+    if (formatStr.includes('email')) {
+      structureInstruction = `
+<structure_instruction>
+  You MUST format the output as a Formal Email using Markdown. DO NOT wrap the output in \`\`\`markdown ... \`\`\` code blocks:
+  1. Subject Line: Must start with a clear, bolded subject line (e.g., **Subject:** [Concise, professional title in Target Language]).
+  2. Salutation: Include a formal opening greeting appropriate for the audience (e.g., Supervisor, Partner, Board of Directors).
+  3. Body paragraphs: Separate ideas clearly with line breaks. Use bold text (**...**) for key information (metrics, deadlines, item codes) and bullet points (- ) for specific actions/SOPs.
+  4. Sign-off: Conclude with a professional closing and sign-off (e.g., Best regards, / 祝好, / Trân trọng,).
+</structure_instruction>`;
+    } else if (goalStr.includes('explain') || goalStr.includes('guide') || formatStr.includes('action_list') || goalStr.includes('technical')) {
+      structureInstruction = `
+<structure_instruction>
+  You MUST format the output as a Technical Guide/Explanation using Markdown. DO NOT wrap the output in \`\`\`markdown ... \`\`\` code blocks:
+  1. Divide the layout using small headers (e.g., ### 📌 Vấn đề kỹ thuật, ### 🛠️ Giải pháp thực hiện).
+  2. Use bold (**...**) for core technical specifications and metrics.
+  3. Keep the layout organized and structured for factory floor scanning.
+</structure_instruction>`;
+    } else {
+      structureInstruction = `
+<structure_instruction>
+  You MUST format the output as a concise Internal Message using Markdown. DO NOT wrap the output in \`\`\`markdown ... \`\`\` code blocks:
+  1. Use clear line breaks for readability.
+  2. Use bullet points (- ) for lists or action items.
+  3. Bold (**...**) critical information such as error codes, line numbers, or Person-In-Charge (PIC) names so they can be grasped in 3 seconds.
+</structure_instruction>`;
+    }
+
     const systemPrompt = `<system_context>
   ROLE: Industrial_Proxy_Writer
   DOMAIN: Factory_Operations
@@ -265,7 +296,8 @@ router.post('/compose', async (req, res) => {
   2. Follow <mandatory_workflow>
   3. Apply [Tone] & [Audience] honorifics
   4. Return Final_Message (Max 200 words. No filler.)
-</execution_flow>`;
+</execution_flow>
+${structureInstruction}`;
     
     const response = await openai.chat.completions.create({
       model: APP_ENGINE_ID,
