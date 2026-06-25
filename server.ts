@@ -47,10 +47,30 @@ async function startServer() {
       return res.status(500).json({ error: "Server Configuration Error" });
     }
 
-    const { text, targetLang, glossary, image } = req.body;
+    const { text, targetLang, glossary, image, summarize } = req.body;
     try {
       // 1. Minified System Prompt (Already optimized for Factory Context)
-      const systemPrompt = `Translate to ${targetLang} with 100% technical accuracy. Maintain original factory tone (strict/urgent).
+      let explicitTargetLang = targetLang;
+      let explicitScriptInstruction = '';
+      
+      if (targetLang === 'Chinese (Traditional)' || targetLang === 'zh-TW') {
+        explicitTargetLang = 'Chinese (Traditional)';
+        explicitScriptInstruction = '\nEnsure all output characters are strictly Traditional Chinese (繁體中文).';
+      }
+
+      const summaryInstruction = summarize ? `
+You MUST NOT output the full translation. Instead, output ONLY a structured summary in ${explicitTargetLang} using the following Markdown format exactly:
+
+### 📋 [Brief Summary Title]
+**Nội dung chính / Tổng quan:**
+[A short 2-3 sentence paragraph summarizing the context]
+
+**📌 Ý chính cần nắm (Key Takeaways):**
+- *[Key Point 1]*: Detailed description of the action or key information.
+- *[Key Point 2]*: Next action, timing, or affected entity.
+- *[Key Point 3]*: (If applicable) Important notes or warnings from the original text.` : `Output ONLY the translated text. No explanations. No introduction.`;
+
+      const systemPrompt = `Translate to ${explicitTargetLang} with 100% technical accuracy. Maintain original factory tone (strict/urgent).${explicitScriptInstruction}
 <rules>
 1. DO NOT translate models, codes, brands.
 2. Keep metrics unchanged. Translate quantifiers.
@@ -62,7 +82,7 @@ The following is a JSON array of technical terms and their required translations
 ${glossary || '[]'}
 CRITICAL: You MUST use these exact translations for the corresponding terms. DO NOT use synonyms.
 </glossary_strict_mode>
-Output ONLY the translated text. No explanations. No introduction.`;
+${summaryInstruction}`;
 
       const messages: any[] = [
         { role: 'system', content: systemPrompt }

@@ -31,7 +31,7 @@ router.post('/translate', async (req, res) => {
     return res.status(500).json({ error: "Server Configuration Error" });
   }
 
-  const { text, targetLang, glossary, image } = req.body;
+  const { text, targetLang, glossary, image, summarize } = req.body;
   try {
     // 1. Minified System Prompt (Already optimized for Factory Context)
     let explicitTargetLang = targetLang;
@@ -41,6 +41,18 @@ router.post('/translate', async (req, res) => {
       explicitTargetLang = 'Chinese (Traditional)';
       explicitScriptInstruction = '\nEnsure all output characters are strictly Traditional Chinese (繁體中文).';
     }
+
+    const summaryInstruction = summarize ? `
+You MUST NOT output the full translation. Instead, output ONLY a structured summary in ${explicitTargetLang} using the following Markdown format exactly:
+
+### 📋 [Brief Summary Title]
+**Nội dung chính / Tổng quan:**
+[A short 2-3 sentence paragraph summarizing the context]
+
+**📌 Ý chính cần nắm (Key Takeaways):**
+- *[Key Point 1]*: Detailed description of the action or key information.
+- *[Key Point 2]*: Next action, timing, or affected entity.
+- *[Key Point 3]*: (If applicable) Important notes or warnings from the original text.` : `Output ONLY the translated text. No explanations. No introduction.`;
 
     const systemPrompt = `Translate to ${explicitTargetLang} with 100% technical accuracy. Maintain original factory tone (strict/urgent).${explicitScriptInstruction}
 <rules>
@@ -54,7 +66,7 @@ The following is a JSON array of technical terms and their required translations
 ${glossary || '[]'}
 CRITICAL: You MUST use these exact translations for the corresponding terms. DO NOT use synonyms.
 </glossary_strict_mode>
-Output ONLY the translated text. No explanations. No introduction.`;
+${summaryInstruction}`;
 
     const messages: any[] = [
       { role: 'system', content: systemPrompt }

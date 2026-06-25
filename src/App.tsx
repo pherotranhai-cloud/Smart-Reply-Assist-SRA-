@@ -93,6 +93,7 @@ export default function App() {
   const [translateImage, setTranslateImage] = useState<string | null>(null);
   const [targetLang, setTargetLang] = useState<Language>('Vietnamese');
   const [speechLang, setSpeechLang] = useState<string>('vi-VN');
+  const [isSummaryMode, setIsSummaryMode] = useState(false);
   
   const [composeReq, setComposeReq] = useState('');
   const [activePresetId, setActivePresetId] = useState('custom');
@@ -369,7 +370,7 @@ export default function App() {
 
       let fullTranslation = '';
       
-      const result = await ai.translate(finalSourceText, targetLang, currentVocab, undefined, (chunk) => {
+      const result = await ai.translate(finalSourceText, targetLang, currentVocab, undefined, isSummaryMode, (chunk) => {
         fullTranslation += chunk;
         setState(prev => ({ 
           ...prev, 
@@ -797,6 +798,16 @@ export default function App() {
                     {LANGUAGES.map(l => <option key={l} value={l} className="bg-panel">{LANGUAGE_FLAGS[l]} {l}</option>)}
                   </select>
                 </div>
+                
+                <div className="flex-1 space-y-2 flex items-end justify-start pb-2">
+                  <label className="flex items-center gap-3 cursor-pointer" onClick={(e) => { e.preventDefault(); setIsSummaryMode(!isSummaryMode); }}>
+                    <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isSummaryMode ? 'bg-accent' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isSummaryMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </div>
+                    <span className="text-sm font-medium text-text-main select-none">{t('summaryMode') || 'Summary Mode'}</span>
+                  </label>
+                </div>
+                
                 <button 
                   onClick={handleTranslate}
                   disabled={loading || (!translateInput.trim() && !translateImage) || translateWordCount > 500}
