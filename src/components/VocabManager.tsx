@@ -20,7 +20,7 @@ const VocabCell = ({ label, text, lang, speak }: { label: string, text: string, 
   if (!text) return null;
   return (
     <div className="flex flex-col p-3 rounded-xl bg-gray-50/50 hover:bg-gray-50 transition-colors relative group border-none">
-      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1">{label}</span>
+      <span className="text-[11px] font-medium text-slate-400 uppercase tracking-widest mb-1">{label}</span>
       <span className="text-text-main font-bold pr-6">{text}</span>
       <button 
         onClick={() => speak(text, lang)}

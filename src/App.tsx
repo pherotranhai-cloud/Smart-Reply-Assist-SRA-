@@ -711,7 +711,7 @@ export default function App() {
           >
             <div className="premium-card space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-[12px] font-medium tracking-widest text-text-muted uppercase">{t('inputSource')}</h3>
+                <h3 className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('inputSource')}</h3>
                 <div className="flex gap-2">
                   <button 
                     onClick={() => setTranslateImage(null)}
@@ -789,7 +789,7 @@ export default function App() {
 
               <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
                 <div className="flex-1 space-y-2">
-                  <label className="text-[12px] font-medium tracking-widest text-text-muted uppercase">{t('targetLanguage')}</label>
+                  <label className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('targetLanguage')}</label>
                   <select 
                     className="ios-select"
                     value={targetLang}
@@ -804,7 +804,7 @@ export default function App() {
                     <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shadow-inner ${isSummaryMode ? 'bg-accent' : 'bg-gray-300 dark:bg-gray-600'}`}>
                       <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow ${isSummaryMode ? 'translate-x-5' : 'translate-x-0.5'}`} />
                     </div>
-                    <span className="text-[12px] font-medium tracking-widest text-text-muted uppercase select-none">{t('summaryMode')}</span>
+                    <span className="text-[11px] font-medium tracking-widest text-slate-400 uppercase select-none">{t('summaryMode')}</span>
                   </label>
                 </div>
                 
@@ -821,7 +821,7 @@ export default function App() {
 
             <div ref={outputRef} className="premium-card flex flex-col gap-4 bg-white">
               <div className="flex justify-between items-center">
-                <h3 className="text-[12px] font-medium tracking-widest text-text-muted uppercase">{t('translatedOutput')}</h3>
+                <h3 className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('translatedOutput')}</h3>
                 <div className="flex items-center gap-2">
                   {state.lastOutputs.translatedText && (
                     <>
@@ -950,7 +950,7 @@ export default function App() {
               {state.lastOutputs.generatedReply && (
                 <div className="premium-card space-y-4 bg-white">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-[12px] font-medium tracking-widest text-text-muted uppercase">{t('generatedOutput')}</h3>
+                    <h3 className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('generatedOutput')}</h3>
                     <div className="flex items-center gap-2">
                       <button 
                         onClick={() => handleSpeak(state.lastOutputs.generatedReply, composeParams.lang)}

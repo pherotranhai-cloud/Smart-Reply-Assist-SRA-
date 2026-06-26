@@ -74,7 +74,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     <div className="space-y-8 pb-24 font-sans pt-4">
       {/* Appearance */}
       <section>
-        <h3 className="text-[13px] font-medium text-text-muted uppercase tracking-wide px-4 mb-2">
+        <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
           {t('themeMode')}
         </h3>
         <div className="bg-panel rounded-xl overflow-hidden shadow-sm border border-border-main">
@@ -100,7 +100,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       {/* Language */}
       <section>
-        <h3 className="text-[13px] font-medium text-text-muted uppercase tracking-wide px-4 mb-2">
+        <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
           {t('interfaceLanguage')}
         </h3>
         <div className="bg-panel rounded-xl overflow-hidden shadow-sm border border-border-main">
@@ -128,7 +128,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       {/* System Actions */}
       <section>
-        <h3 className="text-[13px] font-medium text-text-muted uppercase tracking-wide px-4 mb-2">
+        <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
           {t('system')}
         </h3>
         <div className="bg-panel rounded-xl overflow-hidden shadow-sm border border-border-main">
@@ -166,7 +166,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       {/* About */}
       <section>
-        <h3 className="text-[13px] font-medium text-text-muted uppercase tracking-wide px-4 mb-2">
+        <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
           {t('about')}
         </h3>
         <div className="bg-panel rounded-xl overflow-hidden shadow-sm border border-border-main p-4">

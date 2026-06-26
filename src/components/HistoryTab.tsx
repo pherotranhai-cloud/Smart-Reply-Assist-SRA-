@@ -139,7 +139,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({ t, showToast, onReuse })
                 <div className="flex justify-between items-center mb-3">
                   <div className="flex items-center gap-2">
                     {getIconForType(item.type)}
-                    <span className="text-sm font-semibold tracking-wide uppercase text-slate-400">
+                    <span className="text-[11px] font-medium tracking-widest uppercase text-slate-400">
                       {getLabelForType(item.type)}
                     </span>
                     {(item.fromLang || item.toLang) && (
@@ -156,10 +156,10 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({ t, showToast, onReuse })
 
                 <div className="space-y-3 mb-4">
                   <div className="bg-background/50 rounded-xl p-3 border border-border-main/50">
-                    <p className="text-sm text-text-main whitespace-pre-wrap line-clamp-3">{item.input}</p>
+                    <p className="text-[13px] text-text-main whitespace-pre-wrap line-clamp-3">{item.input}</p>
                   </div>
                   <div className="bg-accent/5 rounded-xl p-3 border border-accent/10">
-                    <p className="text-sm text-text-main whitespace-pre-wrap">{item.output}</p>
+                    <p className="text-[13px] leading-relaxed text-slate-700 whitespace-pre-wrap">{item.output}</p>
                   </div>
                 </div>
 

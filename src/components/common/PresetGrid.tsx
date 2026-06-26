@@ -107,7 +107,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
 
       {/* Language Selection */}
       <div className="mt-3">
-        <label className="text-[12px] font-medium text-text-muted px-1">{t('language')}</label>
+        <label className="text-[11px] font-medium tracking-widest text-slate-400 uppercase px-1">{t('language')}</label>
         <select 
           className="ios-select"
           value={customParams.lang}
@@ -130,7 +130,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
             
             <div className="p-4 space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-text-muted">{t('audience')}</label>
+                <label className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('audience')}</label>
                 <select 
                   className="ios-select"
                   value={localCustom.audience}
@@ -141,7 +141,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-text-muted">{t('tone')}</label>
+                <label className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('tone')}</label>
                 <select 
                   className="ios-select"
                   value={localCustom.tone}
@@ -152,7 +152,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-text-muted">Độ dài (Length)</label>
+                <label className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">Độ dài (Length)</label>
                 <select 
                   className="ios-select"
                   value={localCustom.length}
@@ -163,7 +163,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-text-muted">{t('format')}</label>
+                <label className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('format')}</label>
                 <select 
                   className="ios-select"
                   value={localCustom.format}

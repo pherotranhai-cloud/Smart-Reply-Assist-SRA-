@@ -8,7 +8,7 @@ export const FallbackSpinner: React.FC = () => {
         <div className="absolute inset-0 rounded-full blur-md bg-accent/30 animate-pulse"></div>
         <Loader2 className="relative animate-spin text-accent" size={48} />
       </div>
-      <p className="text-sm font-medium tracking-widest text-text-muted uppercase animate-pulse">Loading module...</p>
+      <p className="text-[11px] font-medium tracking-widest text-slate-400 uppercase animate-pulse">Loading module...</p>
     </div>
   );
 };
