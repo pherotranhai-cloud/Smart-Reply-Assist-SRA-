@@ -13,7 +13,7 @@
 }
 
 :root { /* Light Mode */
-  --bg-app: #f8fafc;
+  --bg-app: #F4F6F9;
   --bg-panel: #ffffff;
   --text-main: #0f172a;
   --text-muted: #64748b;
@@ -46,28 +46,30 @@
 }
 
 @layer components {
+  .ios-glass {
+    @apply bg-white/80 backdrop-blur-lg border border-white/30 shadow-[0_8px_32px_0_rgba(0,0,0,0.02)];
+  }
+
   .glass-panel {
     @apply bg-panel/80 backdrop-blur-md border border-border-main shadow-sm transition-colors duration-300;
     border-radius: 16px;
   }
 
   .premium-card {
-    @apply bg-panel/80 backdrop-blur-md border border-border-main shadow-sm p-4 sm:p-6 transition-colors duration-300;
-    border-radius: 16px;
+    @apply bg-white p-4 sm:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.015)] transition-colors duration-300;
+    border-radius: 24px;
+    border: none;
   }
 
   .saas-button {
-    @apply relative overflow-hidden transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium;
-    border-radius: 14px;
-    height: 44px;
-    min-width: 44px;
+    @apply relative overflow-hidden transition-all duration-300 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium text-sm tracking-wide;
+    border-radius: 9999px;
+    height: 48px;
+    min-width: 48px;
   }
 
   .primary-button {
-    @apply relative overflow-hidden transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium bg-accent hover:bg-accent/90 shadow-sm text-white;
-    border-radius: 14px;
-    height: 44px;
-    min-width: 44px;
+    @apply bg-accent hover:bg-accent/90 text-white shadow-sm hover:shadow active:shadow-inner;
   }
 
   .secondary-button {
@@ -78,7 +80,18 @@
   }
 
   .saas-input {
-    @apply w-full bg-panel border border-border-main rounded-xl px-4 py-3 text-[15px] outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all text-text-main placeholder:text-text-muted;
+    @apply w-full bg-white rounded-xl px-4 py-3 text-[15px] outline-none transition-all text-text-main placeholder:text-text-muted;
+    border: none;
+  }
+
+  .ios-select {
+    @apply w-full bg-black/[0.03] text-text-main rounded-xl px-4 py-2.5 text-[15px] outline-none transition-colors duration-300 appearance-none cursor-pointer hover:bg-black/[0.05];
+    border: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
   }
 
   .segmented-control {

@@ -27,10 +27,10 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({ isListening, o
         userSelect: 'none',
         WebkitTapHighlightColor: 'transparent',
       }}
-      className={`relative z-10 flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 select-none ${
+      className={`relative z-10 flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 select-none ${
         isListening 
           ? 'bg-red-500 text-white shadow-lg shadow-red-500/30 animate-pulse' 
-          : 'bg-panel border border-border-main text-text-muted hover:text-accent hover:border-accent/30'
+          : 'bg-transparent text-slate-400 hover:bg-black/[0.04] active:bg-black/[0.04] hover:text-accent'
       }`}
       title={title}
     >

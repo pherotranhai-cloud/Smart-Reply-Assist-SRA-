@@ -743,7 +743,7 @@ export default function App() {
                 <div className="absolute bottom-3 right-3 flex gap-2">
                   <button 
                     onClick={handleClearInput}
-                    className="p-2 glass-panel rounded-xl text-muted hover:text-red-400 transition-colors"
+                    className="p-2 bg-transparent rounded-xl text-slate-400 hover:bg-black/[0.04] active:bg-black/[0.04] hover:text-red-400 transition-colors"
                   >
                     <X size={18} />
                   </button>
@@ -756,7 +756,7 @@ export default function App() {
                   />
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-2 glass-panel rounded-xl text-muted hover:text-accent transition-colors"
+                    className="p-2 bg-transparent rounded-xl text-slate-400 hover:bg-black/[0.04] active:bg-black/[0.04] hover:text-accent transition-colors"
                     title={t('uploadImage')}
                   >
                     <Camera size={18} />
@@ -768,7 +768,7 @@ export default function App() {
                   />
                   <button 
                     onClick={handlePasteFromClipboard}
-                    className="p-2 glass-panel rounded-xl text-muted hover:text-accent transition-colors"
+                    className="p-2 bg-transparent rounded-xl text-slate-400 hover:bg-black/[0.04] active:bg-black/[0.04] hover:text-accent transition-colors"
                   >
                     <ClipboardCheck size={18} />
                   </button>
@@ -791,7 +791,7 @@ export default function App() {
                 <div className="flex-1 space-y-2">
                   <label className="text-[12px] font-medium tracking-widest text-text-muted uppercase">{t('targetLanguage')}</label>
                   <select 
-                    className="saas-input w-full"
+                    className="ios-select"
                     value={targetLang}
                     onChange={e => setTargetLang(e.target.value as Language)}
                   >
@@ -819,7 +819,7 @@ export default function App() {
               </div>
             </div>
 
-            <div ref={outputRef} className="premium-card flex flex-col gap-4 bg-surface/30">
+            <div ref={outputRef} className="premium-card flex flex-col gap-4 bg-white">
               <div className="flex justify-between items-center">
                 <h3 className="text-[12px] font-medium tracking-widest text-text-muted uppercase">{t('translatedOutput')}</h3>
                 <div className="flex items-center gap-2">
@@ -900,7 +900,7 @@ export default function App() {
                   </div>
                   <div className="relative flex-1 flex flex-col">
                     <textarea 
-                      className="w-full flex-1 min-h-[30vh] p-4 bg-panel text-text-main border border-border-main rounded-2xl shadow-sm resize-none text-[17px] leading-relaxed focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
+                      className="w-full flex-1 min-h-[30vh] p-4 bg-white text-text-main border-none rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.015)] resize-none text-[17px] leading-relaxed focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
                       placeholder={t('replyPlaceholder')}
                       value={composeInputWithInterim}
                       onChange={e => setComposeReq(e.target.value)}
@@ -919,7 +919,7 @@ export default function App() {
                       {composeReq && (
                         <button 
                           onClick={() => setComposeReq('')}
-                          className="p-2 glass-panel rounded-xl text-muted hover:text-red-400 transition-colors"
+                          className="p-2 bg-transparent rounded-xl text-slate-400 hover:bg-black/[0.04] active:bg-black/[0.04] hover:text-red-400 transition-colors"
                         >
                           <X size={18} />
                         </button>
@@ -948,7 +948,7 @@ export default function App() {
 
               {/* Generated Output */}
               {state.lastOutputs.generatedReply && (
-                <div className="premium-card space-y-4 bg-surface/30">
+                <div className="premium-card space-y-4 bg-white">
                   <div className="flex justify-between items-center">
                     <h3 className="text-[12px] font-medium tracking-widest text-text-muted uppercase">{t('generatedOutput')}</h3>
                     <div className="flex items-center gap-2">
@@ -987,8 +987,7 @@ export default function App() {
                 <button 
                   onClick={handleCompose}
                   disabled={loading || (!composeReq.trim() && !(useContextInCompose && context && (context.sourceText || context.translatedText))) || composeWordCount > 500}
-                  className="w-full bg-accent hover:bg-accent/90 disabled:bg-panel disabled:border disabled:border-border-main disabled:text-text-muted text-white rounded-2xl py-4 text-[17px] font-semibold flex items-center justify-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-[0.98]"
-                  style={{ height: '40px' }}
+                  className="saas-button primary-button w-full shadow-lg shadow-accent/20"
                 >
                   {loading ? <Loader2 className="animate-spin" size={20} /> : <PenTool size={20} />}
                   <span>{t('generateReply')}</span>

@@ -70,8 +70,8 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* 6 Icons Grid */}
-      <div className="grid grid-cols-6 gap-2">
+      {/* Segmented Preset Control */}
+      <div className="flex bg-black/[0.02] p-1 rounded-xl gap-1">
         {CORE_PRESETS.map((preset) => {
           const isActive = activePresetId === preset.id;
           const isCustom = preset.id === 'custom';
@@ -86,13 +86,13 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
               key={preset.id}
               {...buttonProps}
               title={preset.name}
-              className={`w-full aspect-square flex items-center justify-center rounded-2xl transition-all duration-300 ${
+              className={`flex-1 flex items-center justify-center py-2.5 rounded-lg transition-all duration-300 ${
                 isActive
-                  ? 'bg-accent/10 border-2 border-accent text-accent shadow-md shadow-accent/20'
-                  : 'bg-transparent border-2 border-slate-200/20 text-text-muted opacity-60 hover:opacity-100 hover:bg-slate-100/10'
+                  ? 'bg-white shadow-sm text-accent'
+                  : 'bg-transparent text-slate-400 hover:text-slate-600'
               }`}
             >
-               <IconComponent size={24} strokeWidth={isActive ? 2.5 : 1.5} />
+               <IconComponent size={20} strokeWidth={isActive ? 2 : 1.5} />
             </button>
           );
         })}
@@ -109,7 +109,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
       <div className="mt-3">
         <label className="text-[12px] font-medium text-text-muted px-1">{t('language')}</label>
         <select 
-          className="w-full mt-1 bg-panel text-text-main border border-border-main rounded-xl px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-accent transition-colors duration-300"
+          className="ios-select"
           value={customParams.lang}
           onChange={e => onUpdateCustomParams({ lang: e.target.value as Language })}
         >
@@ -132,7 +132,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
               <div className="space-y-1.5">
                 <label className="text-[13px] font-medium text-text-muted">{t('audience')}</label>
                 <select 
-                  className="w-full bg-surface text-text-main border border-border-main rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-accent"
+                  className="ios-select"
                   value={localCustom.audience}
                   onChange={e => setLocalCustom({ ...localCustom, audience: e.target.value as Audience })}
                 >
@@ -143,7 +143,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
               <div className="space-y-1.5">
                 <label className="text-[13px] font-medium text-text-muted">{t('tone')}</label>
                 <select 
-                  className="w-full bg-surface text-text-main border border-border-main rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-accent"
+                  className="ios-select"
                   value={localCustom.tone}
                   onChange={e => setLocalCustom({ ...localCustom, tone: e.target.value as Tone })}
                 >
@@ -154,7 +154,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
               <div className="space-y-1.5">
                 <label className="text-[13px] font-medium text-text-muted">Độ dài (Length)</label>
                 <select 
-                  className="w-full bg-surface text-text-main border border-border-main rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-accent"
+                  className="ios-select"
                   value={localCustom.length}
                   onChange={e => setLocalCustom({ ...localCustom, length: e.target.value as Length })}
                 >
@@ -165,7 +165,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
               <div className="space-y-1.5">
                 <label className="text-[13px] font-medium text-text-muted">{t('format')}</label>
                 <select 
-                  className="w-full bg-surface text-text-main border border-border-main rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-accent"
+                  className="ios-select"
                   value={localCustom.format}
                   onChange={e => setLocalCustom({ ...localCustom, format: e.target.value as Format })}
                 >

@@ -47,7 +47,7 @@ export const Layout: React.FC<LayoutProps> = ({
           <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-panel/90 to-transparent pointer-events-none z-10 sm:hidden rounded-r-2xl" />
           
           <div 
-            className="bg-panel border border-border-main rounded-2xl flex items-center overflow-x-auto snap-x snap-mandatory no-scrollbar sm:justify-center px-4 sm:px-2 py-2 gap-2 sm:gap-4"
+            className="ios-glass rounded-[24px] flex items-center overflow-x-auto snap-x snap-mandatory no-scrollbar sm:justify-center px-4 sm:px-2 py-2 gap-2 sm:gap-4"
           >
             <NavItem 
               icon={<Languages size={24} />} 
