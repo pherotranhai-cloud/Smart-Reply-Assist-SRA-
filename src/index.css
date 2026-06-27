@@ -1,10 +1,21 @@
 @import "tailwindcss";
 
 @theme {
+  /* Requested names */
   --color-app: var(--bg-app);
-  --color-panel: var(--bg-panel);
-  --color-text-main: var(--text-main);
+  --color-card: var(--bg-card);
+  --color-primary: var(--text-primary);
+  --color-muted: var(--text-muted);
+  --color-input: var(--bg-input);
+
+  /* Legacy mappings to prevent breaking existing classes */
+  --color-bg-app: var(--bg-app);
+  --color-bg-card: var(--bg-card);
+  --color-text-primary: var(--text-primary);
   --color-text-muted: var(--text-muted);
+  --color-bg-input: var(--bg-input);
+  --color-panel: var(--bg-card);
+  --color-text-main: var(--text-primary);
   --color-border-main: var(--border-main);
   --color-accent: var(--accent);
   
@@ -13,21 +24,29 @@
 }
 
 :root { /* Light Mode */
-  --bg-app: #f8fafc;
-  --bg-panel: #ffffff;
-  --text-main: #0f172a;
-  --text-muted: #64748b;
+  --bg-app: #F4F6F9;
+  --bg-card: rgba(255, 255, 255, 1);
+  --text-primary: #334155;
+  --text-muted: #94A3B8;
+  --bg-input: rgba(0, 0, 0, 0.03);
   --border-main: #e2e8f0;
   --accent: #006D77;
+
+  --ios-glass-bg: rgba(255, 255, 255, 0.8);
+  --ios-glass-border: rgba(255, 255, 255, 0.3);
 }
 
 :root[data-theme="dark"], .dark { /* Dark Mode */
-  --bg-app: #020617;
-  --bg-panel: #0f172a;
-  --text-main: #f1f5f9;
-  --text-muted: #94a3b8;
+  --bg-app: #0B111E;
+  --bg-card: rgba(21, 31, 50, 0.85);
+  --text-primary: #F1F5F9;
+  --text-muted: #64748B;
+  --bg-input: rgba(255, 255, 255, 0.06);
   --border-main: #1e293b;
   --accent: #006D77;
+
+  --ios-glass-bg: rgba(21, 31, 50, 0.7);
+  --ios-glass-border: rgba(255, 255, 255, 0.1);
 }
 
 @layer base {
@@ -46,28 +65,32 @@
 }
 
 @layer components {
+  .ios-glass {
+    background-color: var(--ios-glass-bg);
+    border-color: var(--ios-glass-border);
+    @apply backdrop-blur-lg border shadow-[0_8px_32px_0_rgba(0,0,0,0.02)];
+  }
+
   .glass-panel {
-    @apply bg-panel/80 backdrop-blur-md border border-border-main shadow-sm transition-colors duration-300;
+    @apply bg-panel backdrop-blur-md border border-border-main shadow-sm transition-colors duration-300;
     border-radius: 16px;
   }
 
   .premium-card {
-    @apply bg-panel/80 backdrop-blur-md border border-border-main shadow-sm p-4 sm:p-6 transition-colors duration-300;
-    border-radius: 16px;
+    @apply bg-panel p-4 sm:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.015)] transition-colors duration-300;
+    border-radius: 24px;
+    border: none;
   }
 
   .saas-button {
-    @apply relative overflow-hidden transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium;
-    border-radius: 14px;
-    height: 44px;
-    min-width: 44px;
+    @apply relative overflow-hidden transition-all duration-300 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium text-sm tracking-wide;
+    border-radius: 9999px;
+    height: 48px;
+    min-width: 48px;
   }
 
   .primary-button {
-    @apply relative overflow-hidden transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium bg-accent hover:bg-accent/90 shadow-sm text-white;
-    border-radius: 14px;
-    height: 44px;
-    min-width: 44px;
+    @apply bg-accent hover:bg-accent/90 text-white shadow-sm hover:shadow active:shadow-inner;
   }
 
   .secondary-button {
@@ -78,7 +101,18 @@
   }
 
   .saas-input {
-    @apply w-full bg-panel border border-border-main rounded-xl px-4 py-3 text-[15px] outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all text-text-main placeholder:text-text-muted;
+    @apply w-full bg-bg-input rounded-xl px-4 py-3 text-[15px] outline-none transition-all text-text-main placeholder:text-text-muted;
+    border: none;
+  }
+
+  .ios-select {
+    @apply w-full bg-bg-input text-text-main rounded-xl px-4 py-2.5 text-[15px] outline-none transition-colors duration-300 appearance-none cursor-pointer hover:opacity-80;
+    border: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
   }
 
   .segmented-control {
@@ -112,7 +146,7 @@
   }
 
   .markdown-body {
-    @apply text-text-main leading-relaxed;
+    @apply text-slate-700 leading-loose;
   }
   .markdown-body p {
     @apply mb-4 last:mb-0;
@@ -133,7 +167,7 @@
     @apply mb-1;
   }
   .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
-    @apply font-bold text-text-main mt-6 mb-3;
+    @apply font-bold text-slate-800 mt-4 mb-2;
   }
   .markdown-body h1 {
     @apply text-2xl;

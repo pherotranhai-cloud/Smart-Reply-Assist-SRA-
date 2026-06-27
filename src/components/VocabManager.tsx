@@ -19,8 +19,8 @@ interface VocabManagerProps {
 const VocabCell = ({ label, text, lang, speak }: { label: string, text: string, lang: string, speak: (text: string, lang: string) => void }) => {
   if (!text) return null;
   return (
-    <div className="flex flex-col p-3 rounded-lg bg-white dark:bg-panel shadow-sm border border-border-main hover:border-[#006D77] transition-colors relative group">
-      <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-1">{label}</span>
+    <div className="flex flex-col p-3 rounded-xl bg-gray-50/50 hover:bg-gray-50 transition-colors relative group border-none">
+      <span className="text-[11px] font-medium text-slate-400 uppercase tracking-widest mb-1">{label}</span>
       <span className="text-text-main font-bold pr-6">{text}</span>
       <button 
         onClick={() => speak(text, lang)}
@@ -153,7 +153,7 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
             ) : (
               <div className="space-y-4 pb-12">
                 {filteredVocab.map((item, index) => (
-                  <div key={`${item.id}-${index}`} className="flex flex-col bg-surface rounded-xl shadow-sm border border-border-main p-4 gap-3 transition-colors hover:border-[#006D77]/30">
+                  <div key={`${item.id}-${index}`} className="flex flex-col bg-panel border-none rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.015)] p-4 gap-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       <VocabCell label="VI" text={item.vi || ''} lang="vi" speak={speak} />
                       <VocabCell label="EN" text={item.en || ''} lang="en" speak={speak} />
