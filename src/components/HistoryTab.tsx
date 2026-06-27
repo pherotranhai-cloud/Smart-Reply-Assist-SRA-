@@ -159,7 +159,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({ t, showToast, onReuse })
                     <p className="text-[13px] text-text-main whitespace-pre-wrap line-clamp-3">{item.input}</p>
                   </div>
                   <div className="bg-accent/5 rounded-xl p-3 border border-accent/10">
-                    <p className="text-[13px] leading-relaxed text-slate-700 whitespace-pre-wrap">{item.output}</p>
+                    <p className="text-[13px] leading-relaxed text-text-main whitespace-pre-wrap">{item.output}</p>
                   </div>
                 </div>
 
