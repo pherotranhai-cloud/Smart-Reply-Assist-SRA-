@@ -134,7 +134,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({ t, showToast, onReuse })
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white border-none rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.015)] p-4"
+                className="bg-panel border-none rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.015)] p-4"
               >
                 <div className="flex justify-between items-center mb-3">
                   <div className="flex items-center gap-2">
@@ -159,7 +159,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({ t, showToast, onReuse })
                     <p className="text-[13px] text-text-main whitespace-pre-wrap line-clamp-3">{item.input}</p>
                   </div>
                   <div className="bg-accent/5 rounded-xl p-3 border border-accent/10">
-                    <p className="text-[13px] leading-relaxed text-slate-700 whitespace-pre-wrap">{item.output}</p>
+                    <p className="text-[13px] leading-relaxed text-text-main whitespace-pre-wrap">{item.output}</p>
                   </div>
                 </div>
 

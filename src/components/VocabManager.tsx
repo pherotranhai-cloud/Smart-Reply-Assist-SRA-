@@ -153,7 +153,7 @@ export const VocabManager: React.FC<VocabManagerProps> = ({ t }) => {
             ) : (
               <div className="space-y-4 pb-12">
                 {filteredVocab.map((item, index) => (
-                  <div key={`${item.id}-${index}`} className="flex flex-col bg-white border-none rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.015)] p-4 gap-3">
+                  <div key={`${item.id}-${index}`} className="flex flex-col bg-panel border-none rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.015)] p-4 gap-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       <VocabCell label="VI" text={item.vi || ''} lang="vi" speak={speak} />
                       <VocabCell label="EN" text={item.en || ''} lang="en" speak={speak} />

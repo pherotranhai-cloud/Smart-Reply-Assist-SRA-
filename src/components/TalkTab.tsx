@@ -353,7 +353,7 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
             className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${
               activeSpeaker === 'partner' 
                 ? 'bg-[#006D77] text-white border-2 border-[#006D77] animate-pulse shadow-[#006D77]/30 scale-110' 
-                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-2 border-slate-200 dark:border-slate-600 shadow-slate-300/50 hover:bg-slate-50 dark:hover:bg-slate-700'
+                : 'bg-panel text-text-muted border-2 border-border-main hover:bg-bg-input'
             }`}
           >
             {activeSpeaker === 'partner' ? <Square size={24} /> : <div className="text-center"><Mic size={24} /></div>}
@@ -406,7 +406,7 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
             className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${
               activeSpeaker === 'user' 
                 ? 'bg-[#006D77] text-white border-2 border-[#006D77] animate-pulse shadow-[#006D77]/30 scale-110' 
-                : 'bg-white dark:bg-slate-800 text-[#006D77] border-2 border-[#006D77]/40 shadow-[#006D77]/10 hover:bg-[#006D77]/5'
+                : 'bg-panel text-accent border-2 border-accent/40 shadow-accent/10 hover:bg-bg-input'
             }`}
           >
             {activeSpeaker === 'user' ? <Square size={24} /> : <Mic size={24} />}

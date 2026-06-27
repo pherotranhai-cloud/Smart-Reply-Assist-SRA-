@@ -743,7 +743,7 @@ export default function App() {
                 <div className="absolute bottom-3 right-3 flex gap-2">
                   <button 
                     onClick={handleClearInput}
-                    className="p-2 bg-transparent rounded-xl text-slate-400 hover:bg-black/[0.04] active:bg-black/[0.04] hover:text-red-400 transition-colors"
+                    className="p-2 bg-transparent rounded-xl text-text-muted hover:bg-bg-input active:bg-bg-input hover:text-red-400 transition-colors"
                   >
                     <X size={18} />
                   </button>
@@ -756,7 +756,7 @@ export default function App() {
                   />
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-2 bg-transparent rounded-xl text-slate-400 hover:bg-black/[0.04] active:bg-black/[0.04] hover:text-accent transition-colors"
+                    className="p-2 bg-transparent rounded-xl text-text-muted hover:bg-bg-input active:bg-bg-input hover:text-accent transition-colors"
                     title={t('uploadImage')}
                   >
                     <Camera size={18} />
@@ -768,7 +768,7 @@ export default function App() {
                   />
                   <button 
                     onClick={handlePasteFromClipboard}
-                    className="p-2 bg-transparent rounded-xl text-slate-400 hover:bg-black/[0.04] active:bg-black/[0.04] hover:text-accent transition-colors"
+                    className="p-2 bg-transparent rounded-xl text-text-muted hover:bg-bg-input active:bg-bg-input hover:text-accent transition-colors"
                   >
                     <ClipboardCheck size={18} />
                   </button>
@@ -802,7 +802,7 @@ export default function App() {
                 <div className="flex-1 flex flex-col justify-end space-y-2 pb-2">
                   <label className="flex items-center gap-3 cursor-pointer" onClick={(e) => { e.preventDefault(); setIsSummaryMode(!isSummaryMode); }}>
                     <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shadow-inner ${isSummaryMode ? 'bg-accent' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow ${isSummaryMode ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-panel transition-transform shadow ${isSummaryMode ? 'translate-x-5' : 'translate-x-0.5'}`} />
                     </div>
                     <span className="text-[11px] font-medium tracking-widest text-slate-400 uppercase select-none">{t('summaryMode')}</span>
                   </label>
@@ -819,7 +819,7 @@ export default function App() {
               </div>
             </div>
 
-            <div ref={outputRef} className="premium-card flex flex-col gap-4 bg-white">
+            <div ref={outputRef} className="premium-card flex flex-col gap-4 bg-panel">
               <div className="flex justify-between items-center">
                 <h3 className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('translatedOutput')}</h3>
                 <div className="flex items-center gap-2">
@@ -900,7 +900,7 @@ export default function App() {
                   </div>
                   <div className="relative flex-1 flex flex-col">
                     <textarea 
-                      className="w-full flex-1 min-h-[30vh] p-4 bg-white text-text-main border-none rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.015)] resize-none text-[17px] leading-relaxed focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
+                      className="w-full flex-1 min-h-[30vh] p-4 bg-panel text-text-main border-none rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.015)] resize-none text-[17px] leading-relaxed focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
                       placeholder={t('replyPlaceholder')}
                       value={composeInputWithInterim}
                       onChange={e => setComposeReq(e.target.value)}
@@ -919,7 +919,7 @@ export default function App() {
                       {composeReq && (
                         <button 
                           onClick={() => setComposeReq('')}
-                          className="p-2 bg-transparent rounded-xl text-slate-400 hover:bg-black/[0.04] active:bg-black/[0.04] hover:text-red-400 transition-colors"
+                          className="p-2 bg-transparent rounded-xl text-text-muted hover:bg-bg-input active:bg-bg-input hover:text-red-400 transition-colors"
                         >
                           <X size={18} />
                         </button>
@@ -948,7 +948,7 @@ export default function App() {
 
               {/* Generated Output */}
               {state.lastOutputs.generatedReply && (
-                <div className="premium-card space-y-4 bg-white">
+                <div className="premium-card space-y-4 bg-panel">
                   <div className="flex justify-between items-center">
                     <h3 className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('generatedOutput')}</h3>
                     <div className="flex items-center gap-2">

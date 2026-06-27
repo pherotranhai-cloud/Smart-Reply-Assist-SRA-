@@ -71,7 +71,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
   return (
     <div className="space-y-4">
       {/* Segmented Preset Control */}
-      <div className="flex bg-black/[0.02] p-1 rounded-xl gap-1">
+      <div className="flex bg-bg-input p-1 rounded-xl gap-1">
         {CORE_PRESETS.map((preset) => {
           const isActive = activePresetId === preset.id;
           const isCustom = preset.id === 'custom';
@@ -88,8 +88,8 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
               title={preset.name}
               className={`flex-1 flex items-center justify-center py-2.5 rounded-lg transition-all duration-300 ${
                 isActive
-                  ? 'bg-white shadow-sm text-accent'
-                  : 'bg-transparent text-slate-400 hover:text-slate-600'
+                  ? 'bg-panel shadow-sm text-accent'
+                  : 'bg-transparent text-text-muted hover:text-text-main'
               }`}
             >
                <IconComponent size={20} strokeWidth={isActive ? 2 : 1.5} />

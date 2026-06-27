@@ -30,7 +30,7 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({ isListening, o
       className={`relative z-10 flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 select-none ${
         isListening 
           ? 'bg-red-500 text-white shadow-lg shadow-red-500/30 animate-pulse' 
-          : 'bg-transparent text-slate-400 hover:bg-black/[0.04] active:bg-black/[0.04] hover:text-accent'
+          : 'bg-transparent text-text-muted hover:bg-bg-input active:bg-bg-input hover:text-accent'
       }`}
       title={title}
     >
