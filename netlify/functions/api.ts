@@ -6,12 +6,34 @@ import crypto from 'crypto';
 import axios from 'axios';
 import Papa from 'papaparse';
 import OpenAI from 'openai';
+import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const APP_ENGINE_ID = process.env.APP_ENGINE_ID || 'gpt-5.4-mini-2026-03-17';
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || '16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY';
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+let supabase: ReturnType<typeof createClient> | null = null;
+
+if (supabaseUrl && supabaseServiceRoleKey) {
+  supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+}
+
+const logToSupabase = async (payload: any) => {
+  if (!supabase) return;
+  try {
+    const { error } = await supabase.from('app_logs').insert([{
+      ...payload,
+      created_at: new Date().toISOString()
+    }]);
+    if (error) console.error('Supabase logging error:', error);
+  } catch (err) {
+    console.error('Supabase logging exception:', err);
+  }
+};
 
 const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
@@ -100,7 +122,18 @@ ${summaryInstruction}`;
       temperature: 0,
     });
 
-    res.json({ translatedText: response.choices[0].message.content });
+    const outputText = response.choices[0].message.content;
+    
+    // Non-blocking log to Supabase
+    logToSupabase({
+      task_type: 'translate',
+      input_text: text || '[Image only]',
+      output_text: outputText,
+      from_lang: 'auto',
+      to_lang: targetLang
+    });
+
+    res.json({ translatedText: outputText });
   } catch (error: any) {
     console.error('Translation error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Translation failed', details: error.message });
@@ -308,7 +341,18 @@ ${structureInstruction}`;
       temperature: 0,
     });
 
-    res.json({ generatedReply: response.choices[0].message.content });
+    const outputText = response.choices[0].message.content;
+
+    // Non-blocking log to Supabase
+    logToSupabase({
+      task_type: 'compose',
+      input_text: `${contextText}\n${requirements}`,
+      output_text: outputText,
+      from_lang: 'auto',
+      to_lang: mappedLang
+    });
+
+    res.json({ generatedReply: outputText });
   } catch (error: any) {
     console.error('Compose error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Compose failed', details: error.message });

@@ -57,6 +57,7 @@ import {
 import { Layout } from './components/Layout';
 import { Skeleton, VocabSkeleton } from './components/Skeleton';
 import { FallbackSpinner } from './components/FallbackSpinner';
+import { InstallBanner } from './components/InstallBanner';
 
 const VocabManager = lazy(() => import('./components/VocabManager').then(module => ({ default: module.VocabManager })));
 const SettingsPanel = lazy(() => import('./components/SettingsPanel').then(module => ({ default: module.SettingsPanel })));
@@ -81,6 +82,8 @@ export default function App() {
   const [extracting, setExtracting] = useState(false);
   const [resetNonce, setResetNonce] = useState(0);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(true);
+  const [isIosPromptVisible, setIsIosPromptVisible] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isCached, setIsCached] = useState(false);
   const [useContextInCompose, setUseContextInCompose] = useState(false);
@@ -270,10 +273,47 @@ export default function App() {
   }, [state.themeMode]);
 
   useEffect(() => {
-    window.addEventListener('beforeinstallprompt', (e) => {
+    const isIos = () => {
+      const userAgent = window.navigator.userAgent.toLowerCase();
+      return /iphone|ipad|ipod/.test(userAgent);
+    };
+    const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator as any).standalone;
+    
+    if (isIos() && !isInStandaloneMode()) {
+      setIsIosPromptVisible(true);
+    }
+
+    const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
-    });
+      setShowInstallBanner(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  // Web Share Target API handler
+  useEffect(() => {
+    const handleShareTarget = () => {
+      const url = new URL(window.location.href);
+      if (url.pathname === '/share-handler' || url.searchParams.has('text')) {
+        const title = url.searchParams.get('title') || '';
+        const text = url.searchParams.get('text') || '';
+        const sharedUrl = url.searchParams.get('url') || '';
+        
+        const sharedContent = [title, text, sharedUrl].filter(Boolean).join('\n');
+        
+        if (sharedContent) {
+          setTranslateInput(sharedContent);
+          setActiveTab('translate');
+          
+          // Clear URL to prevent re-triggering
+          window.history.replaceState({}, document.title, '/');
+        }
+      }
+    };
+    
+    handleShareTarget();
   }, []);
 
   const handleInstallPWA = async () => {
@@ -282,6 +322,7 @@ export default function App() {
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
       setDeferredPrompt(null);
+      setShowInstallBanner(false);
     }
   };
 
@@ -683,6 +724,17 @@ export default function App() {
   return (
     <>
       <AnimatePresence>
+        {showInstallBanner && (
+          <InstallBanner 
+            deferredPrompt={deferredPrompt}
+            onInstall={handleInstallPWA}
+            onClose={() => setShowInstallBanner(false)}
+            isIosPromptVisible={isIosPromptVisible}
+          />
+        )}
+      </AnimatePresence>
+      
+      <AnimatePresence>
         {showSplash && (
           <SplashScreen 
             isDataLoaded={!isAppLoading} 
@@ -1078,18 +1130,6 @@ export default function App() {
                 t={t}
               />
             </Suspense>
-            
-            {deferredPrompt && (
-              <div className="px-4 pb-8">
-                <button 
-                  onClick={handleInstallPWA}
-                  className="saas-button primary-button w-full flex items-center justify-center gap-2"
-                >
-                  <Download size={20} />
-                  <span>{t('installPWA')}</span>
-                </button>
-              </div>
-            )}
           </motion.div>
         )}
       </AnimatePresence>
