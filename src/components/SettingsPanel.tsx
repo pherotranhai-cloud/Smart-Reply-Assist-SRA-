@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { ThemeMode, GlobalLanguage, AISettings } from '../types';
 import { AIService } from '../services/ai';
+import { APP_VERSION } from '../config/version';
 
 interface SettingsPanelProps {
   themeMode: ThemeMode;
@@ -222,7 +223,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             </div>
             <div>
               <p className="text-[17px] font-semibold text-text-main">{t('appName')}</p>
-              <p className="text-[13px] text-text-muted">{t('version')}</p>
+              <p className="text-[13px] text-text-muted">Phiên bản {APP_VERSION}</p>
             </div>
           </div>
           <p className="text-[15px] text-text-muted leading-relaxed">

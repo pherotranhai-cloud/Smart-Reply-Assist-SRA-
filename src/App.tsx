@@ -58,6 +58,8 @@ import { Layout } from './components/Layout';
 import { Skeleton, VocabSkeleton } from './components/Skeleton';
 import { FallbackSpinner } from './components/FallbackSpinner';
 import { InstallBanner } from './components/InstallBanner';
+import { ChangelogModal } from './components/ChangelogModal';
+import { APP_VERSION } from './config/version';
 
 const VocabManager = lazy(() => import('./components/VocabManager').then(module => ({ default: module.VocabManager })));
 const SettingsPanel = lazy(() => import('./components/SettingsPanel').then(module => ({ default: module.SettingsPanel })));
@@ -87,7 +89,16 @@ export default function App() {
   const [isCopied, setIsCopied] = useState(false);
   const [isCached, setIsCached] = useState(false);
   const [useContextInCompose, setUseContextInCompose] = useState(false);
+  const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   
+  useEffect(() => {
+    const lastSeenVersion = localStorage.getItem('app_last_seen_version');
+    if (lastSeenVersion !== APP_VERSION) {
+      setIsChangelogOpen(true);
+      localStorage.setItem('app_last_seen_version', APP_VERSION);
+    }
+  }, []);
+
   const outputRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -723,6 +734,11 @@ export default function App() {
 
   return (
     <>
+      <ChangelogModal 
+        isOpen={isChangelogOpen} 
+        onClose={() => setIsChangelogOpen(false)} 
+      />
+      
       <AnimatePresence>
         {showInstallBanner && (
           <InstallBanner 
