@@ -441,6 +441,31 @@ router.post('/import-vocab', async (req, res) => {
   }
 });
 
+router.post('/feedback', async (req, res) => {
+  try {
+    const { content, lang } = req.body || {};
+    console.log('Received feedback:', { content, lang });
+
+    if (supabase) {
+      const { error } = await supabase
+        .from('user_feedbacks')
+        .insert([{ content, interface_lang: lang, created_at: new Date().toISOString() }]);
+        
+      if (error) {
+        console.error('Supabase error:', error);
+        return res.status(500).json({ error: 'Failed to save feedback to database' });
+      }
+    } else {
+      console.warn('Supabase credentials not configured. Logging feedback only.');
+    }
+    
+    res.status(200).json({ message: 'Feedback received successfully!' });
+  } catch (err: any) {
+    console.error('Feedback error:', err);
+    res.status(500).json({ error: 'Failed to process feedback', details: err.message });
+  }
+});
+
 router.get('/vocab', (req, res) => {
   res.status(410).json({ error: 'Database removed. Please use client-side localStorage and /api/import-vocab to sync.' });
 });

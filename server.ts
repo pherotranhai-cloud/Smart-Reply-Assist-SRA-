@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import axios from 'axios';
 import Papa from 'papaparse';
 import rateLimit from 'express-rate-limit';
+import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 
@@ -17,6 +18,27 @@ const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY;
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || '16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const AI_MODEL_NAME = process.env.AI_MODEL_NAME || 'gpt-4o-mini';
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+let supabase: ReturnType<typeof createClient> | null = null;
+
+if (supabaseUrl && supabaseServiceRoleKey) {
+  supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+}
+
+const logToSupabase = async (payload: any) => {
+  if (!supabase) return;
+  try {
+    const { error } = await supabase.from('app_logs').insert([{
+      ...payload,
+      created_at: new Date().toISOString()
+    }]);
+    if (error) console.error('Supabase logging error:', error);
+  } catch (err) {
+    console.error('Supabase logging exception:', err);
+  }
+};
 
 const limiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
@@ -121,7 +143,18 @@ ${summaryInstruction}`;
         }
       });
 
-      res.json({ translatedText: response.data.choices[0].message.content });
+      const outputText = response.data.choices[0].message.content;
+
+      // Non-blocking log to Supabase
+      logToSupabase({
+        task_type: 'translate',
+        input_text: text || '[Image only]',
+        output_text: outputText,
+        from_lang: 'auto',
+        to_lang: explicitTargetLang
+      });
+
+      res.json({ translatedText: outputText });
     } catch (error: any) {
       console.error('Translation error:', error.response?.data || error.message);
       res.status(500).json({ error: 'Translation failed' });
@@ -348,7 +381,18 @@ ${structureInstruction}`;
         }
       });
 
-      res.json({ generatedReply: response.data.choices[0].message.content });
+      const outputText = response.data.choices[0].message.content;
+
+      // Non-blocking log to Supabase
+      logToSupabase({
+        task_type: 'compose',
+        input_text: `${contextText}\n${requirements}`,
+        output_text: outputText,
+        from_lang: 'auto',
+        to_lang: mappedLang
+      });
+
+      res.json({ generatedReply: outputText });
     } catch (error: any) {
       console.error('Compose error:', error.response?.data || error.message);
       res.status(500).json({ error: 'Compose failed' });
@@ -435,6 +479,31 @@ ${structureInstruction}`;
       }
 
       res.status(statusCode).json({ error: errorMessage, details: error.message });
+    }
+  });
+
+  apiRouter.post('/feedback', async (req, res) => {
+    try {
+      const { content, lang } = req.body || {};
+      console.log('Received feedback:', { content, lang });
+
+      if (supabase) {
+        const { error } = await supabase
+          .from('user_feedbacks')
+          .insert([{ content, interface_lang: lang, created_at: new Date().toISOString() }]);
+          
+        if (error) {
+          console.error('Supabase error:', error);
+          return res.status(500).json({ error: 'Failed to save feedback to database' });
+        }
+      } else {
+        console.warn('Supabase credentials not configured. Logging feedback only.');
+      }
+      
+      res.status(200).json({ message: 'Feedback received successfully!' });
+    } catch (err: any) {
+      console.error('Feedback error:', err);
+      res.status(500).json({ error: 'Failed to process feedback', details: err.message });
     }
   });
 
