@@ -59,6 +59,7 @@ import { Skeleton, VocabSkeleton } from './components/Skeleton';
 import { FallbackSpinner } from './components/FallbackSpinner';
 import { InstallBanner } from './components/InstallBanner';
 import { ChangelogModal } from './components/ChangelogModal';
+import { FloatingAssistant } from './components/FloatingAssistant';
 import { APP_VERSION } from './config/version';
 
 const VocabManager = lazy(() => import('./components/VocabManager').then(module => ({ default: module.VocabManager })));
@@ -738,6 +739,8 @@ export default function App() {
         isOpen={isChangelogOpen} 
         onClose={() => setIsChangelogOpen(false)} 
       />
+      
+      <FloatingAssistant settings={state.settings} vocab={vocab} />
       
       <AnimatePresence>
         {showInstallBanner && (

@@ -28,7 +28,7 @@ const logToSupabase = async (payload: any) => {
     const { error } = await supabase.from('app_logs').insert([{
       ...payload,
       created_at: new Date().toISOString()
-    }]);
+    }] as any);
     if (error) console.error('Supabase logging error:', error);
   } catch (err) {
     console.error('Supabase logging exception:', err);
@@ -449,7 +449,7 @@ router.post('/feedback', async (req, res) => {
     if (supabase) {
       const { error } = await supabase
         .from('user_feedbacks')
-        .insert([{ content, interface_lang: lang, created_at: new Date().toISOString() }]);
+        .insert([{ content, interface_lang: lang, created_at: new Date().toISOString() }] as any);
         
       if (error) {
         console.error('Supabase error:', error);
