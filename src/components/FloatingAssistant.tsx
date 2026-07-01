@@ -5,6 +5,7 @@ import { AISettings, VocabItem } from '../types';
 import Markdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import remarkGfm from 'remark-gfm';
 
 interface FloatingAssistantProps {
   settings: AISettings;
@@ -188,7 +189,23 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
                         {isCopied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
                       </button>
                       <div className="text-[15px] text-text-main leading-loose pr-8 max-h-[40vh] overflow-y-auto markdown-body">
-                        <Markdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                        <Markdown 
+                          remarkPlugins={[remarkMath, remarkGfm]} 
+                          rehypePlugins={[rehypeKatex]}
+                          components={{
+                            table: ({node, ...props}) => (
+                              <div className="overflow-x-auto my-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                                <table className="w-full text-left border-collapse" {...props} />
+                              </div>
+                            ),
+                            th: ({node, ...props}) => (
+                              <th className="bg-slate-50 dark:bg-slate-800/50 p-3 text-[13px] font-semibold text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-800 tracking-wide" {...props} />
+                            ),
+                            td: ({node, ...props}) => (
+                              <td className="p-3 text-[13px] border-b border-slate-100 dark:border-slate-800/50 text-slate-600 dark:text-slate-300" {...props} />
+                            )
+                          }}
+                        >
                           {result}
                         </Markdown>
                         
