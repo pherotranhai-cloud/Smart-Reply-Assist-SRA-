@@ -507,6 +507,77 @@ ${structureInstruction}`;
     }
   });
 
+  apiRouter.post('/expert-search', async (req, res) => {
+    try {
+      const { message } = req.body || {};
+      
+      if (!message) {
+        return res.status(400).json({ error: 'Message is required' });
+      }
+
+      const systemPrompt = "Bạn là một chuyên gia kỹ thuật lão làng với 30 năm kinh nghiệm trong ngành sản xuất giày da, am hiểu sâu sắc về Lean, cơ lý vật liệu, hóa chất ngành giày (Keo, xử lý bề mặt Outsole/Upper), tiêu chuẩn SOP, thử nghiệm chất lượng (SATRA, ISO) và các điểm kiểm soát CTQ.";
+
+      let response;
+      try {
+        response = await axios.post(
+          'https://api.openai.com/v1/chat/completions',
+          {
+            model: 'gpt-4o',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: message }
+            ],
+            tools: [{ type: "web_search" }],
+            temperature: 0.2,
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${OPENAI_API_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            timeout: 15000
+          }
+        );
+      } catch (searchError: any) {
+        console.warn("Web search failed or quota exceeded. Falling back to offline knowledge.", searchError.message);
+        response = await axios.post(
+          'https://api.openai.com/v1/chat/completions',
+          {
+            model: AI_MODEL_NAME,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: message }
+            ],
+            temperature: 0.2,
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${OPENAI_API_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            timeout: 15000
+          }
+        );
+      }
+
+      const responseMessage = response.data.choices[0].message;
+
+      // Non-blocking log to Supabase
+      logToSupabase({
+        task_type: 'expert_search',
+        input_text: message,
+        output_text: responseMessage.content,
+        from_lang: 'auto',
+        to_lang: 'vi'
+      });
+
+      res.json({ reply: responseMessage.content, annotations: responseMessage.annotations || [] });
+    } catch (error: any) {
+      console.error('Expert search error:', error.response?.data || error.message);
+      res.status(500).json({ error: 'Expert search failed', details: error.message });
+    }
+  });
+
   // Since we don't have a DB, /vocab API might not be needed if frontend uses localStorage.
   // We'll return 404 or a message to use localStorage.
   apiRouter.get('/vocab', (req, res) => {

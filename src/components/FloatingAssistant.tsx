@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useAnimation, useMotionValue } from 'motion/react';
-import { Zap, X, ChevronRight, Copy, Check, Loader2 } from 'lucide-react';
-import { AIService } from '../services/ai';
-import { AISettings, Language, VocabItem } from '../types';
+import { Bot, X, ChevronRight, Copy, Check, Loader2, Link as LinkIcon } from 'lucide-react';
+import { AISettings, VocabItem } from '../types';
 import Markdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -12,22 +11,12 @@ interface FloatingAssistantProps {
   vocab: VocabItem[];
 }
 
-const QUICK_LANGS: Language[] = ['English', 'Vietnamese', 'Chinese (Simplified)', 'Chinese (Traditional)', 'Indonesian', 'Burmese'];
-const LANG_LABELS: Record<string, string> = {
-  'English': 'EN',
-  'Vietnamese': 'VI',
-  'Chinese (Simplified)': 'CN',
-  'Chinese (Traditional)': 'TW',
-  'Indonesian': 'ID',
-  'Burmese': 'MY'
-};
-
 export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, vocab }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [result, setResult] = useState('');
+  const [annotations, setAnnotations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [targetLang, setTargetLang] = useState<Language>('Vietnamese');
   const [isCopied, setIsCopied] = useState(false);
   
   const controls = useAnimation();
@@ -36,8 +25,7 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    // Initial position on mount - can be empty to let CSS handle it initially
-    // We will let the CSS bottom/right position it initially, and x/y will be offsets.
+    // Initial position on mount
   }, []);
 
   const handleDragEnd = (event: any, info: any) => {
@@ -49,28 +37,20 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
 
-    // Calculate distance to all 4 edges
     const distLeft = centerX;
     const distRight = windowWidth - centerX;
     const distTop = centerY;
     const distBottom = windowHeight - centerY;
 
-    // We want to snap to the nearest left/right edge, but keep the y position mostly intact, 
-    // unless it's too close to top/bottom
-    const minXDist = Math.min(distLeft, distRight);
-    
     let newX = x.get();
     let newY = y.get();
 
     if (distLeft < distRight) {
-      // Snap to left
-      newX -= (distLeft - 16); // 16px padding
+      newX -= (distLeft - 16);
     } else {
-      // Snap to right
       newX += (distRight - 16);
     }
     
-    // Prevent going off top/bottom
     if (distTop < 16) newY -= (distTop - 16);
     if (distBottom < 16) newY += (distBottom - 16);
 
@@ -81,20 +61,31 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
     });
   };
 
-  const handleTranslate = async () => {
+  const handleSearch = async () => {
     if (!input.trim() || loading) return;
     setLoading(true);
     setResult('');
+    setAnnotations([]);
     
     try {
-      const ai = new AIService(settings);
-      const res = await ai.translate(input, targetLang, vocab, undefined, false, (chunk) => {
-        setResult(chunk);
+      const res = await fetch('/api/expert-search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: input })
       });
-      setResult(res);
+
+      if (!res.ok) {
+        throw new Error('Search failed');
+      }
+
+      const data = await res.json();
+      setResult(data.reply);
+      setAnnotations(data.annotations || []);
     } catch (err) {
       console.error(err);
-      setResult('Lỗi dịch thuật. Vui lòng thử lại.');
+      setResult('Lỗi kết nối hoặc vượt quá giới hạn. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -111,9 +102,10 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
     }
   };
 
+  const urlCitations = annotations.filter(a => a.type === 'url_citation' && a.url_citation);
+
   return (
     <>
-      {/* Draggable Button */}
       <motion.div
         drag
         dragMomentum={false}
@@ -135,13 +127,12 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
               whileTap={{ scale: 0.95 }}
               className="pointer-events-auto w-12 h-12 rounded-full ios-glass bg-white/80 dark:bg-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border-main flex items-center justify-center text-accent backdrop-blur-xl"
             >
-              <Zap size={22} className="fill-accent/20" />
+              <Bot size={22} className="fill-accent/20" />
             </motion.button>
           )}
         </AnimatePresence>
       </motion.div>
 
-      {/* Mini Overlay Panel */}
       <AnimatePresence>
         {isOpen && (
           <div className="fixed inset-0 z-[9999] pointer-events-none flex items-end sm:items-center justify-center p-4">
@@ -152,11 +143,10 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className="pointer-events-auto w-full max-w-sm bg-card border border-border-main rounded-3xl shadow-2xl overflow-hidden flex flex-col ios-glass backdrop-blur-xl"
             >
-              {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-border-main bg-bg-input/50">
                 <div className="flex items-center gap-2 text-text-main font-semibold text-sm">
-                  <Zap size={16} className="text-accent fill-accent/20" />
-                  <span>Dịch nhanh</span>
+                  <Bot size={16} className="text-accent fill-accent/20" />
+                  <span>Chuyên gia Kỹ thuật</span>
                 </div>
                 <button 
                   onClick={() => setIsOpen(false)}
@@ -166,33 +156,17 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
                 </button>
               </div>
 
-              {/* Body */}
               <div className="p-4 flex flex-col gap-3">
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Nhập văn bản cần dịch..."
-                  className="w-full h-24 resize-none bg-input text-text-main text-[15px] p-3 rounded-2xl border border-border-main focus:border-accent focus:ring-1 focus:ring-accent transition-all outline-none"
+                  placeholder="Hỏi về keo, xử lý bề mặt, lỗi kỹ thuật..."
+                  className="w-full h-20 resize-none bg-input text-text-main text-[15px] p-3 rounded-2xl border border-border-main focus:border-accent focus:ring-1 focus:ring-accent transition-all outline-none"
                 />
 
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex flex-wrap gap-1">
-                    {QUICK_LANGS.map(lang => (
-                      <button
-                        key={lang}
-                        onClick={() => setTargetLang(lang)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                          targetLang === lang 
-                            ? 'bg-accent text-white' 
-                            : 'bg-bg-input text-text-muted hover:bg-border-main/50'
-                        }`}
-                      >
-                        {LANG_LABELS[lang]}
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex items-center justify-end gap-2">
                   <button
-                    onClick={handleTranslate}
+                    onClick={handleSearch}
                     disabled={!input.trim() || loading}
                     className="shrink-0 p-2.5 rounded-full bg-accent text-white hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
                   >
@@ -200,7 +174,6 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
                   </button>
                 </div>
 
-                {/* Result Area */}
                 <AnimatePresence>
                   {result && (
                     <motion.div 
@@ -210,7 +183,7 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
                     >
                       <button
                         onClick={handleCopy}
-                        className="absolute top-2 right-0 p-1.5 text-text-muted hover:text-text-main bg-panel rounded-lg shadow-sm border border-border-main transition-colors"
+                        className="absolute top-2 right-0 p-1.5 text-text-muted hover:text-text-main bg-panel rounded-lg shadow-sm border border-border-main transition-colors z-10"
                       >
                         {isCopied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
                       </button>
@@ -218,6 +191,32 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
                         <Markdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                           {result}
                         </Markdown>
+                        
+                        {urlCitations.length > 0 && (
+                          <div className="mt-4 pt-3 border-t border-border-main/50">
+                            <p className="text-[11px] font-medium text-text-muted mb-2 uppercase tracking-wider flex items-center gap-1.5">
+                              <span>📌</span> Nguồn tài liệu tham khảo:
+                            </p>
+                            <div className="flex flex-col gap-1.5">
+                              {urlCitations.map((citation: any, idx: number) => (
+                                <a
+                                  key={idx}
+                                  href={citation.url_citation.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 p-2 rounded-lg bg-panel hover:bg-border-main/30 border border-border-main transition-colors group"
+                                >
+                                  <div className="w-5 h-5 rounded-md bg-bg-input flex items-center justify-center shrink-0">
+                                    <LinkIcon size={10} className="text-text-muted group-hover:text-accent transition-colors" />
+                                  </div>
+                                  <span className="text-[11px] font-medium text-text-main truncate">
+                                    {citation.url_citation.title || citation.url_citation.url}
+                                  </span>
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   )}
