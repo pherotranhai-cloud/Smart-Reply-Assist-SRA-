@@ -126,6 +126,7 @@ export default function App() {
   const { speak, stop: stopSpeaking, isSpeaking } = useTextToSpeech();
 
   const composeCacheRef = useRef<Map<string, string>>(new Map());
+  const lastAutoTranslatedInput = useRef("");
 
   // Input states with interim transcript for word counting
   const tInterim = isListening && interimTranscript ? interimTranscript : '';
@@ -183,6 +184,44 @@ export default function App() {
       setTranscript('');
     }
   }, [transcript, setTranscript, activeTab]);
+
+  const getVocabTranslation = useCallback((item: VocabItem, lang: Language) => {
+    switch (lang) {
+      case 'Vietnamese': return item.vi;
+      case 'English': return item.en;
+      case 'Chinese (Simplified)': return item.zh_cn;
+      case 'Chinese (Traditional)': return item.zh_tw;
+      case 'Indonesian': return item.id_lang;
+      case 'Burmese': return item.my;
+      default: return item.vi || item.en;
+    }
+  }, []);
+
+  const getDetectedGlossaryTerms = useCallback(() => {
+    if (!translateInput.trim() || !vocab || vocab.length === 0) return [];
+    const lowerInput = translateInput.toLowerCase();
+    
+    return vocab.filter(item => {
+      if (item.enabled === false || item.enabled === 'false') return false;
+      const termLower = item.term?.toLowerCase();
+      if (!termLower || termLower.length < 2) return false;
+      
+      try {
+        const escapedTerm = termLower.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const isAlphanumeric = /^[a-zA-Z0-9\s]+$/.test(termLower);
+        if (isAlphanumeric) {
+          const regex = new RegExp(`\\b${escapedTerm}\\b`, 'i');
+          return regex.test(lowerInput);
+        } else {
+          return lowerInput.includes(termLower);
+        }
+      } catch (e) {
+        return lowerInput.includes(termLower);
+      }
+    });
+  }, [translateInput, vocab]);
+
+  const matchedTerms = getDetectedGlossaryTerms();
 
   useEffect(() => {
     if (isListening) {
@@ -354,16 +393,16 @@ export default function App() {
     }
   };
 
-  const handleTranslate = useCallback(async () => {
+  const handleTranslate = useCallback(async (isAuto = false) => {
     stopSpeaking();
     if (!translateInput && !translateImage) {
-      showToast(t('provideTextOrImage'), 'error');
+      if (!isAuto) showToast(t('provideTextOrImage'), 'error');
       return;
     }
 
     const securityCheck = validateSecurity(translateInput);
     if (!securityCheck.isValid) {
-      showToast(t(securityCheck.errorKey || 'SECURITY_FIREWALL_ERROR'), 'error');
+      if (!isAuto) showToast(t(securityCheck.errorKey || 'SECURITY_FIREWALL_ERROR'), 'error');
       setLoading(false);
       return;
     }
@@ -378,7 +417,7 @@ export default function App() {
     const hashKey = generateHash(translateInput + targetLang + imageHash);
     const cache = await storage.getTranslationCache();
 
-    if (cache[hashKey]) {
+    if (!isAuto && cache[hashKey]) {
       // Cache hit
       const cachedResult = cache[hashKey].translatedText;
       // Typewriter effect
@@ -392,6 +431,7 @@ export default function App() {
       setIsCached(true);
       showToast(t('instantTranslation'), 'success');
       setLoading(false);
+      lastAutoTranslatedInput.current = translateInput.trim();
       return;
     }
 
@@ -404,7 +444,7 @@ export default function App() {
       let finalSourceText = translateInput;
 
       if (translateImage) {
-        showToast(t('readingImage'), 'info');
+        if (!isAuto) showToast(t('readingImage'), 'info');
         const extractedText = await ai.extractTextFromImage(translateImage);
         
         if (translateInput.trim()) {
@@ -412,7 +452,7 @@ export default function App() {
         } else {
           finalSourceText = extractedText;
         }
-        showToast(t('translating'), 'info');
+        if (!isAuto) showToast(t('translating'), 'info');
       }
       
       // Reset translated text for typewriter effect
@@ -423,7 +463,11 @@ export default function App() {
 
       let fullTranslation = '';
       
-      const result = await ai.translate(finalSourceText, targetLang, currentVocab, undefined, isSummaryMode, (chunk) => {
+      // Pre-filter glossary terms for better prompt injection
+      const matchedTerms = getDetectedGlossaryTerms();
+      const injectedVocab = matchedTerms.length > 0 ? matchedTerms : currentVocab;
+
+      const result = await ai.translate(finalSourceText, targetLang, injectedVocab, undefined, isSummaryMode, (chunk) => {
         fullTranslation += chunk;
         setState(prev => ({ 
           ...prev, 
@@ -458,13 +502,43 @@ export default function App() {
       cache[hashKey] = { translatedText: result, timestamp: Date.now() };
       await storage.setTranslationCache(cache);
       
-      showToast(t('translationUpdated'), 'success');
+      if (!isAuto) showToast(t('translationUpdated'), 'success');
+      lastAutoTranslatedInput.current = translateInput.trim();
     } catch (err: any) {
-      showToast(err.message, 'error');
+      if (!isAuto) showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
-  }, [translateInput, translateImage, targetLang, state.settings, state.lastOutputs, t, showToast]);
+  }, [translateInput, translateImage, targetLang, state.settings, state.lastOutputs, t, showToast, getDetectedGlossaryTerms, isSummaryMode]);
+
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!translateInput.trim() || translateInput.trim().length < 3) {
+      return;
+    }
+
+    if (isListening) {
+      return;
+    }
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      if (translateInput.trim() === lastAutoTranslatedInput.current) {
+        return;
+      }
+      handleTranslate(true);
+    }, 2000);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [translateInput, targetLang, isListening, handleTranslate]);
 
   const handleCompose = useCallback(async () => {
     stopSpeaking();
@@ -846,6 +920,29 @@ export default function App() {
                 </div>
               </div>
 
+              {matchedTerms.length > 0 && (
+                <div className="flex flex-wrap gap-2 items-center py-2 px-3 bg-accent/5 dark:bg-accent/10 rounded-2xl border border-accent/10 transition-all">
+                  <span className="text-xs font-semibold text-accent flex items-center gap-1.5 shrink-0">
+                    <span>🔍</span> {state.globalLanguage === 'vi' ? 'Phát hiện thuật ngữ' : 'Detected terms'}:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                    {matchedTerms.map(item => {
+                      const translationText = getVocabTranslation(item, targetLang);
+                      return (
+                        <span 
+                          key={item.id} 
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/80 dark:bg-slate-800/80 text-text-main shadow-sm border border-border-main backdrop-blur-sm"
+                        >
+                          <span className="font-semibold text-accent">{item.term}</span>
+                          <span className="text-text-muted text-[10px]">&rarr;</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">{translationText}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {translateImage && (
                 <div className="relative inline-block group">
                   <img src={translateImage} className="max-h-32 rounded-xl border border-border-main" alt="Pasted" />
@@ -880,7 +977,7 @@ export default function App() {
                 </div>
                 
                 <button 
-                  onClick={handleTranslate}
+                  onClick={() => handleTranslate(false)}
                   disabled={loading || (!translateInput.trim() && !translateImage) || translateWordCount > 500}
                   className="saas-button primary-button flex-1 sm:flex-none flex items-center justify-center gap-2"
                 >
@@ -892,7 +989,15 @@ export default function App() {
 
             <div ref={outputRef} className="premium-card flex flex-col gap-4 bg-panel">
               <div className="flex justify-between items-center">
-                <h3 className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('translatedOutput')}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('translatedOutput')}</h3>
+                  {loading && (
+                    <div className="flex items-center gap-1 px-2 py-0.5 bg-accent/10 rounded-full text-[9px] font-bold text-accent uppercase tracking-wider animate-pulse">
+                      <Loader2 size={10} className="animate-spin" />
+                      <span>{state.globalLanguage === 'vi' ? 'Dịch ngầm...' : 'Auto-translating...'}</span>
+                    </div>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
                   {state.lastOutputs.translatedText && (
                     <>
