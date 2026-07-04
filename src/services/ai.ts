@@ -116,7 +116,7 @@ export class AIService {
     }
   }
 
-  async translate(text: string, targetLang: string, vocab: VocabItem[], image?: string, summarize: boolean = false, onChunk?: (chunk: string) => void) {
+  async translate(text: string, targetLang: string, vocab: VocabItem[], image?: string, summarize: boolean = false, onChunk?: (chunk: string) => void, isAuto: boolean = false) {
     try {
       // Sử dụng logic so khớp mạnh mẽ vừa khôi phục
       const glossary = this.buildGlossaryPrompt(vocab, targetLang, text);
@@ -126,7 +126,8 @@ export class AIService {
         targetLang,
         glossary, // Gửi Prompt Glossary đã dựng sẵn sang Backend
         image,
-        summarize
+        summarize,
+        isAuto
       });
       
       const translatedText = response.data.translatedText;

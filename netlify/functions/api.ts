@@ -53,7 +53,7 @@ router.post('/translate', async (req, res) => {
     return res.status(500).json({ error: "Server Configuration Error" });
   }
 
-  const { text, targetLang, glossary, image, summarize } = req.body;
+  const { text, targetLang, glossary, image, summarize, isAuto } = req.body;
   try {
     // 1. Minified System Prompt (Already optimized for Factory Context)
     let explicitTargetLang = targetLang;
@@ -116,8 +116,10 @@ ${summaryInstruction}`;
     // 4. Push the unified content as a single user message
     messages.push({ role: 'user', content: userContent });
 
+    const targetModel = isAuto ? "gpt-5.4-nano-2026-03-17" : APP_ENGINE_ID;
+
     const response = await openai.chat.completions.create({
-      model: APP_ENGINE_ID,
+      model: targetModel,
       messages,
       temperature: 0,
     });

@@ -473,7 +473,7 @@ export default function App() {
           ...prev, 
           lastOutputs: { ...prev.lastOutputs, translatedText: fullTranslation } 
         }));
-      });
+      }, isAuto);
       
       const newOutputs = { ...state.lastOutputs, translatedText: result, summary: '', contextSource: 'translated' as const };
       setState(prev => ({ ...prev, lastOutputs: newOutputs }));
