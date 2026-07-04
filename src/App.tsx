@@ -527,7 +527,11 @@ export default function App() {
     }
 
     debounceTimerRef.current = setTimeout(() => {
-      if (translateInput.trim() === lastAutoTranslatedInput.current) {
+      const currentLength = translateInput.trim().length;
+      const lastLength = lastAutoTranslatedInput.current.length;
+      
+      // Nếu người dùng xóa bớt chữ hoặc gõ thêm ít hơn 20 ký tự so với lần dịch tự động gần nhất, lập tức dừng lại
+      if (currentLength - lastLength < 20) {
         return;
       }
       handleTranslate(true);
