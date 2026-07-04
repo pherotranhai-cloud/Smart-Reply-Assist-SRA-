@@ -128,6 +128,38 @@ export default function App() {
   const composeCacheRef = useRef<Map<string, string>>(new Map());
   const lastAutoTranslatedInput = useRef("");
 
+  const stagingCache = useRef<HistoryItem | null>(null);
+  const historyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const commitStagingToPermanentStore = useCallback(async () => {
+    if (historyTimeoutRef.current) {
+      clearTimeout(historyTimeoutRef.current);
+      historyTimeoutRef.current = null;
+    }
+    const item = stagingCache.current;
+    if (item) {
+      try {
+        await storage.addHistory({
+          type: item.type,
+          input: item.input,
+          output: item.output,
+          toLang: item.toLang
+        });
+        const ai = new AIService(state.settings);
+        await ai.logToServer({
+          task_type: item.type,
+          input_text: item.input,
+          output_text: item.output,
+          from_lang: 'auto',
+          to_lang: item.toLang || ''
+        });
+      } catch (err) {
+        console.error('Failed to commit staging history:', err);
+      }
+      stagingCache.current = null;
+    }
+  }, [state.settings]);
+
   // Input states with interim transcript for word counting
   const tInterim = isListening && interimTranscript ? interimTranscript : '';
   const translateInputWithInterim = translateInput + (activeTab === 'translate' && tInterim ? (translateInput && !translateInput.endsWith(' ') ? ' ' : '') + tInterim : '');
@@ -491,12 +523,33 @@ export default function App() {
       setContext(newContext);
       await storage.setContext(newContext);
 
-      await storage.addHistory({ 
-        type: 'translate', 
-        input: finalSourceText, 
+      const historyItemToSave = {
+        type: 'translate' as const,
+        input: finalSourceText,
         output: result,
-        toLang: targetLang 
-      });
+        toLang: targetLang,
+        id: '',
+        timestamp: Date.now()
+      };
+
+      if (isAuto) {
+        stagingCache.current = historyItemToSave;
+        if (historyTimeoutRef.current) {
+          clearTimeout(historyTimeoutRef.current);
+        }
+        historyTimeoutRef.current = setTimeout(() => {
+          commitStagingToPermanentStore();
+        }, 300000); // 5 minutes
+      } else {
+        await storage.addHistory(historyItemToSave);
+        await ai.logToServer({
+          task_type: 'translate',
+          input_text: finalSourceText,
+          output_text: result,
+          from_lang: 'auto',
+          to_lang: targetLang
+        });
+      }
       
       // Save to cache
       cache[hashKey] = { translatedText: result, timestamp: Date.now() };
@@ -776,6 +829,7 @@ export default function App() {
   }, [showToast, t]);
 
   const handleReuse = useCallback((item: HistoryItem) => {
+    commitStagingToPermanentStore();
     if (item.type === 'translate') {
       setTranslateInput(item.input);
       if (item.toLang) setTargetLang(item.toLang as Language);
@@ -802,14 +856,16 @@ export default function App() {
     if (!text) return;
     navigator.clipboard.writeText(text);
     setIsCopied(true);
+    commitStagingToPermanentStore();
     showToast(t('copiedToClipboard'), 'success');
     setTimeout(() => setIsCopied(false), 2000);
-  }, [showToast, t]);
+  }, [showToast, t, commitStagingToPermanentStore]);
 
   const copyToClipboard = useCallback((text: string) => {
     navigator.clipboard.writeText(text);
+    commitStagingToPermanentStore();
     showToast(t('copiedToClipboard'), 'success');
-  }, [showToast, t]);
+  }, [showToast, t, commitStagingToPermanentStore]);
 
   return (
     <>

@@ -148,19 +148,33 @@ ${summaryInstruction}`;
       const outputText = response.data.choices[0].message.content;
 
       // Non-blocking log to Supabase
-      logToSupabase({
-        task_type: 'translate',
-        input_text: text || '[Image only]',
-        output_text: outputText,
-        from_lang: 'auto',
-        to_lang: explicitTargetLang
-      });
+      if (!isAuto) {
+        logToSupabase({
+          task_type: 'translate',
+          input_text: text || '[Image only]',
+          output_text: outputText,
+          from_lang: 'auto',
+          to_lang: explicitTargetLang
+        });
+      }
 
       res.json({ translatedText: outputText });
     } catch (error: any) {
       console.error('Translation error:', error.response?.data || error.message);
       res.status(500).json({ error: 'Translation failed' });
     }
+  });
+
+  apiRouter.post('/log', async (req, res) => {
+    const { task_type, input_text, output_text, from_lang, to_lang } = req.body;
+    logToSupabase({
+      task_type,
+      input_text,
+      output_text,
+      from_lang,
+      to_lang
+    });
+    res.json({ success: true });
   });
 
   apiRouter.post('/ocr', limiter, async (req, res) => {
