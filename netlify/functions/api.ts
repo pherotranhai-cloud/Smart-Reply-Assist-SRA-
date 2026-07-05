@@ -118,14 +118,28 @@ ${summaryInstruction}`;
 
     const targetModel = isAuto ? "gpt-5.4-nano-2026-03-17" : APP_ENGINE_ID;
 
-    const response = await openai.chat.completions.create({
+    const stream = await openai.chat.completions.create({
       model: targetModel,
       messages,
       temperature: 0,
+      stream: true
     });
 
-    const outputText = response.choices[0].message.content;
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    let outputText = '';
     
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || '';
+      if (content) {
+        outputText += content;
+        res.write(content);
+      }
+    }
+    res.end();
+
     // Non-blocking log to Supabase
     if (!isAuto) {
       logToSupabase({
@@ -136,8 +150,6 @@ ${summaryInstruction}`;
         to_lang: targetLang
       });
     }
-
-    res.json({ translatedText: outputText });
   } catch (error: any) {
     console.error('Translation error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Translation failed', details: error.message });

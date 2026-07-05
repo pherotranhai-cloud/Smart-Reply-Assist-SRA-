@@ -76,6 +76,7 @@ export default function App() {
   const [isVocabOpen, setIsVocabOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'info' | 'error' | 'success' } | null>(null);
@@ -499,13 +500,22 @@ export default function App() {
       const matchedTerms = getDetectedGlossaryTerms();
       const injectedVocab = matchedTerms.length > 0 ? matchedTerms : currentVocab;
 
+      let hasReceivedFirstChunk = false;
+      setIsStreaming(true);
+
       const result = await ai.translate(finalSourceText, targetLang, injectedVocab, undefined, isSummaryMode, (chunk) => {
+        if (!hasReceivedFirstChunk && chunk.trim()) {
+          hasReceivedFirstChunk = true;
+          setLoading(false);
+        }
         fullTranslation += chunk;
         setState(prev => ({ 
           ...prev, 
           lastOutputs: { ...prev.lastOutputs, translatedText: fullTranslation } 
         }));
       }, isAuto);
+      
+      setIsStreaming(false);
       
       const newOutputs = { ...state.lastOutputs, translatedText: result, summary: '', contextSource: 'translated' as const };
       setState(prev => ({ ...prev, lastOutputs: newOutputs }));
@@ -561,6 +571,7 @@ export default function App() {
       if (!isAuto) showToast(err.message, 'error');
     } finally {
       setLoading(false);
+      setIsStreaming(false);
     }
   }, [translateInput, translateImage, targetLang, state.settings, state.lastOutputs, t, showToast, getDetectedGlossaryTerms, isSummaryMode]);
 
@@ -1038,7 +1049,7 @@ export default function App() {
                 
                 <button 
                   onClick={() => handleTranslate(false)}
-                  disabled={loading || (!translateInput.trim() && !translateImage) || translateWordCount > 500}
+                  disabled={loading || isStreaming || (!translateInput.trim() && !translateImage) || translateWordCount > 500}
                   className="saas-button primary-button flex-1 sm:flex-none flex items-center justify-center gap-2"
                 >
                   {loading ? <Loader2 className="animate-spin" size={20} /> : <Languages size={20} />}

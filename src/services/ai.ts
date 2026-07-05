@@ -129,23 +129,50 @@ export class AIService {
       // Sử dụng logic so khớp mạnh mẽ vừa khôi phục
       const glossary = this.buildGlossaryPrompt(vocab, targetLang, text);
       
-      const response = await axios.post('/api/translate', {
-        text,
-        targetLang,
-        glossary, // Gửi Prompt Glossary đã dựng sẵn sang Backend
-        image,
-        summarize,
-        isAuto
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          text,
+          targetLang,
+          glossary, // Gửi Prompt Glossary đã dựng sẵn sang Backend
+          image,
+          summarize,
+          isAuto
+        })
       });
       
-      const translatedText = response.data.translatedText;
-      if (onChunk) {
-        onChunk(translatedText);
+      if (!response.ok) {
+        let errData;
+        try {
+          errData = await response.json();
+        } catch(e) {
+          throw new Error('Translation failed');
+        }
+        throw new Error(errData.error || errData.details || 'Translation failed');
       }
-      return translatedText;
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No stream available');
+      const decoder = new TextDecoder("utf-8");
+      let accumulatedText = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        accumulatedText += chunk;
+        if (onChunk) {
+          onChunk(chunk);
+        }
+      }
+      
+      return accumulatedText;
     } catch (err: any) {
       console.error('Translation error:', err);
-      throw new Error(err.response?.data?.error || 'Translation failed');
+      throw new Error(err.message || 'Translation failed');
     }
   }
 

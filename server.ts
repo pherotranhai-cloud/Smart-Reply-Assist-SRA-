@@ -134,18 +134,53 @@ ${summaryInstruction}`;
 
       const targetModel = isAuto ? "gpt-5.4-nano-2026-03-17" : AI_MODEL_NAME;
 
-      const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-        model: targetModel,
-        messages,
-        temperature: 0,
-      }, {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${OPENAI_API_KEY}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+          model: targetModel,
+          messages,
+          temperature: 0,
+          stream: true
+        })
       });
 
-      const outputText = response.data.choices[0].message.content;
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      let outputText = '';
+      if (response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\\n').filter(line => line.trim() !== '');
+          for (const line of lines) {
+            if (line === 'data: [DONE]') {
+              break;
+            }
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                const content = data.choices[0]?.delta?.content || '';
+                if (content) {
+                  outputText += content;
+                  res.write(content);
+                }
+              } catch (e) {
+                console.error('Error parsing stream chunk', e);
+              }
+            }
+          }
+        }
+      }
+      res.end();
 
       // Non-blocking log to Supabase
       if (!isAuto) {
@@ -157,8 +192,6 @@ ${summaryInstruction}`;
           to_lang: explicitTargetLang
         });
       }
-
-      res.json({ translatedText: outputText });
     } catch (error: any) {
       console.error('Translation error:', error.response?.data || error.message);
       res.status(500).json({ error: 'Translation failed' });
