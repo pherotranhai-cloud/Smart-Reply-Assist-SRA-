@@ -55,22 +55,28 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [feedbackText, setFeedbackText] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
-  const handleFeedbackSubmit = async (e?: React.FormEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+  const handleFeedbackSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+    const inputKey = feedbackText.trim();
+    const targetAdminKey = import.meta.env.VITE_ADMIN_SECRET_KEY || "MÃ_BẢO_MẬT_DỰ_PHÒNG_CỦA_BẠN";
     
-    const text = feedbackText;
-    const adminSecret = import.meta.env.VITE_ADMIN_SECRET_KEY || "";
-    if (text.trim() === adminSecret || text.trim() === "MÃ_ADMIN_BẢO_MẬT_CỦA_BẠN") {
+    if (inputKey === targetAdminKey || inputKey === "MÃ_ADMIN_BẢO_MẬT_CỦA_BẠN") {
+      // CHẶN TUYỆT ĐỐI: Ngắt ngay lập tức mọi bong bóng sự kiện và luồng ngầm của Form
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.nativeEvent) {
+          (e.nativeEvent as any).stopImmediatePropagation();
+        }
+      }
+      
+      // Chuyển đổi giao diện sang Admin Mode lập tức
       if (onOpenAdmin) onOpenAdmin();
-      setIsFeedbackOpen(false);
-      setFeedbackText('');
-      return; // Thoát ngay lập tức, chặn đứng luồng ghi xuống bảng feedback thông thường
+      setFeedbackText(""); // Xóa trắng ô nhập liệu
+      setIsFeedbackOpen(false); // Đóng modal góp ý
+      return; // THOÁT NGAY LẬP TỨC - Chặn đứng hoàn toàn luồng ghi xuống DB
     }
 
-    if (!text.trim()) return;
+    if (!inputKey) return;
     
     setIsSubmittingFeedback(true);
     try {
