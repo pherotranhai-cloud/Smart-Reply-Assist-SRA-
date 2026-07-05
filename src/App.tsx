@@ -61,9 +61,12 @@ import { InstallBanner } from './components/InstallBanner';
 import { ChangelogModal } from './components/ChangelogModal';
 import { FloatingAssistant } from './components/FloatingAssistant';
 import { APP_VERSION } from './config/version';
+import { TemporaryLockoutModal } from './components/TemporaryLockoutModal';
+import { PermanentBanOverlay } from './components/PermanentBanOverlay';
 
 const VocabManager = lazy(() => import('./components/VocabManager').then(module => ({ default: module.VocabManager })));
 const SettingsPanel = lazy(() => import('./components/SettingsPanel').then(module => ({ default: module.SettingsPanel })));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
 const TalkTab = lazy(() => import('./components/TalkTab').then(module => ({ default: module.TalkTab })));
 const HistoryTab = lazy(() => import('./components/HistoryTab').then(module => ({ default: module.HistoryTab })));
 
@@ -80,6 +83,12 @@ export default function App() {
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'info' | 'error' | 'success' } | null>(null);
+  const [isAdminMode, setIsAdminMode] = useState(false);
+
+  const requestTimestamps = useRef<number[]>([]);
+  const [isLocked, setIsLocked] = useState(false);
+  const [isBanned, setIsBanned] = useState(false);
+  const [showLockout, setShowLockout] = useState(false);
   const [context, setContext] = useState<ConversationContext | null>(null);
   const [isContextExpanded, setIsContextExpanded] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -101,6 +110,45 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      try {
+        const response = await originalFetch(...args);
+        if (response.status === 403) {
+          setIsBanned(true);
+        }
+        return response;
+      } catch (e) {
+        throw e;
+      }
+    };
+
+    let axiosInterceptor: number | null = null;
+    import('axios').then(({ default: axios }) => {
+      axiosInterceptor = axios.interceptors.response.use(
+        response => response,
+        error => {
+          if (error.response && error.response.status === 403) {
+            setIsBanned(true);
+          }
+          return Promise.reject(error);
+        }
+      );
+    }).catch(console.error);
+
+    fetch('/api/health').catch(console.error);
+
+    return () => {
+      window.fetch = originalFetch;
+      if (axiosInterceptor !== null) {
+        import('axios').then(({ default: axios }) => {
+          axios.interceptors.response.eject(axiosInterceptor!);
+        }).catch(console.error);
+      }
+    };
+  }, []);
+
   const outputRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -120,6 +168,32 @@ export default function App() {
     lang: 'English' as Language,
     format: 'wechat_zalo' as Format
   });
+
+  const handleCloseLockout = useCallback(() => {
+    setShowLockout(false);
+    setIsLocked(false);
+    requestTimestamps.current = [];
+  }, []);
+
+  const checkRateLimit = useCallback(() => {
+    const now = Date.now();
+    requestTimestamps.current = requestTimestamps.current.filter(t => now - t < 30000);
+    if (requestTimestamps.current.length >= 5) {
+      if (!isLocked) {
+        setIsLocked(true);
+        setShowLockout(true);
+        
+        fetch('/api/security-analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: translateInput || composeReq })
+        }).catch(e => console.error(e));
+      }
+      return false;
+    }
+    requestTimestamps.current.push(now);
+    return true;
+  }, [isLocked, translateInput, composeReq]);
 
   const [reviewToggle, setReviewToggle] = useState<'reply' | 'summary'>('reply');
 
@@ -433,6 +507,8 @@ export default function App() {
       return;
     }
 
+    if (!isAuto && !checkRateLimit()) return;
+
     const securityCheck = validateSecurity(translateInput);
     if (!securityCheck.isValid) {
       if (!isAuto) showToast(t(securityCheck.errorKey || 'SECURITY_FIREWALL_ERROR'), 'error');
@@ -617,6 +693,8 @@ export default function App() {
       showToast(t('provideRequirements'), 'error');
       return;
     }
+
+    if (!checkRateLimit()) return;
 
     const securityCheck = validateSecurity(composeReq);
     if (!securityCheck.isValid) {
@@ -880,6 +958,13 @@ export default function App() {
 
   return (
     <>
+      <TemporaryLockoutModal 
+        isOpen={showLockout} 
+        onClose={handleCloseLockout} 
+      />
+
+      {isBanned && <PermanentBanOverlay />}
+
       <ChangelogModal 
         isOpen={isChangelogOpen} 
         onClose={() => setIsChangelogOpen(false)} 
@@ -927,7 +1012,12 @@ export default function App() {
           >
             <div className="premium-card space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('inputSource')}</h3>
+                <div className="flex items-center gap-3">
+                  <h3 className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('inputSource')}</h3>
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    {translateInputWithInterim.length} / 1500
+                  </span>
+                </div>
                 <div className="flex gap-2">
                   <button 
                     onClick={() => setTranslateImage(null)}
@@ -945,11 +1035,8 @@ export default function App() {
                   value={translateInputWithInterim}
                   onChange={e => setTranslateInput(e.target.value)}
                   onPaste={handlePaste}
-                  maxLength={3000}
+                  maxLength={1500}
                 />
-                <div className="absolute bottom-3 right-3 text-[11px] font-medium" style={{ color: translateWordCount > 500 ? '#ef4444' : '#64748b' }}>
-                  {translateWordCount} / 500 words
-                </div>
                 {isListening && (
                   <div className="absolute top-3 right-3 flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full animate-pulse">
                     <div className="w-2 h-2 bg-red-500 rounded-full" />
@@ -1049,7 +1136,7 @@ export default function App() {
                 
                 <button 
                   onClick={() => handleTranslate(false)}
-                  disabled={loading || isStreaming || (!translateInput.trim() && !translateImage) || translateWordCount > 500}
+                  disabled={loading || isStreaming || (!translateInput.trim() && !translateImage)}
                   className="saas-button primary-button flex-1 sm:flex-none flex items-center justify-center gap-2"
                 >
                   {loading ? <Loader2 className="animate-spin" size={20} /> : <Languages size={20} />}
@@ -1143,7 +1230,12 @@ export default function App() {
                 {/* Primary Focus: Reply Requirements */}
                 <div className="space-y-2 flex flex-col flex-1">
                   <div className="flex justify-between items-center px-1">
-                    <label className="text-[13px] font-semibold text-text-main">{t('replyRequirements')}</label>
+                    <div className="flex items-center gap-3">
+                      <label className="text-[13px] font-semibold text-text-main">{t('replyRequirements')}</label>
+                      <span className="text-[11px] text-slate-400 font-medium">
+                        {composeInputWithInterim.length} / 1500
+                      </span>
+                    </div>
                   </div>
                   <div className="relative flex-1 flex flex-col">
                     <textarea 
@@ -1151,11 +1243,8 @@ export default function App() {
                       placeholder={t('replyPlaceholder')}
                       value={composeInputWithInterim}
                       onChange={e => setComposeReq(e.target.value)}
-                      maxLength={3000}
+                      maxLength={1500}
                     />
-                    <div className="absolute bottom-3 right-3 text-[11px] font-medium" style={{ color: composeWordCount > 500 ? '#ef4444' : '#64748b' }}>
-                      {composeWordCount} / 500 words
-                    </div>
                     {isListening && (
                       <div className="absolute top-3 right-3 flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full animate-pulse">
                         <div className="w-2 h-2 bg-red-500 rounded-full" />
@@ -1233,7 +1322,7 @@ export default function App() {
               <div className="max-w-3xl mx-auto pointer-events-auto">
                 <button 
                   onClick={handleCompose}
-                  disabled={loading || (!composeReq.trim() && !(useContextInCompose && context && (context.sourceText || context.translatedText))) || composeWordCount > 500}
+                  disabled={loading || (!composeReq.trim() && !(useContextInCompose && context && (context.sourceText || context.translatedText)))}
                   className="saas-button primary-button w-full shadow-lg shadow-accent/20"
                 >
                   {loading ? <Loader2 className="animate-spin" size={20} /> : <PenTool size={20} />}
@@ -1323,6 +1412,7 @@ export default function App() {
                   setState(prev => ({ ...prev, settings: s }));
                 }}
                 t={t}
+                onOpenAdmin={() => setIsAdminMode(true)}
               />
             </Suspense>
           </motion.div>
@@ -1334,6 +1424,14 @@ export default function App() {
         textListening={t('listeningActive')} 
         onClick={handleToggleListening}
       />
+
+      <AnimatePresence>
+        {isAdminMode && (
+          <Suspense fallback={<FallbackSpinner />}>
+            <AdminDashboard onClose={() => setIsAdminMode(false)} />
+          </Suspense>
+        )}
+      </AnimatePresence>
     </Layout>
     </>
   );

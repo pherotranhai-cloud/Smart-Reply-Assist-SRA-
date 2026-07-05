@@ -31,6 +31,7 @@ interface SettingsPanelProps {
   settings: AISettings;
   onSaveSettings: (s: AISettings) => void;
   t: (key: string) => string;
+  onOpenAdmin?: () => void;
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
@@ -42,7 +43,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onClearHistory,
   settings,
   onSaveSettings,
-  t
+  t,
+  onOpenAdmin
 }) => {
   const [localSettings, setLocalSettings] = useState(settings);
   const [testing, setTesting] = useState(false);
@@ -55,6 +57,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   const handleFeedbackSubmit = async () => {
     if (!feedbackText.trim()) return;
+    
+    if (feedbackText.trim() === 'MÃ_ADMIN_BẢO_MẬT_CỦA_BẠN' || (import.meta.env.VITE_ADMIN_SECRET_KEY && feedbackText.trim() === import.meta.env.VITE_ADMIN_SECRET_KEY)) {
+      if (onOpenAdmin) onOpenAdmin();
+      setIsFeedbackOpen(false);
+      setFeedbackText('');
+      return;
+    }
+    
     setIsSubmittingFeedback(true);
     try {
       await fetch('/api/feedback', {

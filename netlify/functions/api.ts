@@ -45,6 +45,37 @@ const router = Router();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+let ipBlacklistCache = new Set<string>();
+let lastBlacklistFetch = 0;
+
+const fetchBlacklist = async () => {
+  if (!supabase) return;
+  const now = Date.now();
+  if (now - lastBlacklistFetch < 60000) return; // cache 1 min
+  try {
+    const { data } = await supabase.from('ip_blacklist').select('ip');
+    if (data) {
+      ipBlacklistCache = new Set(data.map((d: any) => d.ip));
+      lastBlacklistFetch = now;
+    }
+  } catch (err) {
+    console.error('Failed to fetch blacklist', err);
+  }
+};
+
+app.use(async (req, res, next) => {
+  await fetchBlacklist();
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+  const clientIp = typeof ip === 'string' ? ip.split(',')[0].trim() : 'unknown';
+  
+  if (ipBlacklistCache.has(clientIp)) {
+    return res.status(403).json({ error: 'Access Denied' });
+  }
+  
+  (req as any).clientIp = clientIp;
+  next();
+});
+
 router.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 router.post('/translate', async (req, res) => {
@@ -147,7 +178,8 @@ ${summaryInstruction}`;
         input_text: text || '[Image only]',
         output_text: outputText,
         from_lang: 'auto',
-        to_lang: targetLang
+        to_lang: targetLang,
+        ip_address: (req as any).clientIp
       });
     }
   } catch (error: any) {
@@ -163,7 +195,8 @@ router.post('/log', async (req, res) => {
     input_text,
     output_text,
     from_lang,
-    to_lang
+    to_lang,
+    ip_address: (req as any).clientIp
   });
   res.json({ success: true });
 });
@@ -377,7 +410,8 @@ ${structureInstruction}`;
       input_text: `${contextText}\n${requirements}`,
       output_text: outputText,
       from_lang: 'auto',
-      to_lang: mappedLang
+      to_lang: mappedLang,
+      ip_address: (req as any).clientIp
     });
 
     res.json({ generatedReply: outputText });
@@ -535,7 +569,8 @@ router.post('/expert-search', async (req, res) => {
       input_text: message,
       output_text: responseMessage.content,
       from_lang: 'auto',
-      to_lang: 'vi'
+      to_lang: 'vi',
+      ip_address: (req as any).clientIp
     });
 
     res.json({ reply: responseMessage.content, annotations: (responseMessage as any).annotations || [] });
@@ -545,8 +580,84 @@ router.post('/expert-search', async (req, res) => {
   }
 });
 
+router.post('/security-analyze', async (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'Missing text' });
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: APP_ENGINE_ID,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a security AI. Analyze the following spam/attack text. Return a JSON object with {"keywords": ["keyword1", "keyword2"]} that are most indicative of this spam.'
+        },
+        { role: 'user', content: text }
+      ],
+      response_format: { type: 'json_object' }
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || '{"keywords":[]}');
+    
+    // Log to Supabase or update dynamic config
+    if (supabase) {
+      await supabase.from('security_rules').insert([
+        { rule_type: 'keyword', rule_value: result.keywords.join(','), created_at: new Date().toISOString() }
+      ] as any);
+    }
+
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Analysis failed' });
+  }
+});
+
 router.get('/vocab', (req, res) => {
   res.status(410).json({ error: 'Database removed. Please use client-side localStorage and /api/import-vocab to sync.' });
+});
+
+router.get('/admin/data', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
+
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const monthAgo = new Date();
+    monthAgo.setMonth(monthAgo.getMonth() - 1);
+
+    const [{ count: day }, { count: week }, { count: month }] = await Promise.all([
+      supabase.from('app_logs').select('*', { count: 'exact', head: true }).gte('created_at', today.toISOString()),
+      supabase.from('app_logs').select('*', { count: 'exact', head: true }).gte('created_at', weekAgo.toISOString()),
+      supabase.from('app_logs').select('*', { count: 'exact', head: true }).gte('created_at', monthAgo.toISOString())
+    ]);
+
+    const { data: feedbacks } = await supabase.from('user_feedbacks').select('*').order('created_at', { ascending: false }).limit(50);
+    const { data: logs } = await supabase.from('app_logs').select('ip_address, input_text, created_at').order('created_at', { ascending: false }).limit(100);
+
+    res.json({
+      stats: { day: day || 0, week: week || 0, month: month || 0 },
+      feedbacks: feedbacks || [],
+      logs: logs || []
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch admin data' });
+  }
+});
+
+router.post('/admin/blacklist', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
+  const { ip } = req.body;
+  if (!ip) return res.status(400).json({ error: 'Missing ip' });
+
+  try {
+    await supabase.from('ip_blacklist').insert([{ ip, created_at: new Date().toISOString() }] as any);
+    ipBlacklistCache.add(ip);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to blacklist IP' });
+  }
 });
 
 router.all('*', (req, res) => {
