@@ -111,6 +111,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    fetch('/api/security-rules')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.pattern_text) {
+          localStorage.setItem('aima_block_pattern', data.pattern_text);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  useEffect(() => {
     const originalFetch = window.fetch;
     window.fetch = async (...args) => {
       try {

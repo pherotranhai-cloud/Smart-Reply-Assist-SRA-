@@ -43,7 +43,29 @@ const logToSupabase = async (payload: any) => {
 const limiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 20, // limit each IP to 20 requests per windowMs
-  message: 'Too many requests, please try again later.',
+  handler: async (req, res) => {
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    const clientIp = typeof ip === 'string' ? ip.split(',')[0].trim() : 'unknown';
+    
+    if (supabase) {
+      try {
+        await (supabase as any)
+          .from('ip_tracker')
+          .upsert(
+            {
+              ip_address: clientIp,
+              status: 'warning',
+              spam_logs: `Rate limit reached at ${new Date().toISOString()} for URL: ${req.originalUrl}`,
+              last_request_at: new Date().toISOString()
+            },
+            { onConflict: 'ip_address' }
+          );
+      } catch (err) {
+        console.error('Rate limit logging to supabase failed:', err);
+      }
+    }
+    res.status(429).json({ error: 'Too many requests, please try again later.' });
+  }
 });
 
 async function startServer() {
@@ -76,12 +98,38 @@ async function startServer() {
     await fetchBlacklist();
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
     const clientIp = typeof ip === 'string' ? ip.split(',')[0].trim() : 'unknown';
-    
-    if (ipBlacklistCache.has(clientIp)) {
-      return res.status(403).json({ error: 'Access Denied' });
+    (req as any).clientIp = clientIp;
+
+    if (supabase) {
+      try {
+        const { data: trackers } = await (supabase as any)
+          .from('ip_tracker')
+          .select('*')
+          .eq('ip_address', clientIp);
+
+        if (trackers && trackers.length > 0) {
+          const tracker = trackers[0];
+          if (tracker.status === 'block') {
+            return res.status(403).json({ error: 'IP_BANNED' });
+          }
+          await (supabase as any)
+            .from('ip_tracker')
+            .update({ last_request_at: new Date().toISOString() })
+            .eq('ip_address', clientIp);
+        } else {
+          await (supabase as any)
+            .from('ip_tracker')
+            .insert([{ ip_address: clientIp, status: 'good', last_request_at: new Date().toISOString() }] as any);
+        }
+      } catch (err) {
+        console.error('IP Tracker Middleware error:', err);
+      }
     }
     
-    (req as any).clientIp = clientIp;
+    if (ipBlacklistCache.has(clientIp)) {
+      return res.status(403).json({ error: 'IP_BANNED' });
+    }
+    
     next();
   });
 
@@ -662,6 +710,26 @@ ${structureInstruction}`;
     res.status(410).json({ error: 'Database removed. Please use client-side localStorage and /api/import-vocab to sync.' });
   });
 
+  apiRouter.get('/security-rules', async (req, res) => {
+    if (!supabase) {
+      return res.json({ pattern_text: '' });
+    }
+    try {
+      const { data, error } = await (supabase as any)
+        .from('security_rules')
+        .select('pattern_text')
+        .order('id', { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      if (data && data.length > 0) {
+        return res.json({ pattern_text: data[0].pattern_text });
+      }
+      return res.json({ pattern_text: '' });
+    } catch (err: any) {
+      return res.status(500).json({ error: 'Failed to fetch security rules' });
+    }
+  });
+
   apiRouter.post('/security-analyze', async (req, res) => {
     const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'Missing text' });
@@ -670,7 +738,7 @@ ${structureInstruction}`;
       const response = await axios.post(
         'https://api.openai.com/v1/chat/completions',
         {
-          model: AI_MODEL_NAME,
+          model: 'gpt-5.4-nano-2026-03-17',
           messages: [
             {
               role: 'system',
@@ -685,10 +753,32 @@ ${structureInstruction}`;
 
       const result = JSON.parse(response.data.choices[0].message.content || '{"keywords":[]}');
       
-      if (supabase) {
-        await supabase.from('security_rules').insert([
-          { rule_type: 'keyword', rule_value: result.keywords.join(','), created_at: new Date().toISOString() }
-        ] as any);
+      if (supabase && result.keywords && result.keywords.length > 0) {
+        try {
+          const { data: ruleData } = await (supabase as any)
+            .from('security_rules')
+            .select('*')
+            .order('id', { ascending: false })
+            .limit(1);
+
+          if (ruleData && ruleData.length > 0) {
+            const currentPattern = ruleData[0].pattern_text;
+            const newKeywords = result.keywords.filter((kw: string) => kw && kw.trim() && !currentPattern.includes(kw.trim()));
+            if (newKeywords.length > 0) {
+              const updatedPattern = `${currentPattern}|${newKeywords.map((kw: string) => kw.trim()).join('|')}`;
+              await (supabase as any)
+                .from('security_rules')
+                .update({ pattern_text: updatedPattern, updated_at: new Date().toISOString() })
+                .eq('id', ruleData[0].id);
+            }
+          } else {
+            await (supabase as any)
+              .from('security_rules')
+              .insert([{ pattern_text: result.keywords.map((kw: string) => kw.trim()).join('|'), updated_at: new Date().toISOString() }] as any);
+          }
+        } catch (dbErr) {
+          console.error('Failed to update security_rules table:', dbErr);
+        }
       }
 
       res.json(result);
@@ -708,22 +798,55 @@ ${structureInstruction}`;
       const monthAgo = new Date();
       monthAgo.setMonth(monthAgo.getMonth() - 1);
 
-      const [{ count: day }, { count: week }, { count: month }] = await Promise.all([
-        supabase.from('app_logs').select('*', { count: 'exact', head: true }).gte('created_at', today.toISOString()),
-        supabase.from('app_logs').select('*', { count: 'exact', head: true }).gte('created_at', weekAgo.toISOString()),
-        supabase.from('app_logs').select('*', { count: 'exact', head: true }).gte('created_at', monthAgo.toISOString())
+      // Active user stats from ip_tracker
+      const [{ count: activeDay }, { count: activeWeek }, { count: activeMonth }] = await Promise.all([
+        (supabase as any).from('ip_tracker').select('*', { count: 'exact', head: true }).gte('last_request_at', today.toISOString()),
+        (supabase as any).from('ip_tracker').select('*', { count: 'exact', head: true }).gte('last_request_at', weekAgo.toISOString()),
+        (supabase as any).from('ip_tracker').select('*', { count: 'exact', head: true }).gte('last_request_at', monthAgo.toISOString())
       ]);
 
       const { data: feedbacks } = await supabase.from('user_feedbacks').select('*').order('created_at', { ascending: false }).limit(50);
       const { data: logs } = await supabase.from('app_logs').select('ip_address, input_text, created_at').order('created_at', { ascending: false }).limit(100);
+      const { data: ipTrackers } = await (supabase as any).from('ip_tracker').select('*').order('last_request_at', { ascending: false });
 
       res.json({
-        stats: { day: day || 0, week: week || 0, month: month || 0 },
+        stats: { day: activeDay || 0, week: activeWeek || 0, month: activeMonth || 0 },
         feedbacks: feedbacks || [],
-        logs: logs || []
+        logs: logs || [],
+        ipTrackers: ipTrackers || []
       });
     } catch (error: any) {
       res.status(500).json({ error: 'Failed to fetch admin data' });
+    }
+  });
+
+  apiRouter.post('/admin/ip-tracker/status', async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
+    const { ip_address, status } = req.body;
+    if (!ip_address || !status) return res.status(400).json({ error: 'Missing ip_address or status' });
+
+    try {
+      if (status === 'good') {
+        await (supabase as any)
+          .from('ip_tracker')
+          .update({ status: 'good', spam_logs: null })
+          .eq('ip_address', ip_address);
+        ipBlacklistCache.delete(ip_address);
+      } else if (status === 'block') {
+        await (supabase as any)
+          .from('ip_tracker')
+          .update({ status: 'block' })
+          .eq('ip_address', ip_address);
+        ipBlacklistCache.add(ip_address);
+      } else if (status === 'warning') {
+        await (supabase as any)
+          .from('ip_tracker')
+          .update({ status: 'warning' })
+          .eq('ip_address', ip_address);
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to update IP tracker status' });
     }
   });
 

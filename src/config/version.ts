@@ -1,7 +1,7 @@
-export const APP_VERSION = "1.9.8";
+export const APP_VERSION = "1.9.10";
 
 export const UPDATE_CHANGELOG = {
-  title: "Có gì mới trong phiên bản 1.9.8?",
+  title: "Có gì mới trong phiên bản 1.9.10?",
   features: [
     "Stream Text liên tục — Chữ chạy ra màn hình ngay lập tức, xóa bỏ hoàn toàn cảm giác trễ khi dịch các đoạn văn bản dài.",
     "Hệ thống dịch thuật Text Realtime thông minh, Model Routing Engine — Định tuyến luồng dịch sang gpt-5.4-nano để bứt phá tốc độ",

@@ -11,6 +11,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   const [stats, setStats] = useState({ day: 0, week: 0, month: 0 });
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
+  const [ipTrackers, setIpTrackers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,6 +27,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
         setStats(data.stats);
         setFeedbacks(data.feedbacks);
         setLogs(data.logs);
+        setIpTrackers(data.ipTrackers || []);
       }
     } catch (e) {
       console.error(e);
@@ -34,18 +36,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     }
   };
 
-  const handleBlockIP = async (ip: string) => {
+  const handleUpdateIPStatus = async (ipAddress: string, status: 'good' | 'warning' | 'block') => {
     try {
-      await fetch('/api/admin/blacklist', {
+      const res = await fetch('/api/admin/ip-tracker/status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ip })
+        body: JSON.stringify({ ip_address: ipAddress, status })
       });
-      alert(`IP ${ip} đã bị cấm vĩnh viễn.`);
-      fetchData();
+      if (res.ok) {
+        alert(`Đã chuyển trạng thái IP ${ipAddress} sang ${status.toUpperCase()}.`);
+        fetchData();
+      } else {
+        alert('Cập nhật trạng thái thất bại.');
+      }
     } catch (e) {
       console.error(e);
+      alert('Đã xảy ra lỗi.');
     }
+  };
+
+  const handleBlockIP = async (ip: string) => {
+    await handleUpdateIPStatus(ip, 'block');
   };
 
   return (
@@ -146,39 +157,102 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                 )}
 
                 {activeTab === 'blacklist' && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-bold text-text-main mb-4">Nhật ký request & Chặn IP</h3>
-                    <div className="bg-panel rounded-xl border border-border-main overflow-hidden">
-                      <table className="w-full text-left">
-                        <thead className="bg-bg-input border-b border-border-main text-xs uppercase text-slate-400 font-medium">
-                          <tr>
-                            <th className="px-4 py-3">Thời gian</th>
-                            <th className="px-4 py-3">IP Address</th>
-                            <th className="px-4 py-3">Nội dung Request</th>
-                            <th className="px-4 py-3 text-right">Hành động</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border-main">
-                          {logs.map((log, idx) => (
-                            <tr key={idx} className="hover:bg-border-main/10">
-                              <td className="px-4 py-3 text-sm text-text-muted whitespace-nowrap">{new Date(log.created_at).toLocaleString()}</td>
-                              <td className="px-4 py-3 text-sm font-mono text-text-muted whitespace-nowrap">{log.ip_address || 'Unknown'}</td>
-                              <td className="px-4 py-3 text-sm text-text-main max-w-xs truncate" title={log.input_text}>{log.input_text}</td>
-                              <td className="px-4 py-3 text-right">
-                                {log.ip_address && (
-                                  <button 
-                                    onClick={() => handleBlockIP(log.ip_address)}
-                                    className="px-3 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg text-xs font-semibold transition-colors"
-                                  >
-                                    Cấm IP Vĩnh Viễn
-                                  </button>
-                                )}
-                              </td>
+                  <div className="space-y-6">
+                    {/* Spam & IP Block Management Section */}
+                    <div>
+                      <h3 className="text-lg font-bold text-text-main mb-4 flex items-center gap-2">
+                        <Ban size={20} className="text-red-500" />
+                        Spam & IP Block Management
+                      </h3>
+                      <div className="bg-panel rounded-xl border border-border-main overflow-hidden mb-6">
+                        <table className="w-full text-left">
+                          <thead className="bg-bg-input border-b border-border-main text-xs uppercase text-slate-400 font-medium">
+                            <tr>
+                              <th className="px-4 py-3">IP Address</th>
+                              <th className="px-4 py-3">Trạng thái</th>
+                              <th className="px-4 py-3">Nhật ký Spam (Spam Logs)</th>
+                              <th className="px-4 py-3">Hoạt động cuối</th>
+                              <th className="px-4 py-3 text-right">Hành động</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      {logs.length === 0 && <div className="p-4 text-center text-text-muted">Không có dữ liệu</div>}
+                          </thead>
+                          <tbody className="divide-y divide-border-main">
+                            {ipTrackers.filter((ip: any) => ip.status === 'warning' || ip.status === 'block').map((ip: any, idx: number) => (
+                              <tr key={idx} className="hover:bg-border-main/10">
+                                <td className="px-4 py-3 text-sm font-mono text-text-main whitespace-nowrap">{ip.ip_address}</td>
+                                <td className="px-4 py-3 text-sm whitespace-nowrap">
+                                  <span className={`px-2 py-0.5 rounded text-xs font-semibold ${ip.status === 'block' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'}`}>
+                                    {ip.status.toUpperCase()}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-sm text-text-muted max-w-xs truncate" title={ip.spam_logs}>
+                                  {ip.spam_logs || 'Không có logs'}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-text-muted whitespace-nowrap">
+                                  {ip.last_request_at ? new Date(ip.last_request_at).toLocaleString() : 'N/A'}
+                                </td>
+                                <td className="px-4 py-3 text-right space-x-2 whitespace-nowrap">
+                                  {ip.status !== 'block' && (
+                                    <button 
+                                      onClick={() => handleUpdateIPStatus(ip.ip_address, 'block')}
+                                      className="px-2.5 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg text-xs font-semibold transition-colors"
+                                    >
+                                      Khóa vĩnh viễn
+                                    </button>
+                                  )}
+                                  <button 
+                                    onClick={() => handleUpdateIPStatus(ip.ip_address, 'good')}
+                                    className="px-2.5 py-1.5 bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white rounded-lg text-xs font-semibold transition-colors"
+                                  >
+                                    Mở khóa / Hợp lệ
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                            {ipTrackers.filter((ip: any) => ip.status === 'warning' || ip.status === 'block').length === 0 && (
+                              <tr>
+                                <td colSpan={5} className="p-4 text-center text-text-muted text-sm">Không có IP nào bị warning hoặc block.</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Request Logs Section */}
+                    <div>
+                      <h3 className="text-lg font-bold text-text-main mb-4">Nhật ký request & Chặn IP nhanh</h3>
+                      <div className="bg-panel rounded-xl border border-border-main overflow-hidden">
+                        <table className="w-full text-left">
+                          <thead className="bg-bg-input border-b border-border-main text-xs uppercase text-slate-400 font-medium">
+                            <tr>
+                              <th className="px-4 py-3">Thời gian</th>
+                              <th className="px-4 py-3">IP Address</th>
+                              <th className="px-4 py-3">Nội dung Request</th>
+                              <th className="px-4 py-3 text-right">Hành động</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border-main">
+                            {logs.map((log, idx) => (
+                              <tr key={idx} className="hover:bg-border-main/10">
+                                <td className="px-4 py-3 text-sm text-text-muted whitespace-nowrap">{new Date(log.created_at).toLocaleString()}</td>
+                                <td className="px-4 py-3 text-sm font-mono text-text-muted whitespace-nowrap">{log.ip_address || 'Unknown'}</td>
+                                <td className="px-4 py-3 text-sm text-text-main max-w-xs truncate" title={log.input_text}>{log.input_text}</td>
+                                <td className="px-4 py-3 text-right">
+                                  {log.ip_address && (
+                                    <button 
+                                      onClick={() => handleBlockIP(log.ip_address)}
+                                      className="px-3 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg text-xs font-semibold transition-colors"
+                                    >
+                                      Cấm IP Vĩnh Viễn
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {logs.length === 0 && <div className="p-4 text-center text-text-muted">Không có dữ liệu</div>}
+                      </div>
                     </div>
                   </div>
                 )}

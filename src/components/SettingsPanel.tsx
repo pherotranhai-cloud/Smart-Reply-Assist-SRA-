@@ -55,15 +55,22 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [feedbackText, setFeedbackText] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
-  const handleFeedbackSubmit = async () => {
-    if (!feedbackText.trim()) return;
+  const handleFeedbackSubmit = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     
-    if (feedbackText.trim() === 'MÃ_ADMIN_BẢO_MẬT_CỦA_BẠN' || (import.meta.env.VITE_ADMIN_SECRET_KEY && feedbackText.trim() === import.meta.env.VITE_ADMIN_SECRET_KEY)) {
+    const text = feedbackText;
+    const adminSecret = import.meta.env.VITE_ADMIN_SECRET_KEY || "";
+    if (text.trim() === adminSecret || text.trim() === "MÃ_ADMIN_BẢO_MẬT_CỦA_BẠN") {
       if (onOpenAdmin) onOpenAdmin();
       setIsFeedbackOpen(false);
       setFeedbackText('');
-      return;
+      return; // Thoát ngay lập tức, chặn đứng luồng ghi xuống bảng feedback thông thường
     }
+
+    if (!text.trim()) return;
     
     setIsSubmittingFeedback(true);
     try {
