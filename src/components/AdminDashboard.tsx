@@ -8,26 +8,65 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<'stats' | 'feedbacks' | 'blacklist'>('stats');
-  const [stats, setStats] = useState({ day: 0, week: 0, month: 0 });
+  const [stats, setStats] = useState({ day: 0, week: 0, month: 0, totalRequests: 0 });
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [ipTrackers, setIpTrackers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (activeTab === 'stats') {
+      fetchKPIData();
+    } else if (activeTab === 'feedbacks') {
+      fetchFeedbacks();
+    } else if (activeTab === 'blacklist') {
+      fetchIPTrackerData();
+    }
+  }, [activeTab]);
 
-  const fetchData = async () => {
+  const fetchKPIData = async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/admin/data');
       if (res.ok) {
         const data = await res.json();
-        setStats(data.stats);
-        setFeedbacks(data.feedbacks);
-        setLogs(data.logs);
+        setStats({
+          day: data.stats?.day || 0,
+          week: data.stats?.week || 0,
+          month: data.stats?.month || 0,
+          totalRequests: data.stats?.totalRequests || 0
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchFeedbacks = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/data');
+      if (res.ok) {
+        const data = await res.json();
+        setFeedbacks(data.feedbacks || []);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchIPTrackerData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/data');
+      if (res.ok) {
+        const data = await res.json();
         setIpTrackers(data.ipTrackers || []);
+        setLogs(data.logs || []);
       }
     } catch (e) {
       console.error(e);
@@ -45,7 +84,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
       });
       if (res.ok) {
         alert(`Đã chuyển trạng thái IP ${ipAddress} sang ${status.toUpperCase()}.`);
-        fetchData();
+        fetchIPTrackerData();
       } else {
         alert('Cập nhật trạng thái thất bại.');
       }
@@ -112,7 +151,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                 {activeTab === 'stats' && (
                   <div className="space-y-6">
                     <h3 className="text-lg font-bold text-text-main mb-4">Tổng quan lượt truy cập</h3>
-                    <div className="grid grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                       <div className="bg-panel border border-border-main p-6 rounded-2xl shadow-sm">
                         <div className="text-sm font-medium text-slate-400 uppercase tracking-widest mb-2">Hôm nay</div>
                         <div className="text-4xl font-bold text-text-main">{stats.day}</div>
@@ -124,6 +163,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                       <div className="bg-panel border border-border-main p-6 rounded-2xl shadow-sm">
                         <div className="text-sm font-medium text-slate-400 uppercase tracking-widest mb-2">Tháng này</div>
                         <div className="text-4xl font-bold text-accent">{stats.month}</div>
+                      </div>
+                      <div className="bg-panel border border-border-main p-6 rounded-2xl shadow-sm border-accent/30 bg-accent/5">
+                        <div className="text-sm font-medium text-accent uppercase tracking-widest mb-2">Tổng số request</div>
+                        <div className="text-4xl font-bold text-accent">{stats.totalRequests}</div>
                       </div>
                     </div>
                   </div>

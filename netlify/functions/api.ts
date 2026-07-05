@@ -694,11 +694,12 @@ router.get('/admin/data', async (req, res) => {
     const monthAgo = new Date();
     monthAgo.setMonth(monthAgo.getMonth() - 1);
 
-    // Active user stats from ip_tracker
-    const [{ count: activeDay }, { count: activeWeek }, { count: activeMonth }] = await Promise.all([
+    // Active user stats from ip_tracker and total count from app_logs
+    const [{ count: activeDay }, { count: activeWeek }, { count: activeMonth }, { count: totalRequests }] = await Promise.all([
       (supabase as any).from('ip_tracker').select('*', { count: 'exact', head: true }).gte('last_request_at', today.toISOString()),
       (supabase as any).from('ip_tracker').select('*', { count: 'exact', head: true }).gte('last_request_at', weekAgo.toISOString()),
-      (supabase as any).from('ip_tracker').select('*', { count: 'exact', head: true }).gte('last_request_at', monthAgo.toISOString())
+      (supabase as any).from('ip_tracker').select('*', { count: 'exact', head: true }).gte('last_request_at', monthAgo.toISOString()),
+      (supabase as any).from('app_logs').select('*', { count: 'exact', head: true })
     ]);
 
     const { data: feedbacks } = await supabase.from('user_feedbacks').select('*').order('created_at', { ascending: false }).limit(50);
@@ -706,7 +707,7 @@ router.get('/admin/data', async (req, res) => {
     const { data: ipTrackers } = await (supabase as any).from('ip_tracker').select('*').order('last_request_at', { ascending: false });
 
     res.json({
-      stats: { day: activeDay || 0, week: activeWeek || 0, month: activeMonth || 0 },
+      stats: { day: activeDay || 0, week: activeWeek || 0, month: activeMonth || 0, totalRequests: totalRequests || 0 },
       feedbacks: feedbacks || [],
       logs: logs || [],
       ipTrackers: ipTrackers || []
