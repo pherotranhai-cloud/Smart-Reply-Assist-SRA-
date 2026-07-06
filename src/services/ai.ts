@@ -161,7 +161,29 @@ export class AIService {
 
       while (true) {
         const { value, done } = await reader.read();
-        if (done) break;
+        if (done) {
+          try {
+            const deviceUuid = localStorage.getItem('aima_device_uuid') || 'unknown';
+            await fetch('/api/log', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-device-uuid': deviceUuid
+              },
+              body: JSON.stringify({
+                task_type: 'translate',
+                input_text: text,
+                output_text: accumulatedText,
+                from_lang: 'auto',
+                to_lang: targetLang,
+                device_uuid: deviceUuid
+              })
+            });
+          } catch (logErr) {
+            console.error('SSE logger failed:', logErr);
+          }
+          break;
+        }
         const chunk = decoder.decode(value, { stream: true });
         accumulatedText += chunk;
         if (onChunk) {

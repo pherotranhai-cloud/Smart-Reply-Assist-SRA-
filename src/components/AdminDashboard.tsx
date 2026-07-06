@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { X, ShieldAlert, BarChart3, MessageSquare, Ban } from 'lucide-react';
 
+const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || '';
+
 interface AdminDashboardProps {
   onClose: () => void;
 }
@@ -27,7 +29,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   const fetchKPIData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/data');
+      const res = await fetch(`${SERVER_BASE_URL}/api/admin/kpis`);
       if (res.ok) {
         const data = await res.json();
         setStats({
@@ -47,7 +49,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   const fetchFeedbacks = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/data');
+      const res = await fetch(`${SERVER_BASE_URL}/api/admin/feedbacks`);
       if (res.ok) {
         const data = await res.json();
         setFeedbacks(data.feedbacks || []);
@@ -62,7 +64,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   const fetchIPTrackerData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/data');
+      const res = await fetch(`${SERVER_BASE_URL}/api/admin/devices`);
       if (res.ok) {
         const data = await res.json();
         setIpTrackers(data.ipTrackers || []);
@@ -77,13 +79,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
   const handleUpdateIPStatus = async (ipAddress: string, status: 'good' | 'warning' | 'block') => {
     try {
-      const res = await fetch('/api/admin/ip-tracker/status', {
+      const res = await fetch(`${SERVER_BASE_URL}/api/admin/device-status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ip_address: ipAddress, status })
       });
       if (res.ok) {
-        alert(`Đã chuyển trạng thái IP ${ipAddress} sang ${status.toUpperCase()}.`);
+        alert(`Đã chuyển trạng thái thiết bị ${ipAddress} sang ${status.toUpperCase()}.`);
         fetchIPTrackerData();
       } else {
         alert('Cập nhật trạng thái thất bại.');
@@ -203,15 +205,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                   <div className="space-y-6">
                     {/* Spam & IP Block Management Section */}
                     <div>
-                      <h3 className="text-lg font-bold text-text-main mb-4 flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-text-main mb-1 flex items-center gap-2">
                         <Ban size={20} className="text-red-500" />
-                        Spam & IP Block Management
+                        Spam & Device Block Management
                       </h3>
+                      <p className="text-xs italic text-slate-500 mb-4 opacity-80">
+                        *Hệ thống đang thực hiện quản trị chặn theo Mã định danh thiết bị (Device UUID) để bảo toàn kết nối Wifi xưởng.*
+                      </p>
                       <div className="bg-panel rounded-xl border border-border-main overflow-hidden mb-6">
                         <table className="w-full text-left">
                           <thead className="bg-bg-input border-b border-border-main text-xs uppercase text-slate-400 font-medium">
                             <tr>
-                              <th className="px-4 py-3">IP Address</th>
+                              <th className="px-4 py-3">Device UUID</th>
                               <th className="px-4 py-3">Trạng thái</th>
                               <th className="px-4 py-3">Nhật ký Spam (Spam Logs)</th>
                               <th className="px-4 py-3">Hoạt động cuối</th>
@@ -221,7 +226,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                           <tbody className="divide-y divide-border-main">
                             {ipTrackers.filter((ip: any) => ip.status === 'warning' || ip.status === 'block').map((ip: any, idx: number) => (
                               <tr key={idx} className="hover:bg-border-main/10">
-                                <td className="px-4 py-3 text-sm font-mono text-text-main whitespace-nowrap">{ip.ip_address}</td>
+                                <td className="px-4 py-3 text-xs font-mono text-text-main break-all max-w-[200px]">{ip.ip_address}</td>
                                 <td className="px-4 py-3 text-sm whitespace-nowrap">
                                   <span className={`px-2 py-0.5 rounded text-xs font-semibold ${ip.status === 'block' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'}`}>
                                     {ip.status.toUpperCase()}
@@ -253,7 +258,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                             ))}
                             {ipTrackers.filter((ip: any) => ip.status === 'warning' || ip.status === 'block').length === 0 && (
                               <tr>
-                                <td colSpan={5} className="p-4 text-center text-text-muted text-sm">Không có IP nào bị warning hoặc block.</td>
+                                <td colSpan={5} className="p-4 text-center text-text-muted text-sm">Không có thiết bị nào bị warning hoặc block.</td>
                               </tr>
                             )}
                           </tbody>
@@ -263,13 +268,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
                     {/* Request Logs Section */}
                     <div>
-                      <h3 className="text-lg font-bold text-text-main mb-4">Nhật ký request & Chặn IP nhanh</h3>
+                      <h3 className="text-lg font-bold text-text-main mb-4">Nhật ký request & Chặn thiết bị nhanh</h3>
                       <div className="bg-panel rounded-xl border border-border-main overflow-hidden">
                         <table className="w-full text-left">
                           <thead className="bg-bg-input border-b border-border-main text-xs uppercase text-slate-400 font-medium">
                             <tr>
                               <th className="px-4 py-3">Thời gian</th>
-                              <th className="px-4 py-3">IP Address</th>
+                              <th className="px-4 py-3">Device UUID</th>
                               <th className="px-4 py-3">Nội dung Request</th>
                               <th className="px-4 py-3 text-right">Hành động</th>
                             </tr>
@@ -278,7 +283,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                             {logs.map((log, idx) => (
                               <tr key={idx} className="hover:bg-border-main/10">
                                 <td className="px-4 py-3 text-sm text-text-muted whitespace-nowrap">{new Date(log.created_at).toLocaleString()}</td>
-                                <td className="px-4 py-3 text-sm font-mono text-text-muted whitespace-nowrap">{log.ip_address || 'Unknown'}</td>
+                                <td className="px-4 py-3 text-xs font-mono text-text-muted break-all max-w-[200px]">{log.ip_address || 'Unknown'}</td>
                                 <td className="px-4 py-3 text-sm text-text-main max-w-xs truncate" title={log.input_text}>{log.input_text}</td>
                                 <td className="px-4 py-3 text-right">
                                   {log.ip_address && (
@@ -286,7 +291,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                                       onClick={() => handleBlockIP(log.ip_address)}
                                       className="px-3 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg text-xs font-semibold transition-colors"
                                     >
-                                      Cấm IP Vĩnh Viễn
+                                      Khóa thiết bị vĩnh viễn
                                     </button>
                                   )}
                                 </td>

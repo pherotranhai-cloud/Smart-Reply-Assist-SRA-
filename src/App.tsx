@@ -122,10 +122,40 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // Generate or retrieve device_uuid
+    let deviceUuid = localStorage.getItem('aima_device_uuid');
+    if (!deviceUuid) {
+      deviceUuid = crypto.randomUUID ? crypto.randomUUID() : 'uuid-' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+      localStorage.setItem('aima_device_uuid', deviceUuid);
+    }
+
     const originalFetch = window.fetch;
     window.fetch = async (...args) => {
       try {
-        const response = await originalFetch(...args);
+        let [resource, config] = args;
+        
+        config = config || {};
+        config.headers = {
+          ...config.headers,
+          'x-device-uuid': deviceUuid
+        };
+
+        // Inject device_uuid into JSON payloads
+        if (config.method && ['POST', 'PUT', 'PATCH'].includes(config.method.toUpperCase())) {
+           if (typeof config.body === 'string') {
+             try {
+                const parsedBody = JSON.parse(config.body);
+                if (typeof parsedBody === 'object' && parsedBody !== null) {
+                   parsedBody.device_uuid = deviceUuid;
+                   config.body = JSON.stringify(parsedBody);
+                }
+             } catch (e) {
+                // Ignore parse errors if body is not JSON
+             }
+           }
+        }
+
+        const response = await originalFetch(resource, config);
         if (response.status === 403) {
           setIsBanned(true);
         }
@@ -137,7 +167,18 @@ export default function App() {
 
     let axiosInterceptor: number | null = null;
     import('axios').then(({ default: axios }) => {
-      axiosInterceptor = axios.interceptors.response.use(
+      axiosInterceptor = axios.interceptors.request.use((config) => {
+        if (!config.headers) {
+          config.headers = {} as any;
+        }
+        config.headers['x-device-uuid'] = deviceUuid;
+        if (config.data && typeof config.data === 'object') {
+          config.data.device_uuid = deviceUuid;
+        }
+        return config;
+      });
+      
+      const responseInterceptor = axios.interceptors.response.use(
         response => response,
         error => {
           if (error.response && error.response.status === 403) {
@@ -152,11 +193,7 @@ export default function App() {
 
     return () => {
       window.fetch = originalFetch;
-      if (axiosInterceptor !== null) {
-        import('axios').then(({ default: axios }) => {
-          axios.interceptors.response.eject(axiosInterceptor!);
-        }).catch(console.error);
-      }
+      // ... cleanup if needed
     };
   }, []);
 
@@ -214,37 +251,47 @@ export default function App() {
   const composeCacheRef = useRef<Map<string, string>>(new Map());
   const lastAutoTranslatedInput = useRef("");
 
-  const stagingCache = useRef<HistoryItem | null>(null);
-  const historyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveToLocalHistory = useCallback(async (type: 'translate' | 'compose') => {
+    try {
+      if (type === 'translate') {
+        const text = translateInput.trim();
+        const result = state.lastOutputs.translatedText;
+        if (!text || !result) return;
 
-  const commitStagingToPermanentStore = useCallback(async () => {
-    if (historyTimeoutRef.current) {
-      clearTimeout(historyTimeoutRef.current);
-      historyTimeoutRef.current = null;
-    }
-    const item = stagingCache.current;
-    if (item) {
-      try {
-        await storage.addHistory({
-          type: item.type,
-          input: item.input,
-          output: item.output,
-          toLang: item.toLang
-        });
-        const ai = new AIService(state.settings);
-        await ai.logToServer({
-          task_type: item.type,
-          input_text: item.input,
-          output_text: item.output,
-          from_lang: 'auto',
-          to_lang: item.toLang || ''
-        });
-      } catch (err) {
-        console.error('Failed to commit staging history:', err);
+        const historyList = await storage.getHistory();
+        const exists = historyList.some(h => h.type === 'translate' && h.input === text && h.output === result);
+        if (!exists) {
+          await storage.addHistory({
+            type: 'translate',
+            input: text,
+            output: result,
+            toLang: targetLang
+          });
+        }
+      } else if (type === 'compose') {
+        const req = composeReq.trim();
+        const result = state.lastOutputs.generatedReply;
+        if (!req || !result) return;
+
+        const historyList = await storage.getHistory();
+        const exists = historyList.some(h => h.type === 'compose' && h.input === req && h.output === result);
+        if (!exists) {
+          await storage.addHistory({
+            type: 'compose',
+            input: req,
+            output: result,
+            toLang: composeParams.lang,
+            meta: {
+              tone: composeParams.tone,
+              format: composeParams.format
+            }
+          });
+        }
       }
-      stagingCache.current = null;
+    } catch (err) {
+      console.error('Failed to save to local history:', err);
     }
-  }, [state.settings]);
+  }, [translateInput, state.lastOutputs, targetLang, composeReq, composeParams]);
 
   // Input states with interim transcript for word counting
   const tInterim = isListening && interimTranscript ? interimTranscript : '';
@@ -629,23 +676,8 @@ export default function App() {
         timestamp: Date.now()
       };
 
-      if (isAuto) {
-        stagingCache.current = historyItemToSave;
-        if (historyTimeoutRef.current) {
-          clearTimeout(historyTimeoutRef.current);
-        }
-        historyTimeoutRef.current = setTimeout(() => {
-          commitStagingToPermanentStore();
-        }, 300000); // 5 minutes
-      } else {
+      if (!isAuto) {
         await storage.addHistory(historyItemToSave);
-        await ai.logToServer({
-          task_type: 'translate',
-          input_text: finalSourceText,
-          output_text: result,
-          from_lang: 'auto',
-          to_lang: targetLang
-        });
       }
       
       // Save to cache
@@ -929,7 +961,11 @@ export default function App() {
   }, [showToast, t]);
 
   const handleReuse = useCallback((item: HistoryItem) => {
-    commitStagingToPermanentStore();
+    if (activeTab === 'translate') {
+      saveToLocalHistory('translate');
+    } else if (activeTab === 'compose') {
+      saveToLocalHistory('compose');
+    }
     if (item.type === 'translate') {
       setTranslateInput(item.input);
       if (item.toLang) setTargetLang(item.toLang as Language);
@@ -950,22 +986,22 @@ export default function App() {
     } else if (item.type === 'talk') {
       setActiveTab('talk');
     }
-  }, []);
+  }, [activeTab, saveToLocalHistory]);
 
   const handleCopy = useCallback((text: string) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
     setIsCopied(true);
-    commitStagingToPermanentStore();
+    saveToLocalHistory('translate');
     showToast(t('copiedToClipboard'), 'success');
     setTimeout(() => setIsCopied(false), 2000);
-  }, [showToast, t, commitStagingToPermanentStore]);
+  }, [showToast, t, saveToLocalHistory]);
 
   const copyToClipboard = useCallback((text: string) => {
     navigator.clipboard.writeText(text);
-    commitStagingToPermanentStore();
+    saveToLocalHistory('compose');
     showToast(t('copiedToClipboard'), 'success');
-  }, [showToast, t, commitStagingToPermanentStore]);
+  }, [showToast, t, saveToLocalHistory]);
 
   return (
     <>
@@ -1046,6 +1082,12 @@ export default function App() {
                   value={translateInputWithInterim}
                   onChange={e => setTranslateInput(e.target.value)}
                   onPaste={handlePaste}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleTranslate(false);
+                    }
+                  }}
                   maxLength={1500}
                 />
                 {isListening && (
@@ -1254,6 +1296,12 @@ export default function App() {
                       placeholder={t('replyPlaceholder')}
                       value={composeInputWithInterim}
                       onChange={e => setComposeReq(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleCompose();
+                        }
+                      }}
                       maxLength={1500}
                     />
                     {isListening && (
