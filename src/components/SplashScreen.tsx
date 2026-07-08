@@ -4,177 +4,167 @@ import { motion, AnimatePresence } from 'motion/react';
 interface SplashScreenProps {
   isDataLoaded: boolean;
   onComplete: () => void;
-  t: (key: string) => string; // Hoặc kiểu tương ứng với hàm i18n của bạn
+  t: (key: string) => string;
 }
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({ isDataLoaded, onComplete, t }) => {
   const [minTimePassed, setMinTimePassed] = useState(false);
 
-  // Đảm bảo hoạt ảnh chạy tối thiểu 3.2 giây để phô diễn hết 5 Frame
+  // Khống chế thời gian tối thiểu 3.0s để phô diễn trọn vẹn animation
   useEffect(() => {
     const timer = setTimeout(() => {
       setMinTimePassed(true);
-    }, 3200);
+    }, 3000);
     return () => clearTimeout(timer);
   }, []);
 
-  // Chuyển trang mượt mà khi cả Animation và Data đều sẵn sàng
   useEffect(() => {
     if (minTimePassed && isDataLoaded) {
       onComplete();
     }
   }, [minTimePassed, isDataLoaded, onComplete]);
 
-  // SVG Paths chuẩn của logo Lai Yih
-  const yellowBorderPath = "M20,185 V135 H35 A85,85 0 0,1 205,135 H220 V185 H20 Z M32,173 H208 V140 H195 A73,73 0 0,0 45,140 H32 V173 Z";
-  const greenLPath = "M75,95 H92 V135 H115 V150 H75 V95 Z";
-  const greenYPath = "M125,95 H143 L152,118 L161,95 H179 L162,130 V150 H143 V130 L125,95 Z";
+  // ==========================================
+  // TỌA ĐỘ SVG CHUẨN XÁC TỪ BẢN MẪU (200x200)
+  // ==========================================
+  // Khung vòm vàng (Yellow Arch): 
+  // Đi từ góc dưới trái -> dưới phải -> lên vai phải -> thụt vào -> vẽ vòm hoàn hảo -> thụt ra trái -> đóng lại.
+  const yellowArchPath = "M 15 160 L 185 160 L 185 110 L 168 110 A 68 68 0 0 0 32 110 L 15 110 Z";
+  
+  // Chữ L xanh: Căn chỉnh tỷ lệ cân bằng bên trái
+  const letterLPath = "M 55 80 V 140 H 90 V 120 H 75 V 80 Z";
+  
+  // Chữ Y xanh: Căn chỉnh tỷ lệ cân bằng bên phải
+  const letterYPath = "M 105 80 L 125 110 V 140 H 145 V 110 L 165 80 H 145 L 135 98 L 125 80 Z";
 
-  // VARIANTS: Cấu hình diễn hoạt Logo (Frame 2 & Frame 3)
+  const colorYellow = "#FBBF24"; // Vàng hoàng kim chuẩn
+  const colorGreen = "#16A34A";  // Xanh lá đậm chuyên nghiệp
+
+  // ==========================================
+  // CẤU HÌNH HIỆU ỨNG CHUYỂN ĐỘNG
+  // ==========================================
+  const svgVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.2 }
+    }
+  };
+
   const pathVariants = {
     hidden: { 
       pathLength: 0, 
       fillOpacity: 0, 
       strokeOpacity: 0 
     },
-    visible: (custom: number) => ({
+    visible: {
       pathLength: 1,
-      strokeOpacity: [0, 1, 1, 0.2], // Vẽ nét sáng rực, sau đó chìm nhẹ khi fill xuất hiện
       fillOpacity: 1,
+      strokeOpacity: [0, 1, 1, 0], // Nét vẽ sáng lên, sau đó chìm đi nhường chỗ cho fill
       transition: {
-        pathLength: { duration: 1.5, ease: "easeInOut", delay: custom },
-        strokeOpacity: { duration: 2, times: [0, 0.2, 0.7, 1], delay: custom },
-        fillOpacity: { duration: 0.8, ease: "easeIn", delay: custom + 1.2 }
+        pathLength: { duration: 1.2, ease: "easeInOut" },
+        fillOpacity: { duration: 0.8, ease: "easeOut", delay: 1.0 },
+        strokeOpacity: { duration: 1.8, times: [0, 0.2, 0.7, 1] }
       }
-    })
+    }
   };
 
-  // VARIANTS: Cấu hình Container cho chữ (Frame 4)
-  const textContainerVariants = {
-    hidden: { opacity: 0 },
+  const textVariants = {
+    hidden: { opacity: 0, y: 15, filter: "blur(4px)" },
     visible: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.08, // Hiệu ứng xuất hiện nối tiếp nhau
-        delayChildren: 2.2     // Bắt đầu chạy sau khi logo tô màu xong
-      }
-    }
-  };
-
-  // VARIANTS: Cấu hình từng ký tự của chữ
-  const letterVariants = {
-    hidden: { opacity: 0, y: 15, filter: "blur(8px)" },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
+      y: 0,
       filter: "blur(0px)",
-      transition: { duration: 0.5, ease: "easeOut" }
+      transition: { duration: 0.8, delay: 1.8, ease: "easeOut" }
     }
   };
-
-  const brandName = "LAI YIH GROUP";
 
   return (
     <AnimatePresence>
       <motion.div
         key="splash-screen"
-        // Frame 1: Khởi tạo màu nền & Frame 5: Hiệu ứng Thoát (Exit)
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ 
           opacity: 0, 
-          scale: 1.05, 
-          filter: "blur(15px)", 
-          transition: { duration: 0.8, ease: "easeInOut" } 
+          scale: 1.03, 
+          filter: "blur(10px)", 
+          transition: { duration: 0.6, ease: "easeInOut" } 
         }}
-        className="fixed inset-0 z-[1000] flex flex-col items-center justify-center overflow-hidden bg-[#020617] bg-[radial-gradient(circle_at_center,rgba(0,109,119,0.35)_0%,rgba(2,6,23,1)_75%)]"
+        // Phông nền Slate cực tối, sang trọng và không bị rác mắt
+        className="fixed inset-0 z-[1000] flex flex-col items-center justify-center overflow-hidden bg-[#0B0F19]"
       >
-        {/* Frame 5: Khối Float Animation lơ lửng cho toàn bộ cụm trung tâm */}
+        {/* Khối trung tâm với nhịp thở siêu nhẹ nhàng */}
         <motion.div 
-          animate={{ y: [0, -8, 0] }}
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 2.5 }}
+          animate={{ y: [0, -6, 0] }}
+          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 2.5 }}
           className="relative flex flex-col items-center"
         >
-          {/* Logo SVG Container */}
+          {/* Logo SVG */}
           <motion.div
             initial={{ filter: "drop-shadow(0px 0px 0px rgba(0,0,0,0))" }}
-            animate={{ filter: "drop-shadow(0px 0px 35px rgba(34,197,94,0.35))" }}
-            transition={{ delay: 1.8, duration: 1.2 }}
-            className="relative z-10 w-[220px] md:w-[300px]"
+            animate={{ filter: `drop-shadow(0px 8px 25px rgba(0,0,0,0.5))` }} // Bóng đen tạo khối nổi 3D mượt
+            transition={{ delay: 1.2, duration: 1.0 }}
+            className="w-[180px] md:w-[240px]"
           >
-            <svg viewBox="0 0 240 240" className="w-full h-full drop-shadow-xl">
+            <motion.svg 
+              viewBox="0 0 200 200" 
+              className="w-full h-full"
+              variants={svgVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              {/* Khung vòm vàng */}
               <motion.path
-                d={yellowBorderPath}
-                stroke="#FACC15"
-                strokeWidth="2"
-                fill="#FACC15"
-                custom={0}
+                d={yellowArchPath}
+                stroke={colorYellow}
+                strokeWidth="2.5"
+                fill={colorYellow}
                 variants={pathVariants}
-                initial="hidden"
-                animate="visible"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
+              {/* Chữ L */}
               <motion.path
-                d={greenLPath}
-                stroke="#22C55E"
+                d={letterLPath}
+                stroke={colorGreen}
                 strokeWidth="2"
-                fill="#22C55E"
-                custom={0.2}
+                fill={colorGreen}
                 variants={pathVariants}
-                initial="hidden"
-                animate="visible"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
+              {/* Chữ Y */}
               <motion.path
-                d={greenYPath}
-                stroke="#22C55E"
+                d={letterYPath}
+                stroke={colorGreen}
                 strokeWidth="2"
-                fill="#22C55E"
-                custom={0.4}
+                fill={colorGreen}
                 variants={pathVariants}
-                initial="hidden"
-                animate="visible"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
-            </svg>
-
-            {/* Tia chớp kim loại quét ngang logo (Metal Shimmer Sweep) */}
-            <motion.div
-              initial={{ left: '-100%', opacity: 0 }}
-              animate={{ left: '100%', opacity: [0, 0.5, 0] }}
-              transition={{ duration: 1.2, delay: 2.5, ease: "easeInOut" }}
-              className="absolute inset-0 z-20 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-25deg] pointer-events-none mix-blend-overlay"
-            />
+            </motion.svg>
           </motion.div>
 
-          {/* Text Container: "LAI YIH GROUP" */}
+          {/* Dòng chữ thương hiệu chuẩn Enterprise */}
           <motion.h1
-            variants={textContainerVariants}
+            variants={textVariants}
             initial="hidden"
             animate="visible"
-            className="mt-10 flex space-x-2 text-2xl md:text-3xl font-black text-white uppercase font-sans tracking-[0.3em] drop-shadow-[0_2px_15px_rgba(255,255,255,0.2)]"
+            className="mt-8 text-xl md:text-2xl font-semibold text-white uppercase tracking-[0.4em] font-sans"
+            style={{ marginRight: '-0.4em' }} // Cân bằng lại khoảng cách do tracking
           >
-            {brandName.split('').map((char, index) => (
-              <motion.span
-                key={index}
-                variants={letterVariants}
-                className={char === ' ' ? 'w-4' : ''}
-              >
-                {char}
-              </motion.span>
-            ))}
+            LAI YIH GROUP
           </motion.h1>
         </motion.div>
 
-        {/* Thông điệp mờ ảo phía dưới chân màn hình (Tùy chọn hiển thị) */}
+        {/* Thông điệp mờ ảo ở Footer */}
         <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 0.5, y: 0 }}
-          transition={{ delay: 2.8, duration: 1 }}
-          className="absolute bottom-10 text-[10px] text-slate-400 tracking-[0.4em] uppercase font-medium"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.4 }}
+          transition={{ delay: 2.2, duration: 1 }}
+          className="absolute bottom-12 text-[10px] md:text-xs text-slate-400 tracking-[0.3em] uppercase font-medium"
         >
           {t ? t('manufacturingExcellence') : 'MANUFACTURING EXCELLENCE'}
         </motion.div>
