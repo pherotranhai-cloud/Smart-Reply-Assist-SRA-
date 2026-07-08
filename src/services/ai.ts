@@ -165,15 +165,15 @@ export class AIService {
         const { value, done } = await reader.read();
         if (done) {
           try {
-            const deviceUuid = localStorage.getItem('aima_device_uuid') || 'unknown';
-            fetch('/api/log', {
+            const deviceUuid = localStorage.getItem('aima_device_uuid') || null;
+            const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || '';
+            fetch(`${SERVER_BASE_URL}/api/public/log`, {
               method: 'POST',
               headers: {
-                'Content-Type': 'application/json',
-                'x-device-uuid': deviceUuid
+                'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                task_type: 'translate',
+                task_type: image ? 'ocr_translate' : 'translate',
                 input_text: text,
                 output_text: accumulatedText,
                 from_lang: 'auto',
@@ -181,7 +181,7 @@ export class AIService {
                 device_uuid: deviceUuid
               })
             }).catch(logErr => {
-              console.error('SSE logger failed:', logErr);
+              console.error('[Log Forwarding Failed]:', logErr);
             });
           } catch (logErr) {
             console.error('SSE logger failed:', logErr);
@@ -223,6 +223,30 @@ export class AIService {
       });
       
       const generatedReply = response.data.generatedReply;
+      
+      try {
+        const deviceUuid = localStorage.getItem('aima_device_uuid') || null;
+        const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || '';
+        fetch(`${SERVER_BASE_URL}/api/public/log`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            task_type: 'compose',
+            input_text: contextText + '\n' + requirements,
+            output_text: generatedReply,
+            from_lang: 'auto',
+            to_lang: params.lang,
+            device_uuid: deviceUuid
+          })
+        }).catch(logErr => {
+          console.error('[Log Forwarding Failed]:', logErr);
+        });
+      } catch (logErr) {
+        console.error('Compose logger failed:', logErr);
+      }
+
       if (onChunk) {
         onChunk(generatedReply);
       }

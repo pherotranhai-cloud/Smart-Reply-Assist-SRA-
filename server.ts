@@ -33,6 +33,29 @@ async function startServer() {
 
   apiRouter.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+  // POST /api/public/log
+  apiRouter.post('/public/log', async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
+    const { task_type, input_text, output_text, device_uuid, from_lang, to_lang } = req.body;
+    try {
+      await supabase.from('app_logs').insert([
+        {
+          task_type,
+          input_text,
+          output_text,
+          device_uuid,
+          from_lang,
+          to_lang,
+          created_at: new Date().toISOString()
+        }
+      ]);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[Render Log Ingestion Error]:', error);
+      res.status(500).json({ error: 'Failed to write app_log' });
+    }
+  });
+
   // GET /api/admin/kpis
   apiRouter.get('/admin/kpis', async (req, res) => {
     if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
