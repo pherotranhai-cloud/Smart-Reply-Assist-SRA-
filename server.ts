@@ -33,6 +33,10 @@ async function startServer() {
 
   apiRouter.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+  app.get('/', (req, res) => {
+    res.status(200).json({ status: "AIMA Engine Operational", version: "2.0.6-hotfix" });
+  });
+
   // POST /api/public/log
   apiRouter.post('/public/log', async (req, res) => {
     if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });

@@ -56,7 +56,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ isDataLoaded, onComp
             />
             <motion.text
               x="900"
-              y="1200"
+              y="1800"
               textAnchor="middle"
               fill="#2FA05E"
               fontFamily="Arial, Helvetica, sans-serif"
@@ -81,7 +81,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ isDataLoaded, onComp
           LAI YIH GROUP
         </motion.h1>
       </div>
-
       {/* Footer mờ ảo */}
       <motion.div 
         initial={{ opacity: 0 }}
