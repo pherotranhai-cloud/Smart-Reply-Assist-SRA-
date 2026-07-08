@@ -250,6 +250,8 @@ export default function App() {
 
   const composeCacheRef = useRef<Map<string, string>>(new Map());
   const lastAutoTranslatedInput = useRef("");
+  const lastSentTextRef = useRef('');
+  const [isPasted, setIsPasted] = useState(false);
 
   const saveToLocalHistory = useCallback(async (type: 'translate' | 'compose') => {
     try {
@@ -697,6 +699,11 @@ export default function App() {
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    if (isPasted) {
+      setIsPasted(false);
+      return;
+    }
+
     if (!translateInput.trim() || translateInput.trim().length < 3) {
       return;
     }
@@ -717,6 +724,13 @@ export default function App() {
       if (currentLength - lastLength < 20) {
         return;
       }
+
+      const trimmedText = translateInput.trim();
+      if (trimmedText === lastSentTextRef.current) {
+        return; 
+      }
+      lastSentTextRef.current = trimmedText;
+
       handleTranslate(true);
     }, 2000);
 
@@ -880,6 +894,7 @@ export default function App() {
   }, [composeReq, composeParams, context, useContextInCompose, state.settings, state.lastOutputs, state.structuredSummary, vocab, handleExtract, t, showToast]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    setIsPasted(true);
     const items = e.clipboardData.items;
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf('image') !== -1) {
@@ -900,6 +915,7 @@ export default function App() {
     try {
       const text = await navigator.clipboard.readText();
       if (text) {
+        setIsPasted(true);
         setTranslateInput(prev => prev + (prev ? '\n' : '') + text);
         showToast(t('textPasted'), 'success');
       }
