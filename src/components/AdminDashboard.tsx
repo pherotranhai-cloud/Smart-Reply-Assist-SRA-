@@ -111,8 +111,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     try {
       const res = await fetch(`${SERVER_BASE_URL}/api/admin/feedbacks`);
       if (res.ok) {
-        const data = await res.json();
-        setFeedbacks(data.feedbacks || []);
+        const result = await res.json();
+        if (result && Array.isArray(result.feedbacks)) {
+          setFeedbacks(result.feedbacks);
+        } else if (Array.isArray(result)) {
+          setFeedbacks(result);
+        } else {
+          setFeedbacks([]);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -219,8 +225,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                     {feedbacks.map((fb, idx) => (
                       <div key={idx} className="bg-panel border border-border-main p-4 rounded-2xl shadow-sm flex flex-col gap-2">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs text-text-muted">{new Date(fb.created_at).toLocaleString()}</span>
-                          <span className="text-xs font-medium bg-border-main/50 px-2 py-0.5 rounded text-text-muted">{fb.lang}</span>
+                          <span className="text-xs text-text-muted">{fb.created_at ? new Date(fb.created_at).toLocaleString() : ''}</span>
+                          <span className="text-xs font-medium bg-border-main/50 px-2 py-0.5 rounded text-text-muted">{fb.interface_lang || 'unknown'}</span>
                         </div>
                         <p className="text-sm text-text-main">{fb.content}</p>
                       </div>

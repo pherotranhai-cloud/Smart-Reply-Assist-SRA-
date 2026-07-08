@@ -70,6 +70,7 @@ async function startServer() {
       } catch (err) { console.error('Error counting totalRequests:', err); }
 
       res.json({
+        success: true,
         stats: {
           day: activeDay,
           week: activeWeek,
@@ -180,6 +181,7 @@ async function startServer() {
       const { data: ipTrackers } = await supabase.from('ip_tracker').select('*').order('last_request_at', { ascending: false });
 
       res.json({
+        success: true,
         stats: { day: activeDay, week: activeWeek, month: activeMonth, totalRequests: totalRequests },
         feedbacks: feedbacks || [],
         logs: logs || [],
