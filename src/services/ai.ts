@@ -106,7 +106,9 @@ export class AIService {
 
   async logToServer(payload: { task_type: string, input_text: string, output_text: string, from_lang: string, to_lang: string }) {
     try {
-      await axios.post('/api/log', payload);
+      axios.post('/api/log', payload).catch(err => {
+        console.error('Failed to log to server:', err);
+      });
     } catch (err) {
       console.error('Failed to log to server:', err);
     }
@@ -164,7 +166,7 @@ export class AIService {
         if (done) {
           try {
             const deviceUuid = localStorage.getItem('aima_device_uuid') || 'unknown';
-            await fetch('/api/log', {
+            fetch('/api/log', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -178,6 +180,8 @@ export class AIService {
                 to_lang: targetLang,
                 device_uuid: deviceUuid
               })
+            }).catch(logErr => {
+              console.error('SSE logger failed:', logErr);
             });
           } catch (logErr) {
             console.error('SSE logger failed:', logErr);

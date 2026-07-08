@@ -65,8 +65,8 @@ async function startServer() {
       } catch (err) { console.error('Error counting activeMonth:', err); }
 
       try {
-        const { count } = await supabase.from('app_logs').select('*', { count: 'exact', head: true });
-        totalRequests = count || 0;
+        const { count: totalCount, error: errTotal } = await supabase.from('app_logs').select('id', { count: 'exact' });
+        totalRequests = totalCount || 0;
       } catch (err) { console.error('Error counting totalRequests:', err); }
 
       res.json({
@@ -172,8 +172,8 @@ async function startServer() {
         activeMonth = count || 0;
       } catch (err) {}
       try {
-        const { count } = await supabase.from('app_logs').select('*', { count: 'exact', head: true });
-        totalRequests = count || 0;
+        const { count: totalCount, error: errTotal } = await supabase.from('app_logs').select('id', { count: 'exact' });
+        totalRequests = totalCount || 0;
       } catch (err) {}
 
       const { data: feedbacks } = await supabase.from('user_feedbacks').select('*').order('created_at', { ascending: false }).limit(50);

@@ -239,7 +239,7 @@ router.post('/ocr', async (req, res) => {
   }
 
   try {
-    const systemPrompt = `You are an OCR engine. Extract all visible text from this image exactly as written. Preserve all line breaks, lists, and spacing. DO NOT translate. DO NOT explain. Output ONLY the extracted text.`;
+    const systemPrompt = "Bạn là một máy nhận diện ký tự quang học siêu tốc. Hãy bóc tách chính xác toàn bộ văn bản có trong hình ảnh này thành chuỗi ký tự thô. Tuyệt đối không mô tả ảnh, không giải thích ngữ cảnh, trả về duy nhất chữ tìm được để tối ưu hóa Latency tối đa.";
 
     const messages: any[] = [
       { role: 'system', content: systemPrompt },
@@ -250,7 +250,7 @@ router.post('/ocr', async (req, res) => {
     ];
 
     const response = await openai.chat.completions.create({
-      model: APP_ENGINE_ID,
+      model: "gpt-5.4-nano-2026-03-17",
       messages,
       temperature: 0,
     });
