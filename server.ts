@@ -38,7 +38,7 @@ async function startServer() {
     if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
     const { task_type, input_text, output_text, device_uuid, from_lang, to_lang } = req.body;
     try {
-      await (supabase as any).from('app_logs').insert([
+      await supabase.from('app_logs').insert([
         {
           task_type,
           input_text,
