@@ -30,6 +30,7 @@ import { useTextToSpeech } from './hooks/useTextToSpeech';
 import { VoiceVisualizer } from './components/common/VoiceVisualizer';
 import { VoiceModal } from './components/common/VoiceModal';
 import { PresetGrid } from './components/common/PresetGrid';
+import { processOcrOffline } from './utils/ocr';
 import { 
   VocabItem, 
   AISettings, 
@@ -611,15 +612,15 @@ export default function App() {
       let finalSourceText = translateInput;
 
       if (translateImage) {
-        if (!isAuto) showToast(t('readingImage'), 'info');
-        const extractedText = await ai.extractTextFromImage(translateImage);
+        if (!isAuto) showToast('Đang nhận diện chữ trong ảnh (Offline)...', 'info');
+        const extractedText = await processOcrOffline(translateImage);
         
         if (translateInput.trim()) {
           finalSourceText = `${translateInput}\n\n--- [Image Content] ---\n${extractedText}`;
         } else {
           finalSourceText = extractedText;
         }
-        if (!isAuto) showToast(t('translating'), 'info');
+        if (!isAuto) showToast('Đang dịch thuật văn bản chuyên ngành...', 'info');
       }
       
       // Reset translated text for typewriter effect
@@ -637,7 +638,7 @@ export default function App() {
       let hasReceivedFirstChunk = false;
       setIsStreaming(true);
 
-      const result = await ai.translate(finalSourceText, targetLang, injectedVocab, undefined, isSummaryMode, (chunk) => {
+      const result = await ai.translate(finalSourceText, targetLang, injectedVocab, !!translateImage, isSummaryMode, (chunk) => {
         if (!hasReceivedFirstChunk && chunk.trim()) {
           hasReceivedFirstChunk = true;
           setLoading(false);

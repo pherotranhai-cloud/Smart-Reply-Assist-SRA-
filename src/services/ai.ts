@@ -126,7 +126,7 @@ export class AIService {
     }
   }
 
-  async translate(text: string, targetLang: string, vocab: VocabItem[], image?: string, summarize: boolean = false, onChunk?: (chunk: string) => void, isAuto: boolean = false) {
+  async translate(text: string, targetLang: string, vocab: VocabItem[], isImageOcr: boolean = false, summarize: boolean = false, onChunk?: (chunk: string) => void, isAuto: boolean = false) {
     try {
       // Sử dụng logic so khớp mạnh mẽ vừa khôi phục
       const glossary = this.buildGlossaryPrompt(vocab, targetLang, text);
@@ -140,7 +140,7 @@ export class AIService {
           text,
           targetLang,
           glossary, // Gửi Prompt Glossary đã dựng sẵn sang Backend
-          image,
+          image: undefined,
           summarize,
           isAuto
         })
@@ -173,7 +173,7 @@ export class AIService {
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                task_type: image ? 'ocr_translate' : 'translate',
+                task_type: isImageOcr ? 'ocr_translate' : 'translate',
                 input_text: text,
                 output_text: accumulatedText,
                 from_lang: 'auto',
