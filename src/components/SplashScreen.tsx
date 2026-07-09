@@ -55,13 +55,14 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ isDataLoaded, onComp
               transition={{ duration: 1.8, ease: "easeInOut" }}
             />
             <motion.text
-              x="1000"
-              y="1300"
+              x="950"
+              y="1210"
               textAnchor="middle"
               fill="#2FA05E"
               fontFamily="Arial, Helvetica, sans-serif"
-              fontWeight="600"
-              fontSize="600px"
+              fontWeight="700"
+              fontSize="720px"
+              letterSpacing="-20px"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 1.2, delay: 0.8, ease: "easeOut" }}
@@ -81,6 +82,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ isDataLoaded, onComp
           LAI YIH GROUP
         </motion.h1>
       </div>
+
       {/* Footer mờ ảo */}
       <motion.div 
         initial={{ opacity: 0 }}
