@@ -3,6 +3,7 @@ import { X, FileText, FileSearch, Clock, HelpCircle, Megaphone, Settings2 } from
 import { CORE_PRESETS, AUDIENCES, TONES, LENGTHS, FORMATS, ComposePreset, LANGUAGES, LANGUAGE_FLAGS } from '../../constants';
 import { Audience, Tone, Length, Format, Language } from '../../types';
 import { useLongPress } from '../../hooks/useLongPress';
+import { safeLocalStorage } from '../../utils/safeStorage';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   FileText,
@@ -38,7 +39,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
   const [localCustom, setLocalCustom] = useState(customParams);
 
   useEffect(() => {
-    const saved = localStorage.getItem('sra_custom_preset');
+    const saved = safeLocalStorage.getItem('sra_custom_preset');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -53,7 +54,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
   }, []);
 
   const handleSaveCustom = () => {
-    localStorage.setItem('sra_custom_preset', JSON.stringify(localCustom));
+    safeLocalStorage.setItem('sra_custom_preset', JSON.stringify(localCustom));
     onUpdateCustomParams(localCustom);
     onSelectPreset(CORE_PRESETS.find(p => p.id === 'custom')!);
     setIsModalOpen(false);

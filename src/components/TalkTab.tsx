@@ -6,6 +6,7 @@ import { AIService } from '../services/ai';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
 import { storage } from '../services/storage';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 export interface TalkMessage {
   id: string;
@@ -29,11 +30,11 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
   const [messages, setMessages] = useState<TalkMessage[]>([]);
   
   // Persisted languages
-  const [userLang, setUserLang] = useState<string>(() => localStorage.getItem('talk_user_lang') || 'Vietnamese');
-  const [partnerLang, setPartnerLang] = useState<string>(() => localStorage.getItem('talk_partner_lang') || 'Chinese (Simplified)');
+  const [userLang, setUserLang] = useState<string>(() => safeLocalStorage.getItem('talk_user_lang') || 'Vietnamese');
+  const [partnerLang, setPartnerLang] = useState<string>(() => safeLocalStorage.getItem('talk_partner_lang') || 'Chinese (Simplified)');
   
-  useEffect(() => { localStorage.setItem('talk_user_lang', userLang); }, [userLang]);
-  useEffect(() => { localStorage.setItem('talk_partner_lang', partnerLang); }, [partnerLang]);
+  useEffect(() => { safeLocalStorage.setItem('talk_user_lang', userLang); }, [userLang]);
+  useEffect(() => { safeLocalStorage.setItem('talk_partner_lang', partnerLang); }, [partnerLang]);
 
   const { isListening, transcript, interimTranscript, error, startListening, stopListening, setTranscript } = useSpeechToText();
   const { speak, stop: stopSpeaking, isSpeaking } = useTextToSpeech();

@@ -1,5 +1,7 @@
 import express, { Router } from 'express';
 import serverless from 'serverless-http';
+import fs from 'fs';
+import path from 'path';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import crypto from 'crypto';
@@ -25,11 +27,23 @@ if (supabaseUrl && supabaseServiceRoleKey) {
 const logToSupabase = async (payload: any) => {
   if (!supabase) return;
   try {
-    const { error } = await supabase.from('app_logs').insert([{
+    const insertPayload = {
       ...payload,
       created_at: new Date().toISOString()
-    }] as any);
-    if (error) console.error('Supabase logging error:', error);
+    };
+    const { error } = await supabase.from('app_logs').insert([insertPayload] as any);
+    if (error) {
+      console.error('Supabase logging error:', error);
+      // Self-healing: if ip_address column does not exist in app_logs table, retry without it
+      if (error.message && error.message.includes('ip_address') && 'ip_address' in insertPayload) {
+        console.log('Retrying Supabase insert without ip_address...');
+        const { ip_address, ...fallbackPayload } = insertPayload;
+        const { error: retryError } = await supabase.from('app_logs').insert([fallbackPayload] as any);
+        if (retryError) {
+          console.error('Supabase logging retry error:', retryError);
+        }
+      }
+    }
   } catch (err) {
     console.error('Supabase logging exception:', err);
   }
@@ -40,7 +54,7 @@ const openai = new OpenAI({
 });
 
 const app = express();
-const router = Router();
+export const router = Router();
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -449,17 +463,29 @@ ${structureInstruction}`;
 
 router.post('/import-vocab', async (req, res) => {
   try {
-    console.log(`Starting sync from Google Sheet: ${GOOGLE_SHEET_ID}`);
-    
-    const sheetUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv`;
-    console.log("Fetching from URL:", sheetUrl);
-    const response = await axios.get(sheetUrl, { timeout: 10000 });
-    
-    if (!response.data) {
-      throw new Error('Empty response from Google Sheets');
+    let csvData: string;
+    try {
+      console.log(`Starting sync from Google Sheet: ${GOOGLE_SHEET_ID}`);
+      const sheetUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv`;
+      console.log("Fetching from URL:", sheetUrl);
+      const response = await axios.get(sheetUrl, { timeout: 10000 });
+      if (!response.data) {
+        throw new Error('Empty response from Google Sheets');
+      }
+      csvData = response.data;
+    } catch (sheetError: any) {
+      console.warn("Failed to fetch from Google Sheets, trying local fallback:", sheetError.message);
+      try {
+        const localPath = path.join(process.cwd(), 'Vocabulary Library.csv');
+        csvData = fs.readFileSync(localPath, 'utf-8');
+        console.log("Successfully read local Vocabulary Library.csv fallback.");
+      } catch (fsError: any) {
+        console.error("Local CSV fallback also failed:", fsError.message);
+        throw sheetError;
+      }
     }
 
-    const parsed = Papa.parse(response.data, {
+    const parsed = Papa.parse(csvData, {
       header: true,
       skipEmptyLines: true,
       transformHeader: (header) => header.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
@@ -703,13 +729,35 @@ router.get('/admin/data', async (req, res) => {
     ]);
 
     const { data: feedbacks } = await supabase.from('user_feedbacks').select('*').order('created_at', { ascending: false }).limit(50);
-    const { data: logs } = await supabase.from('app_logs').select('ip_address, input_text, created_at').order('created_at', { ascending: false }).limit(100);
+    
+    let logs: any[] = [];
+    const { data: logsWithIp, error: logsError } = await supabase
+      .from('app_logs')
+      .select('ip_address, input_text, created_at')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (logsError) {
+      console.warn("Failed to fetch logs with ip_address, retrying without ip_address...", logsError.message);
+      const { data: logsNoIp, error: retryError } = await supabase
+        .from('app_logs')
+        .select('input_text, created_at')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (retryError) {
+        throw retryError;
+      }
+      logs = (logsNoIp || []).map(log => ({ ...log, ip_address: '' }));
+    } else {
+      logs = logsWithIp || [];
+    }
+
     const { data: ipTrackers } = await (supabase as any).from('ip_tracker').select('*').order('last_request_at', { ascending: false });
 
     res.json({
       stats: { day: activeDay || 0, week: activeWeek || 0, month: activeMonth || 0, totalRequests: totalRequests || 0 },
       feedbacks: feedbacks || [],
-      logs: logs || [],
+      logs: logs,
       ipTrackers: ipTrackers || []
     });
   } catch (error: any) {

@@ -1,3 +1,5 @@
+import { safeLocalStorage } from './safeStorage';
+
 export interface SecurityValidationResult {
   isValid: boolean;
   errorKey?: string;
@@ -15,12 +17,12 @@ export const validateSecurity = (text: string): SecurityValidationResult => {
 
   let patternStr = 'ignore.*instruction|bỏ qua.*rule|đóng vai trò|quên hướng dẫn|bypass|jailbreak|act as|system prompt|viết code|tạo mã|write code|programming|you are an ai|bạn không phải là ai|bạn là ai|who are you|hãy là một|nhập vai|mô phỏng|hãy đóng giả|identity|developer mode|dan mode|re-write instructions|vâng vâng';
   try {
-    const cachedPattern = localStorage.getItem('aima_block_pattern');
+    const cachedPattern = safeLocalStorage.getItem('aima_block_pattern');
     if (cachedPattern) {
       patternStr = cachedPattern;
     }
   } catch (err) {
-    console.error('Failed to read aima_block_pattern from localStorage', err);
+    console.error('Failed to read aima_block_pattern from safeLocalStorage', err);
   }
 
   const blockPattern = new RegExp(`(${patternStr})`, 'i');

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Copy, RefreshCw, Clock, History as HistoryIcon, MessageSquare, PenTool, Globe, Inbox } from 'lucide-react';
 import { storage } from '../services/storage';
 import { HistoryItem } from '../types';
+import { copyTextToClipboard } from '../utils/clipboard';
 
 interface HistoryTabProps {
   t: (key: string) => string;
@@ -33,12 +34,13 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({ t, showToast, onReuse })
     }
   };
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
+  const handleCopy = async (text: string) => {
+    const success = await copyTextToClipboard(text);
+    if (success) {
       showToast(t('copied') || 'Copied to clipboard', 'success');
-    }).catch(() => {
+    } else {
       showToast('Failed to copy', 'error');
-    });
+    }
   };
 
   const formatTime = (timestamp: number) => {

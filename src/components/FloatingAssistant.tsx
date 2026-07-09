@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useAnimation, useMotionValue } from 'motion/react';
 import { Bot, X, ChevronRight, Copy, Check, Loader2, Link as LinkIcon } from 'lucide-react';
 import { AISettings, VocabItem } from '../types';
+import { copyTextToClipboard } from '../utils/clipboard';
 import Markdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -94,12 +95,10 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
 
   const handleCopy = async () => {
     if (!result) return;
-    try {
-      await navigator.clipboard.writeText(result);
+    const success = await copyTextToClipboard(result);
+    if (success) {
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy', err);
     }
   };
 

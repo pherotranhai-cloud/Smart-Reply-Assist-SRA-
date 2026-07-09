@@ -2,12 +2,13 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
+import { router as netlifyApiRouter } from './netlify/functions/api';
 
 dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-let supabase: ReturnType<typeof createClient> | null = null;
+let supabase: any = null;
 
 if (supabaseUrl && supabaseServiceRoleKey) {
   supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
@@ -33,7 +34,7 @@ async function startServer() {
 
   apiRouter.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-  app.get('/', (req, res) => {
+  apiRouter.get('/', (req, res) => {
     res.status(200).json({ status: "AIMA Engine Operational", version: "2.0.6-hotfix" });
   });
 
@@ -128,10 +129,32 @@ async function startServer() {
     if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
     try {
       const { data: ipTrackers } = await supabase.from('ip_tracker').select('*').order('last_request_at', { ascending: false });
-      const { data: logs } = await supabase.from('app_logs').select('ip_address, input_text, created_at').order('created_at', { ascending: false }).limit(100);
+      
+      let logs: any[] = [];
+      const { data: logsWithIp, error: logsError } = await supabase
+        .from('app_logs')
+        .select('ip_address, input_text, created_at')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (logsError) {
+        console.warn("Failed to fetch logs with ip_address, retrying without ip_address...", logsError.message);
+        const { data: logsNoIp, error: retryError } = await supabase
+          .from('app_logs')
+          .select('input_text, created_at')
+          .order('created_at', { ascending: false })
+          .limit(100);
+        if (retryError) {
+          throw retryError;
+        }
+        logs = (logsNoIp || []).map(log => ({ ...log, ip_address: '' }));
+      } else {
+        logs = logsWithIp || [];
+      }
+
       res.json({
         ipTrackers: ipTrackers || [],
-        logs: logs || []
+        logs: logs
       });
     } catch (error: any) {
       console.error('Failed to fetch devices and logs:', error);
@@ -204,14 +227,36 @@ async function startServer() {
       } catch (err) {}
 
       const { data: feedbacks } = await supabase.from('user_feedbacks').select('*').order('created_at', { ascending: false }).limit(50);
-      const { data: logs } = await supabase.from('app_logs').select('ip_address, input_text, created_at').order('created_at', { ascending: false }).limit(100);
+      
+      let logs: any[] = [];
+      const { data: logsWithIp, error: logsError } = await supabase
+        .from('app_logs')
+        .select('ip_address, input_text, created_at')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (logsError) {
+        console.warn("Failed to fetch logs with ip_address, retrying without ip_address...", logsError.message);
+        const { data: logsNoIp, error: retryError } = await supabase
+          .from('app_logs')
+          .select('input_text, created_at')
+          .order('created_at', { ascending: false })
+          .limit(100);
+        if (retryError) {
+          throw retryError;
+        }
+        logs = (logsNoIp || []).map(log => ({ ...log, ip_address: '' }));
+      } else {
+        logs = logsWithIp || [];
+      }
+
       const { data: ipTrackers } = await supabase.from('ip_tracker').select('*').order('last_request_at', { ascending: false });
 
       res.json({
         success: true,
         stats: { day: activeDay, week: activeWeek, month: activeMonth, totalRequests: totalRequests },
         feedbacks: feedbacks || [],
-        logs: logs || [],
+        logs: logs,
         ipTrackers: ipTrackers || []
       });
     } catch (error: any) {
@@ -247,6 +292,9 @@ async function startServer() {
     }
   });
 
+  // Netlify fallback routes (translate, import-vocab, etc.)
+  apiRouter.use(netlifyApiRouter);
+
   // Catch-all for API routes to prevent falling through
   apiRouter.all('*', (req, res) => {
     res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
@@ -254,8 +302,24 @@ async function startServer() {
 
   app.use('/api', apiRouter);
 
+  if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import('vite');
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    const path = await import('path');
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
+
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Admin Server] Running on http://0.0.0.0:${PORT}`);
+    console.log(`[Server] Running on http://0.0.0.0:${PORT}`);
   });
 }
 

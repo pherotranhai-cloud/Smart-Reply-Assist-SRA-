@@ -23,6 +23,8 @@ import { AIService } from './services/ai';
 import { validateSecurity } from './utils/security';
 import { applyTheme, resolveTheme, watchSystemThemeChanges, ThemeMode } from './utils/theme';
 import { generateHash } from './utils/hash';
+import { copyTextToClipboard } from './utils/clipboard';
+import { safeLocalStorage } from './utils/safeStorage';
 import { translations } from './i18n';
 import { SplashScreen } from './components/SplashScreen';
 import { useSpeechToText } from './hooks/useSpeechToText';
@@ -103,10 +105,10 @@ export default function App() {
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   
   useEffect(() => {
-    const lastSeenVersion = localStorage.getItem('app_last_seen_version');
+    const lastSeenVersion = safeLocalStorage.getItem('app_last_seen_version');
     if (lastSeenVersion !== APP_VERSION) {
       setIsChangelogOpen(true);
-      localStorage.setItem('app_last_seen_version', APP_VERSION);
+      safeLocalStorage.setItem('app_last_seen_version', APP_VERSION);
     }
   }, []);
 
@@ -115,7 +117,7 @@ export default function App() {
       .then(res => res.json())
       .then(data => {
         if (data && data.pattern_text) {
-          localStorage.setItem('aima_block_pattern', data.pattern_text);
+          safeLocalStorage.setItem('aima_block_pattern', data.pattern_text);
         }
       })
       .catch(console.error);
@@ -123,47 +125,53 @@ export default function App() {
 
   useEffect(() => {
     // Generate or retrieve device_uuid
-    let deviceUuid = localStorage.getItem('aima_device_uuid');
+    let deviceUuid = safeLocalStorage.getItem('aima_device_uuid');
     if (!deviceUuid) {
       deviceUuid = crypto.randomUUID ? crypto.randomUUID() : 'uuid-' + Math.random().toString(36).substring(2) + Date.now().toString(36);
-      localStorage.setItem('aima_device_uuid', deviceUuid);
+      safeLocalStorage.setItem('aima_device_uuid', deviceUuid);
     }
 
     const originalFetch = window.fetch;
-    window.fetch = async (...args) => {
-      try {
-        let [resource, config] = args;
-        
-        config = config || {};
-        config.headers = {
-          ...config.headers,
-          'x-device-uuid': deviceUuid
-        };
+    let fetchPatched = false;
+    try {
+      window.fetch = async (...args) => {
+        try {
+          let [resource, config] = args;
+          
+          config = config || {};
+          config.headers = {
+            ...config.headers,
+            'x-device-uuid': deviceUuid
+          };
 
-        // Inject device_uuid into JSON payloads
-        if (config.method && ['POST', 'PUT', 'PATCH'].includes(config.method.toUpperCase())) {
-           if (typeof config.body === 'string') {
-             try {
-                const parsedBody = JSON.parse(config.body);
-                if (typeof parsedBody === 'object' && parsedBody !== null) {
-                   parsedBody.device_uuid = deviceUuid;
-                   config.body = JSON.stringify(parsedBody);
-                }
-             } catch (e) {
-                // Ignore parse errors if body is not JSON
+          // Inject device_uuid into JSON payloads
+          if (config.method && ['POST', 'PUT', 'PATCH'].includes(config.method.toUpperCase())) {
+             if (typeof config.body === 'string') {
+               try {
+                  const parsedBody = JSON.parse(config.body);
+                  if (typeof parsedBody === 'object' && parsedBody !== null) {
+                     parsedBody.device_uuid = deviceUuid;
+                     config.body = JSON.stringify(parsedBody);
+                  }
+               } catch (e) {
+                  // Ignore parse errors if body is not JSON
+               }
              }
-           }
-        }
+          }
 
-        const response = await originalFetch(resource, config);
-        if (response.status === 403) {
-          setIsBanned(true);
+          const response = await originalFetch(resource, config);
+          if (response.status === 403) {
+            setIsBanned(true);
+          }
+          return response;
+        } catch (e) {
+          throw e;
         }
-        return response;
-      } catch (e) {
-        throw e;
-      }
-    };
+      };
+      fetchPatched = true;
+    } catch (e) {
+      console.warn("Could not patch window.fetch because it is read-only in this environment:", e);
+    }
 
     let axiosInterceptor: number | null = null;
     import('axios').then(({ default: axios }) => {
@@ -192,7 +200,13 @@ export default function App() {
     fetch('/api/health').catch(console.error);
 
     return () => {
-      window.fetch = originalFetch;
+      if (fetchPatched) {
+        try {
+          window.fetch = originalFetch;
+        } catch (e) {
+          console.warn("Could not restore window.fetch:", e);
+        }
+      }
       // ... cleanup if needed
     };
   }, []);
@@ -252,6 +266,7 @@ export default function App() {
   const lastAutoTranslatedInput = useRef("");
   const lastSentTextRef = useRef('');
   const [isPasted, setIsPasted] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
 
   const saveToLocalHistory = useCallback(async (type: 'translate' | 'compose') => {
     try {
@@ -562,6 +577,8 @@ export default function App() {
 
   const handleTranslate = useCallback(async (isAuto = false) => {
     stopSpeaking();
+    if (isTranslating) return;
+
     if (!translateInput && !translateImage) {
       if (!isAuto) showToast(t('provideTextOrImage'), 'error');
       return;
@@ -576,6 +593,7 @@ export default function App() {
       return;
     }
 
+    setIsTranslating(true);
     setLoading(true);
 
     // Use local storage directly for instant access
@@ -601,6 +619,7 @@ export default function App() {
       showToast(t('instantTranslation'), 'success');
       setLoading(false);
       lastAutoTranslatedInput.current = translateInput.trim();
+      setIsTranslating(false);
       return;
     }
 
@@ -693,14 +712,14 @@ export default function App() {
     } finally {
       setLoading(false);
       setIsStreaming(false);
+      setIsTranslating(false);
     }
-  }, [translateInput, translateImage, targetLang, state.settings, state.lastOutputs, t, showToast, getDetectedGlossaryTerms, isSummaryMode]);
+  }, [translateInput, translateImage, targetLang, state.settings, state.lastOutputs, t, showToast, getDetectedGlossaryTerms, isSummaryMode, isTranslating]);
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    if (isPasted) {
-      setIsPasted(false);
+  const triggerDebouncedAutoTranslate = useCallback(() => {
+    if (isTranslating) {
       return;
     }
 
@@ -733,13 +752,15 @@ export default function App() {
 
       handleTranslate(true);
     }, 2000);
+  }, [translateInput, isListening, handleTranslate, isTranslating]);
 
+  useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [translateInput, targetLang, isListening, handleTranslate]);
+  }, []);
 
   const handleCompose = useCallback(async () => {
     stopSpeaking();
@@ -1004,19 +1025,27 @@ export default function App() {
     }
   }, [activeTab, saveToLocalHistory]);
 
-  const handleCopy = useCallback((text: string) => {
+  const handleCopy = useCallback(async (text: string) => {
     if (!text) return;
-    navigator.clipboard.writeText(text);
-    setIsCopied(true);
-    saveToLocalHistory('translate');
-    showToast(t('copiedToClipboard'), 'success');
-    setTimeout(() => setIsCopied(false), 2000);
+    const success = await copyTextToClipboard(text);
+    if (success) {
+      setIsCopied(true);
+      saveToLocalHistory('translate');
+      showToast(t('copiedToClipboard'), 'success');
+      setTimeout(() => setIsCopied(false), 2000);
+    } else {
+      showToast(t('copyFailed') || 'Failed to copy', 'error');
+    }
   }, [showToast, t, saveToLocalHistory]);
 
-  const copyToClipboard = useCallback((text: string) => {
-    navigator.clipboard.writeText(text);
-    saveToLocalHistory('compose');
-    showToast(t('copiedToClipboard'), 'success');
+  const copyToClipboard = useCallback(async (text: string) => {
+    const success = await copyTextToClipboard(text);
+    if (success) {
+      saveToLocalHistory('compose');
+      showToast(t('copiedToClipboard'), 'success');
+    } else {
+      showToast(t('copyFailed') || 'Failed to copy', 'error');
+    }
   }, [showToast, t, saveToLocalHistory]);
 
   return (
@@ -1103,6 +1132,10 @@ export default function App() {
                       e.preventDefault();
                       handleTranslate(false);
                     }
+                  }}
+                  onKeyUp={e => {
+                    if (['Control', 'Alt', 'Shift', 'Meta', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Escape', 'Tab', 'CapsLock'].includes(e.key)) return;
+                    triggerDebouncedAutoTranslate();
                   }}
                   maxLength={1500}
                 />
@@ -1205,7 +1238,7 @@ export default function App() {
                 
                 <button 
                   onClick={() => handleTranslate(false)}
-                  disabled={loading || isStreaming || (!translateInput.trim() && !translateImage)}
+                  disabled={loading || isTranslating || isStreaming || (!translateInput.trim() && !translateImage)}
                   className="saas-button primary-button flex-1 sm:flex-none flex items-center justify-center gap-2"
                 >
                   {loading ? <Loader2 className="animate-spin" size={20} /> : <Languages size={20} />}

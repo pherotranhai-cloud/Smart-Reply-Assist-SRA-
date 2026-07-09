@@ -2,27 +2,46 @@ import { VocabItem, AISettings, AppState, HistoryItem, ConversationContext, Glob
 import { DEFAULT_STATE } from '../constants';
 import { STORAGE_KEYS, DATA_KEYS } from '../constants/storageKeys';
 
+import { safeLocalStorage } from '../utils/safeStorage';
+
 const adapter = {
   async get<T>(key: string): Promise<T | null> {
-    const stored = localStorage.getItem(key);
-    if (!stored) return null;
     try {
-      return JSON.parse(stored) as T;
-    } catch (e) {
-      return stored as unknown as T;
+      const stored = safeLocalStorage.getItem(key);
+      if (!stored) return null;
+      try {
+        return JSON.parse(stored) as T;
+      } catch (e) {
+        return stored as unknown as T;
+      }
+    } catch (err) {
+      console.warn("Storage access not allowed or insecure:", err);
+      return null;
     }
   },
 
   async set<T>(key: string, value: T): Promise<void> {
-    localStorage.setItem(key, JSON.stringify(value));
+    try {
+      safeLocalStorage.setItem(key, JSON.stringify(value));
+    } catch (err) {
+      console.warn("Storage set not allowed or insecure:", err);
+    }
   },
 
   async remove(key: string): Promise<void> {
-    localStorage.removeItem(key);
+    try {
+      safeLocalStorage.removeItem(key);
+    } catch (err) {
+      console.warn("Storage remove not allowed or insecure:", err);
+    }
   },
 
   async multiRemove(keys: string[]): Promise<void> {
-    keys.forEach(key => localStorage.removeItem(key));
+    try {
+      keys.forEach(key => safeLocalStorage.removeItem(key));
+    } catch (err) {
+      console.warn("Storage multiRemove not allowed or insecure:", err);
+    }
   }
 };
 

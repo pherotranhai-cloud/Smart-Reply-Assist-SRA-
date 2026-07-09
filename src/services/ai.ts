@@ -1,5 +1,6 @@
 import { AISettings, VocabItem } from '../types';
 import axios from 'axios';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 export class AIService {
   private settings: AISettings;
@@ -165,7 +166,7 @@ export class AIService {
         const { value, done } = await reader.read();
         if (done) {
           try {
-            const deviceUuid = localStorage.getItem('aima_device_uuid') || null;
+            const deviceUuid = safeLocalStorage.getItem('aima_device_uuid') || null;
             const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || '';
             fetch(`${SERVER_BASE_URL}/api/public/log`, {
               method: 'POST',
@@ -225,7 +226,7 @@ export class AIService {
       const generatedReply = response.data.generatedReply;
       
       try {
-        const deviceUuid = localStorage.getItem('aima_device_uuid') || null;
+        const deviceUuid = safeLocalStorage.getItem('aima_device_uuid') || null;
         const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || '';
         fetch(`${SERVER_BASE_URL}/api/public/log`, {
           method: 'POST',

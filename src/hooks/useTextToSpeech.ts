@@ -21,8 +21,14 @@ export const useTextToSpeech = () => {
       loadVoices();
       
       // Listen for voices changing
-      if (synthRef.current.onvoiceschanged !== undefined) {
-        synthRef.current.onvoiceschanged = loadVoices;
+      try {
+        if (synthRef.current.addEventListener) {
+          synthRef.current.addEventListener('voiceschanged', loadVoices);
+        } else if ('onvoiceschanged' in synthRef.current) {
+          synthRef.current.onvoiceschanged = loadVoices;
+        }
+      } catch (err) {
+        console.warn("Could not register voiceschanged event safely:", err);
       }
     }
     
