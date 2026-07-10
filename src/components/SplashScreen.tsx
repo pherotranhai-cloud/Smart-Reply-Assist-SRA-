@@ -56,7 +56,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ isDataLoaded, onComp
             />
             <motion.text
               x="1000"
-              y="1100"
+              y="1280"
               textAnchor="middle"
               fill="#2FA05E"
               fontFamily="Arial, Helvetica, sans-serif"
