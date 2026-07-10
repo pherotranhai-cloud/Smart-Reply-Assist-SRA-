@@ -2,7 +2,6 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
-import { router as netlifyApiRouter } from './netlify/functions/api.ts';
 
 dotenv.config();
 
@@ -319,7 +318,19 @@ async function startServer() {
   });
 
   // Netlify fallback routes (translate, import-vocab, etc.)
-  apiRouter.use(netlifyApiRouter);
+  try {
+    const path = await import('path');
+    // Lấy chính xác đường dẫn tuyệt đối từ thư mục gốc của project trên đĩa Render
+    const netlifyApiPath = path.join(process.cwd(), 'netlify', 'functions', 'api.ts');
+    
+    // Sử dụng dynamic import với đường dẫn tuyệt đối (bổ sung file:// cho chuẩn ESM URL)
+    const netlifyModule = await import(`file://${netlifyApiPath}`).catch(() => import(`./netlify/functions/api.ts`));
+    
+    apiRouter.use(netlifyModule.router || netlifyModule.default);
+    console.log('[ESM Bridge]: Khởi nạp Netlify Core Router thành công bằng đường dẫn tuyệt đối.');
+  } catch (importError) {
+    console.error('[ESM Bridge Error]: Không thể phân giải Netlify Router tại gốc:', importError);
+  }
 
   // Catch-all for API routes to prevent falling through
   apiRouter.all('*', (req, res) => {
