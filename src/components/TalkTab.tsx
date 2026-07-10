@@ -1,22 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mic, MicOff, Square, Volume2, RotateCcw, Globe } from 'lucide-react';
+import { Mic, Square, RotateCcw, Globe } from 'lucide-react';
 import { LANGUAGE_FLAGS } from '../constants';
-import { AIService } from '../services/ai';
-import { useSpeechToText } from '../hooks/useSpeechToText';
-import { useTextToSpeech } from '../hooks/useTextToSpeech';
-import { storage } from '../services/storage';
 import { safeLocalStorage } from '../utils/safeStorage';
 
-export interface TalkMessage {
-  id: string;
-  sender: 'user' | 'partner';
-  originalText: string;
-  originalLang: string;
-  translatedText: string;
-  translatedLang: string;
-  timestamp: number;
-}
+const ALL_LANGUAGES = ['Vietnamese', 'Chinese (Simplified)', 'Chinese (Traditional)', 'English', 'Indonesian', 'Burmese'] as const;
 
 interface TalkTabProps {
   settings: any;
@@ -24,120 +12,167 @@ interface TalkTabProps {
   t: (key: string) => string;
 }
 
-const ALL_LANGUAGES = ['Vietnamese', 'Chinese (Simplified)', 'Chinese (Traditional)', 'English', 'Indonesian', 'Burmese'] as const;
-
 export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
-  const [messages, setMessages] = useState<TalkMessage[]>([]);
-  
-  // Persisted languages
   const [userLang, setUserLang] = useState<string>(() => safeLocalStorage.getItem('talk_user_lang') || 'Vietnamese');
   const [partnerLang, setPartnerLang] = useState<string>(() => safeLocalStorage.getItem('talk_partner_lang') || 'Chinese (Simplified)');
   
   useEffect(() => { safeLocalStorage.setItem('talk_user_lang', userLang); }, [userLang]);
   useEffect(() => { safeLocalStorage.setItem('talk_partner_lang', partnerLang); }, [partnerLang]);
 
-  const { isListening, transcript, interimTranscript, error, startListening, stopListening, setTranscript } = useSpeechToText();
-  const { speak, stop: stopSpeaking, isSpeaking } = useTextToSpeech();
-  
   const [activeSpeaker, setActiveSpeaker] = useState<'user' | 'partner' | null>(null);
-  const [isTranslating, setIsTranslating] = useState(false);
-  const [currentlySpeakingId, setCurrentlySpeakingId] = useState<string | null>(null);
+  const [sourceSubtitle, setSourceSubtitle] = useState<string>('');
+  const [targetSubtitle, setTargetSubtitle] = useState<string>('');
+  const [isInitializing, setIsInitializing] = useState(false);
 
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const dataChannelRef = useRef<RTCDataChannel | null>(null);
+  
   // Context Menu State
   const [menuOpenFor, setMenuOpenFor] = useState<'user' | 'partner' | null>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const longPressOccurred = useRef(false);
   const [dragHoverLang, setDragHoverLang] = useState<string | null>(null);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const closeRealtimeStream = () => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+    }
+    if (dataChannelRef.current) {
+      dataChannelRef.current.close();
+      dataChannelRef.current = null;
+    }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    setActiveSpeaker(null);
+    setIsInitializing(false);
+  };
 
-  // Pre-warm action (optional, backend is adjusted, we just need to render fast)
   useEffect(() => {
-    // Just an initialization
+    return () => {
+      closeRealtimeStream();
+    };
   }, []);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, interimTranscript]);
+  const getLanguageCode = (lang: string) => {
+    if (lang === 'Vietnamese') return 'vi';
+    if (lang.includes('Chinese')) return 'zh';
+    if (lang === 'English') return 'en';
+    if (lang === 'Indonesian') return 'id';
+    if (lang === 'Burmese') return 'my';
+    return 'en';
+  };
 
-  useEffect(() => {
-    if (transcript && activeSpeaker && !isTranslating) {
-      handleTranslation(transcript, activeSpeaker);
-      setTranscript('');
-      setActiveSpeaker(null);
-      stopListening();
+  const initRealtimeStream = async (speaker: 'user' | 'partner') => {
+    if (activeSpeaker) {
+      closeRealtimeStream();
+      return;
     }
-  }, [transcript]);
 
-  const handleTranslation = async (text: string, speaker: 'user' | 'partner') => {
-    setIsTranslating(true);
-    const ai = new AIService(settings);
     try {
-      const sourceLang = speaker === 'user' ? userLang : partnerLang;
-      const targetLang = speaker === 'user' ? partnerLang : userLang;
-      
-      const messageId = Date.now().toString();
+      setIsInitializing(true);
+      setActiveSpeaker(speaker);
+      setSourceSubtitle('');
+      setTargetSubtitle('');
 
-      const newMessage: TalkMessage = {
-         id: messageId,
-         sender: speaker,
-         originalText: text,
-         originalLang: sourceLang,
-         translatedText: '...',
-         translatedLang: targetLang,
-         timestamp: Date.now()
+      const targetLangName = speaker === 'user' ? partnerLang : userLang;
+      const targetLang = getLanguageCode(targetLangName);
+
+      const sessionRes = await fetch('/api/realtime/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetLang })
+      });
+      const sessionData = await sessionRes.json();
+      if (!sessionData.client_secret || !sessionData.client_secret.value) {
+        throw new Error('Failed to obtain client secret from Render Server');
+      }
+      const ephemeralKey = sessionData.client_secret.value;
+
+      const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStreamRef.current = localStream;
+
+      const pc = new RTCPeerConnection();
+      peerConnectionRef.current = pc;
+
+      // Create an audio element for remote audio
+      const audioEl = document.createElement("audio");
+      audioEl.autoplay = true;
+      pc.ontrack = e => {
+        audioEl.srcObject = e.streams[0];
       };
 
-      setMessages(prev => [...prev, newMessage]);
+      localStream.getTracks().forEach(track => {
+        pc.addTrack(track, localStream);
+      });
+
+      const dataChannel = pc.createDataChannel("oai-events");
+      dataChannelRef.current = dataChannel;
       
-      await ai.talkStream(
-        text, 
-        targetLang,
-        () => {
-          // Stream rendering without TTS
-        },
-        (fullText) => {
-          setMessages(prev => prev.map(m => m.id === messageId ? { ...m, translatedText: fullText } : m));
-          storage.addHistory({
-            type: 'talk',
-            input: text,
-            output: fullText,
-            fromLang: sourceLang,
-            toLang: targetLang
-          }).catch(console.error);
-          setCurrentlySpeakingId(messageId);
-          speak(fullText, targetLang, false, () => {}, () => setCurrentlySpeakingId(null));
+      dataChannel.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          if (message.type === "response.audio_transcript.delta") {
+            setTargetSubtitle(prev => prev + message.delta);
+          } else if (message.type === "session.output_transcript.delta") {
+            setTargetSubtitle(prev => prev + message.delta);
+          } else if (message.type === "session.input_transcript.delta" || message.type === "conversation.item.input_audio_transcription.completed") {
+             if (message.delta) {
+               setSourceSubtitle(prev => prev + message.delta);
+             } else if (message.transcript) {
+               setSourceSubtitle(message.transcript);
+             }
+          }
+        } catch (e) {
+          console.error("Data channel parse error", e);
         }
-      );
+      };
 
-    } catch (err) {
-       console.error("Talk translation failed", err);
-       setMessages(prev => prev.filter(m => m.originalText !== text)); 
+      dataChannel.onopen = () => {
+         // Send an event to update session if needed
+         dataChannel.send(JSON.stringify({
+           type: 'session.update',
+           session: {
+             modalities: ['audio', 'text'],
+             instructions: `Translate the spoken input to ${targetLangName}.`
+           }
+         }));
+      };
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      const baseUrl = "https://api.openai.com/v1/realtime";
+      const model = "gpt-4o-realtime-preview-2024-12-17";
+      const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
+        method: "POST",
+        body: offer.sdp,
+        headers: {
+          Authorization: `Bearer ${ephemeralKey}`,
+          "Content-Type": "application/sdp"
+        },
+      });
+
+      if (!sdpResponse.ok) {
+         throw new Error(`OpenAI API error: ${sdpResponse.statusText}`);
+      }
+      
+      const answer = {
+        type: "answer" as RTCSdpType,
+        sdp: await sdpResponse.text(),
+      };
+      
+      await pc.setRemoteDescription(answer);
+
+    } catch (error) {
+      console.error("Realtime Stream Error:", error);
+      alert("Vui lòng cấp quyền truy cập Micro để sử dụng TalkTab hoặc kiểm tra lại kết nối.");
+      closeRealtimeStream();
     } finally {
-      setIsTranslating(false);
-    }
-  };
-
-  const getBrowserLangCode = (lang: string) => {
-    if (lang === 'Vietnamese') return 'vi-VN';
-    if (lang.includes('Chinese')) return 'zh-CN';
-    if (lang === 'English') return 'en-US';
-    if (lang === 'Indonesian') return 'id-ID';
-    if (lang === 'Burmese') return 'my-MM';
-    return 'en-US'; 
-  };
-
-  const toggleMic = (speaker: 'user' | 'partner') => {
-    if (activeSpeaker === speaker) {
-      stopListening();
-      setActiveSpeaker(null);
-    } else {
-      stopSpeaking();
-      setCurrentlySpeakingId(null);
-      stopListening();
-      setActiveSpeaker(speaker);
-      const lang = speaker === 'user' ? getBrowserLangCode(userLang) : getBrowserLangCode(partnerLang);
-      startListening(lang);
+      setIsInitializing(false);
     }
   };
 
@@ -150,8 +185,7 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
         navigator.vibrate(20);
       }
       longPressOccurred.current = true;
-      stopListening();
-      setActiveSpeaker(null);
+      closeRealtimeStream();
       setMenuOpenFor(speaker);
     }, 500);
   };
@@ -185,7 +219,6 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
   const handleClick = (speaker: 'user' | 'partner', e: React.MouseEvent) => {
     e.stopPropagation();
     if (longPressOccurred.current) {
-      // It was a long press, so this click is just the release. Ignore it.
       longPressOccurred.current = false;
       return;
     }
@@ -193,7 +226,11 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
     if (menuOpenFor === speaker) {
       setMenuOpenFor(null);
     } else if (!menuOpenFor) {
-      toggleMic(speaker);
+      if (activeSpeaker === speaker) {
+        closeRealtimeStream();
+      } else {
+        initRealtimeStream(speaker);
+      }
     }
   };
 
@@ -201,16 +238,6 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
     if (menuOpenFor === 'user') setUserLang(lang);
     if (menuOpenFor === 'partner') setPartnerLang(lang);
     setMenuOpenFor(null);
-  };
-
-  const clearHistory = () => {
-    if (window.confirm('Clear conversation?')) {
-      setMessages([]);
-      stopListening();
-      stopSpeaking();
-      setCurrentlySpeakingId(null);
-      setActiveSpeaker(null);
-    }
   };
 
   return (
@@ -223,85 +250,35 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
              {LANGUAGE_FLAGS[partnerLang]} &harr; {LANGUAGE_FLAGS[userLang]}
            </span>
         </div>
-        <button onClick={clearHistory} className="text-gray-400 hover:text-red-500 transition-colors p-2" title="Clear Chat">
-          <RotateCcw size={18} />
-        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 flex flex-col pt-6 pb-40">
-        <AnimatePresence>
-          {messages.map(msg => {
-            const isPartner = msg.sender === 'partner';
-            return (
-              <motion.div 
-                key={msg.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`flex flex-col max-w-[85%] ${isPartner ? 'self-start' : 'self-end'}`}
-              >
-                <div 
-                  className={`p-4 rounded-2xl shadow-sm transition-all duration-300 ${
-                    currentlySpeakingId === msg.id ? 'opacity-90 ring-2 ring-[#006D77]/50 ring-offset-2 ring-offset-surface' : ''
-                  } ${
-                    isPartner 
-                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-sm' 
-                      : 'bg-[#006D77] text-white rounded-tr-sm'
-                  }`}
-                >
-                  <p className="text-sm opacity-70 mb-1 leading-tight">{msg.originalText}</p>
-                  
-                  {msg.translatedText === '...' ? (
-                    <div className="flex h-6 items-center gap-1.5 mt-2">
-                      <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1.2 }} className={`w-2 h-2 rounded-full ${isPartner ? 'bg-[#006D77]' : 'bg-white'}`} />
-                      <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1.2, delay: 0.2 }} className={`w-2 h-2 rounded-full ${isPartner ? 'bg-[#006D77]' : 'bg-white'}`} />
-                      <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1.2, delay: 0.4 }} className={`w-2 h-2 rounded-full ${isPartner ? 'bg-[#006D77]' : 'bg-white'}`} />
-                    </div>
-                  ) : (
-                    <div className="flex items-end justify-between gap-3">
-                      <p className={`text-lg font-medium leading-snug ${['Chinese', 'Burmese'].some(lang => msg.translatedLang.includes(lang)) ? 'text-[1.2em]' : ''}`}>{msg.translatedText}</p>
-                      {currentlySpeakingId === msg.id && (
-                        <motion.div
-                          animate={{ scale: [1, 1.2, 1] }}
-                          transition={{ repeat: Infinity, duration: 1.5 }}
-                          className={`${isPartner ? 'text-[#006D77]' : 'text-white'}`}
-                        >
-                          <Volume2 size={16} />
-                        </motion.div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className={`mt-1 flex items-center gap-1 opacity-50 ${isPartner ? 'justify-start' : 'justify-end'}`}>
-                   <button 
-                     onClick={() => {
-                        setCurrentlySpeakingId(msg.id);
-                        speak(msg.translatedText, msg.translatedLang, false, () => {}, () => setCurrentlySpeakingId(null));
-                     }}
-                     className="p-1 hover:text-[#006D77] transition-colors flex items-center gap-1 bg-surface border border-border-main rounded-md shadow-sm"
-                     title="Re-play translation"
-                   >
-                     <Volume2 size={12} />
-                     <span className="text-[10px] font-medium">Re-play</span>
-                   </button>
-                   <span className="text-[10px] ml-1">{LANGUAGE_FLAGS[msg.originalLang]} &rarr; {LANGUAGE_FLAGS[msg.translatedLang]}</span>
-                </div>
-              </motion.div>
-            )
-          })}
-        </AnimatePresence>
-
-        {activeSpeaker && interimTranscript && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className={`flex flex-col max-w-[85%] ${activeSpeaker === 'partner' ? 'self-start' : 'self-end'}`}
-          >
-             <div className={`p-4 rounded-2xl shadow-sm opacity-60 ${activeSpeaker === 'partner' ? 'bg-slate-100 dark:bg-slate-800 rounded-tl-sm' : 'bg-[#006D77] text-white rounded-tr-sm'}`}>
-                <p className="animate-pulse">{interimTranscript}...</p>
-             </div>
-          </motion.div>
+      <div className="flex-1 p-6 space-y-6 flex flex-col items-center justify-center pt-6 pb-40">
+        
+        {activeSpeaker ? (
+          <div className="flex flex-col items-center w-full gap-8">
+            <div className="w-full text-center space-y-2">
+               <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Source</p>
+               <p className="text-xl font-medium opacity-80 min-h-[3rem] transition-all">
+                 {sourceSubtitle || "Listening..."}
+               </p>
+            </div>
+            
+            <div className="w-12 h-[1px] bg-border-main" />
+            
+            <div className="w-full text-center space-y-2">
+               <p className="text-xs text-[#006D77] uppercase tracking-widest font-semibold">Translation</p>
+               <p className="text-2xl font-semibold text-[#006D77] min-h-[3rem] transition-all">
+                 {targetSubtitle || (isInitializing ? "Connecting..." : "...")}
+               </p>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center opacity-40">
+            <Globe size={48} className="mx-auto mb-4" />
+            <p>Tap a microphone to start real-time translation</p>
+          </div>
         )}
-        <div ref={messagesEndRef} />
+
       </div>
 
       {menuOpenFor && (

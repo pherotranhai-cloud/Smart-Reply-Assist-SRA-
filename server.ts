@@ -292,6 +292,32 @@ async function startServer() {
     }
   });
 
+  // POST /api/realtime/session
+  apiRouter.post('/realtime/session', async (req, res) => {
+    try {
+      const { targetLang } = req.body; // e.g., 'zh', 'vi'
+      const response = await fetch("https://api.openai.com/v1/realtime/translations/client_secrets", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+          "OpenAI-Safety-Identifier": "aima-production-realtime"
+        },
+        body: JSON.stringify({
+          session: {
+            model: "gpt-realtime-translate",
+            audio: { output: { language: targetLang || "zh" } }
+          }
+        })
+      });
+      const data = await response.json();
+      return res.status(response.status).json(data);
+    } catch (error: any) {
+      console.error('[Realtime Session Error]:', error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
   // Netlify fallback routes (translate, import-vocab, etc.)
   apiRouter.use(netlifyApiRouter);
 

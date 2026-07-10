@@ -55,14 +55,12 @@ export const Layout: React.FC<LayoutProps> = ({
               active={activeTab === 'translate'} 
               onClick={(e) => handleTabClick('translate', e)} 
             />
-            {/* Talk Tab disabled based on requirements
             <NavItem 
               icon={<MessagesSquare size={24} />} 
               label="Talk"
               active={activeTab === 'talk'} 
               onClick={(e) => handleTabClick('talk', e)} 
             />
-            */}
             <NavItem 
               icon={<PenTool size={24} />} 
               label={t('compose')}
