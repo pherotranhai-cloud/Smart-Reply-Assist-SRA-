@@ -2,7 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
-import { router as netlifyApiRouter } from './netlify/functions/api';
+import { router as netlifyApiRouter } from './netlify/functions/api.ts';
 
 dotenv.config();
 

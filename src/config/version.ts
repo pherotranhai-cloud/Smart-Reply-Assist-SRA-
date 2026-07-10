@@ -1,7 +1,7 @@
 export const APP_VERSION = "2.0.9";
 
 export const UPDATE_CHANGELOG = {
-  title: "Có gì mới trong phiên bản 2.0.2?",
+  title: "Có gì mới trong phiên bản 2.0.9?",
   features: [
     "TalkTab Realtime Interpreter — Tích hợp API Realtime chuyên trách của OpenAI",
     "Màn hình Splash Screen hoàn toàn mới",
