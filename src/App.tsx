@@ -1086,7 +1086,7 @@ export default function App() {
         onCloseToast={() => setToast(null)}
         t={t}
       >
-      <AnimatePresence mode="wait">
+      <div className="flex-1 w-full relative">
         {activeTab === 'translate' && (
           <motion.div 
             key="translate"
@@ -1453,18 +1453,11 @@ export default function App() {
         )}
 
         {activeTab === 'talk' && (
-          <motion.div 
-            key="talk"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="h-[calc(100vh-120px)]"
-          >
+          <div className="h-[calc(100vh-120px)] w-full">
             <Suspense fallback={<FallbackSpinner />}>
               <TalkTab settings={state.settings} vocab={vocab} t={t} />
             </Suspense>
-          </motion.div>
+          </div>
         )}
 
         {activeTab === 'history' && (
@@ -1519,7 +1512,7 @@ export default function App() {
             </Suspense>
           </motion.div>
         )}
-      </AnimatePresence>
+      </div>
 
       <VoiceModal 
         isOpen={isListening} 
