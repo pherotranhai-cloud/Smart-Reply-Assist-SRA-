@@ -147,9 +147,24 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
+      const getCleanFetch = () => {
+        try {
+          const iframe = document.createElement('iframe');
+          iframe.style.display = 'none';
+          document.body.appendChild(iframe);
+          const cleanFetch = iframe.contentWindow?.fetch;
+          document.body.removeChild(iframe);
+          return cleanFetch || window.fetch;
+        } catch (e) {
+          return window.fetch;
+        }
+      };
+
+      const cleanFetch = getCleanFetch();
+
       const baseUrl = "https://api.openai.com/v1/realtime";
       const model = "gpt-4o-realtime-preview-2024-12-17";
-      const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
+      const sdpResponse = await cleanFetch(`${baseUrl}?model=${model}`, {
         method: "POST",
         body: offer.sdp,
         headers: {
