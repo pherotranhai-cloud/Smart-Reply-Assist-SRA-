@@ -86,6 +86,7 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
       const sessionRes = await fetch(`${SERVER_BASE_URL}/api/realtime/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ targetLang })
       });
       const sessionData = await sessionRes.json();
