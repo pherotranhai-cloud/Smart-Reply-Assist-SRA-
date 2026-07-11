@@ -56,11 +56,11 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ isDataLoaded, onComp
             />
             <motion.text
               x="1000"
-              y="1200"
+              y="1180"
               textAnchor="middle"
               dominantBaseline="middle"
               fill="#2FA05E"
-              style={{ fontSize: '700px', fontFamily: 'Arial, Helvetica, sans-serif', fontWeight: 500 }}
+              style={{ fontSize: '750px', fontFamily: 'Arial, Helvetica, sans-serif', fontWeight: 500 }}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 1.2, duration: 0.8 }}

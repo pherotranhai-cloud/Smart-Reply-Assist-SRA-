@@ -63,11 +63,7 @@ import { InstallBanner } from './components/InstallBanner';
 import { ChangelogModal } from './components/ChangelogModal';
 import { FloatingAssistant } from './components/FloatingAssistant';
 import { APP_VERSION } from './config/version';
-import { TemporaryLockoutModal } from './components/TemporaryLockoutModal';
-import { PermanentBanOverlay } from './components/PermanentBanOverlay';
 
-// Lưu lại fetch nguyên bản của trình duyệt trước khi bị can thiệp bởi device_uuid filter
-export const nativeBypassFetch = window.fetch.bind(window);
 
 const VocabManager = lazy(() => import('./components/VocabManager').then(module => ({ default: module.VocabManager })));
 const SettingsPanel = lazy(() => import('./components/SettingsPanel').then(module => ({ default: module.SettingsPanel })));
@@ -91,9 +87,6 @@ export default function App() {
   const [isAdminMode, setIsAdminMode] = useState(false);
 
   const requestTimestamps = useRef<number[]>([]);
-  const [isLocked, setIsLocked] = useState(false);
-  const [isBanned, setIsBanned] = useState(false);
-  const [showLockout, setShowLockout] = useState(false);
   const [context, setContext] = useState<ConversationContext | null>(null);
   const [isContextExpanded, setIsContextExpanded] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -126,93 +119,6 @@ export default function App() {
       .catch(console.error);
   }, []);
 
-  useEffect(() => {
-    // Generate or retrieve device_uuid
-    let deviceUuid = safeLocalStorage.getItem('aima_device_uuid');
-    if (!deviceUuid) {
-      deviceUuid = crypto.randomUUID ? crypto.randomUUID() : 'uuid-' + Math.random().toString(36).substring(2) + Date.now().toString(36);
-      safeLocalStorage.setItem('aima_device_uuid', deviceUuid);
-    }
-
-    const originalFetch = window.fetch;
-    let fetchPatched = false;
-    try {
-      window.fetch = async (...args) => {
-        try {
-          let [resource, config] = args;
-          
-          config = config || {};
-          config.headers = {
-            ...config.headers,
-            'x-device-uuid': deviceUuid
-          };
-
-          // Inject device_uuid into JSON payloads
-          if (config.method && ['POST', 'PUT', 'PATCH'].includes(config.method.toUpperCase())) {
-             if (typeof config.body === 'string') {
-               try {
-                  const parsedBody = JSON.parse(config.body);
-                  if (typeof parsedBody === 'object' && parsedBody !== null) {
-                     parsedBody.device_uuid = deviceUuid;
-                     config.body = JSON.stringify(parsedBody);
-                  }
-               } catch (e) {
-                  // Ignore parse errors if body is not JSON
-               }
-             }
-          }
-
-          const response = await originalFetch(resource, config);
-          if (response.status === 403) {
-            setIsBanned(true);
-          }
-          return response;
-        } catch (e) {
-          throw e;
-        }
-      };
-      fetchPatched = true;
-    } catch (e) {
-      console.warn("Could not patch window.fetch because it is read-only in this environment:", e);
-    }
-
-    let axiosInterceptor: number | null = null;
-    import('axios').then(({ default: axios }) => {
-      axiosInterceptor = axios.interceptors.request.use((config) => {
-        if (!config.headers) {
-          config.headers = {} as any;
-        }
-        config.headers['x-device-uuid'] = deviceUuid;
-        if (config.data && typeof config.data === 'object') {
-          config.data.device_uuid = deviceUuid;
-        }
-        return config;
-      });
-      
-      const responseInterceptor = axios.interceptors.response.use(
-        response => response,
-        error => {
-          if (error.response && error.response.status === 403) {
-            setIsBanned(true);
-          }
-          return Promise.reject(error);
-        }
-      );
-    }).catch(console.error);
-
-    fetch('/api/health').catch(console.error);
-
-    return () => {
-      if (fetchPatched) {
-        try {
-          window.fetch = originalFetch;
-        } catch (e) {
-          console.warn("Could not restore window.fetch:", e);
-        }
-      }
-      // ... cleanup if needed
-    };
-  }, []);
 
   const outputRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -234,31 +140,10 @@ export default function App() {
     format: 'wechat_zalo' as Format
   });
 
-  const handleCloseLockout = useCallback(() => {
-    setShowLockout(false);
-    setIsLocked(false);
-    requestTimestamps.current = [];
-  }, []);
 
   const checkRateLimit = useCallback(() => {
-    const now = Date.now();
-    requestTimestamps.current = requestTimestamps.current.filter(t => now - t < 30000);
-    if (requestTimestamps.current.length >= 5) {
-      if (!isLocked) {
-        setIsLocked(true);
-        setShowLockout(true);
-        
-        fetch('/api/security-analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: translateInput || composeReq })
-        }).catch(e => console.error(e));
-      }
-      return false;
-    }
-    requestTimestamps.current.push(now);
-    return true;
-  }, [isLocked, translateInput, composeReq]);
+    return true; // Rate limiting removed
+  }, []);
 
   const [reviewToggle, setReviewToggle] = useState<'reply' | 'summary'>('reply');
 
@@ -1047,12 +932,9 @@ export default function App() {
 
   return (
     <>
-      <TemporaryLockoutModal 
-        isOpen={showLockout} 
-        onClose={handleCloseLockout} 
-      />
 
-      {isBanned && <PermanentBanOverlay />}
+
+
 
       <ChangelogModal 
         isOpen={isChangelogOpen} 

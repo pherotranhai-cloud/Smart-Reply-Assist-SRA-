@@ -59,62 +59,6 @@ export const router = Router();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-let ipBlacklistCache = new Set<string>();
-let lastBlacklistFetch = 0;
-
-const fetchBlacklist = async () => {
-  if (!supabase) return;
-  const now = Date.now();
-  if (now - lastBlacklistFetch < 60000) return; // cache 1 min
-  try {
-    const { data } = await supabase.from('ip_blacklist').select('ip');
-    if (data) {
-      ipBlacklistCache = new Set(data.map((d: any) => d.ip));
-      lastBlacklistFetch = now;
-    }
-  } catch (err) {
-    console.error('Failed to fetch blacklist', err);
-  }
-};
-
-app.use(async (req, res, next) => {
-  await fetchBlacklist();
-  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-  const clientIp = typeof ip === 'string' ? ip.split(',')[0].trim() : 'unknown';
-  (req as any).clientIp = clientIp;
-
-  if (supabase) {
-    try {
-      const { data: trackers } = await (supabase as any)
-        .from('ip_tracker')
-        .select('*')
-        .eq('ip_address', clientIp);
-
-      if (trackers && trackers.length > 0) {
-        const tracker = trackers[0];
-        if (tracker.status === 'block') {
-          return res.status(403).json({ error: 'IP_BANNED' });
-        }
-        await (supabase as any)
-          .from('ip_tracker')
-          .update({ last_request_at: new Date().toISOString() })
-          .eq('ip_address', clientIp);
-      } else {
-        await (supabase as any)
-          .from('ip_tracker')
-          .insert([{ ip_address: clientIp, status: 'good', last_request_at: new Date().toISOString() }] as any);
-      }
-    } catch (err) {
-      console.error('IP Tracker Middleware error:', err);
-    }
-  }
-  
-  if (ipBlacklistCache.has(clientIp)) {
-    return res.status(403).json({ error: 'IP_BANNED' });
-  }
-  
-  next();
-});
 
 router.get('/health', (req, res) => res.json({ status: 'ok' }));
 
@@ -776,13 +720,13 @@ router.post('/admin/ip-tracker/status', async (req, res) => {
         .from('ip_tracker')
         .update({ status: 'good', spam_logs: null })
         .eq('ip_address', ip_address);
-      ipBlacklistCache.delete(ip_address);
+      
     } else if (status === 'block') {
       await (supabase as any)
         .from('ip_tracker')
         .update({ status: 'block' })
         .eq('ip_address', ip_address);
-      ipBlacklistCache.add(ip_address);
+      
     } else if (status === 'warning') {
       await (supabase as any)
         .from('ip_tracker')
@@ -802,7 +746,7 @@ router.post('/admin/blacklist', async (req, res) => {
 
   try {
     await supabase.from('ip_blacklist').insert([{ ip, created_at: new Date().toISOString() }] as any);
-    ipBlacklistCache.add(ip);
+    
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to blacklist IP' });

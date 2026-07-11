@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Mic, Square, RotateCcw, Globe } from 'lucide-react';
 import { LANGUAGE_FLAGS } from '../constants';
 import { safeLocalStorage } from '../utils/safeStorage';
-import { nativeBypassFetch } from '../App';
 
 const ALL_LANGUAGES = ['Vietnamese', 'Chinese (Simplified)', 'Chinese (Traditional)', 'English', 'Indonesian', 'Burmese'] as const;
 
@@ -84,7 +83,7 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
       
       const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || import.meta.env.VITE_API_URL || '';
       
-      const sessionRes = await nativeBypassFetch(`${SERVER_BASE_URL}/api/realtime/session`, {
+      const sessionRes = await fetch(`${SERVER_BASE_URL}/api/realtime/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetLang })
@@ -153,7 +152,7 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
 
       const baseUrl = "https://api.openai.com/v1/realtime";
       const model = "gpt-4o-realtime-preview-2024-12-17";
-      const sdpResponse = await nativeBypassFetch(`${baseUrl}?model=${model}`, {
+      const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
         method: "POST",
         body: offer.sdp,
         headers: {
