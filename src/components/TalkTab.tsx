@@ -88,14 +88,15 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetLang })
       });
-      if (!sessionRes.ok) {
-        throw new Error(`Render Server error: ${sessionRes.statusText}`);
-      }
+      
       const sessionData = await sessionRes.json();
-      if (!sessionData.client_secret || !sessionData.client_secret.value) {
-        throw new Error('Failed to obtain client secret from Render Server');
+      
+      if (sessionData.error || !sessionData.token) {
+        throw new Error(sessionData.error || 'Không thể lấy được token phẳng từ Render Server');
       }
-      const ephemeralKey = sessionData.client_secret.value;
+
+      // Nhận trực tiếp mã an toàn sạch để đưa vào luồng bắt tay SDP phía dưới
+      const ephemeralKey = sessionData.token;
 
       const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = localStream;

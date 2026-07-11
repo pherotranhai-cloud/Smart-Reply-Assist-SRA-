@@ -46,10 +46,25 @@ async function startServer() {
           }
         })
       });
-      const data = await response.json();
-      return res.status(response.status).json(data);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return res.status(response.status).json({ error: `OpenAI Gateway Error: ${errorText}` });
+      }
+
+      const openAiData = await response.json();
+      
+      // Render Server đứng ra chịu trách nhiệm bóc tách dữ liệu lồng nhau tại gốc
+      const cleanToken = openAiData?.client_secret?.value || '';
+      
+      if (!cleanToken) {
+        return res.status(500).json({ error: "Không tìm thấy token hợp lệ từ OpenAI" });
+      }
+
+      // Trả về một object phẳng tuyệt đối cho Frontend nuốt trọn vẹn
+      return res.status(200).json({ token: cleanToken });
     } catch (error: any) {
-      console.error('[Realtime Session Error]:', error);
+      console.error('[Render Realtime Core Error]:', error);
       return res.status(500).json({ error: error.message });
     }
   });
