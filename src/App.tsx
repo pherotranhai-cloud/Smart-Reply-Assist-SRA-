@@ -66,6 +66,9 @@ import { APP_VERSION } from './config/version';
 import { TemporaryLockoutModal } from './components/TemporaryLockoutModal';
 import { PermanentBanOverlay } from './components/PermanentBanOverlay';
 
+// Lưu lại fetch nguyên bản của trình duyệt trước khi bị can thiệp bởi device_uuid filter
+export const nativeBypassFetch = window.fetch.bind(window);
+
 const VocabManager = lazy(() => import('./components/VocabManager').then(module => ({ default: module.VocabManager })));
 const SettingsPanel = lazy(() => import('./components/SettingsPanel').then(module => ({ default: module.SettingsPanel })));
 const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
