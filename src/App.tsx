@@ -1086,7 +1086,7 @@ export default function App() {
         onCloseToast={() => setToast(null)}
         t={t}
       >
-      <div className="flex-1 w-full relative">
+      <div className="flex-1 overflow-y-auto pb-24">
         {activeTab === 'translate' && (
           <motion.div 
             key="translate"
@@ -1453,11 +1453,9 @@ export default function App() {
         )}
 
         {activeTab === 'talk' && (
-          <div className="h-[calc(100vh-120px)] w-full">
-            <Suspense fallback={<FallbackSpinner />}>
-              <TalkTab settings={state.settings} vocab={vocab} t={t} />
-            </Suspense>
-          </div>
+          <Suspense fallback={<FallbackSpinner />}>
+            <TalkTab settings={state.settings} vocab={vocab} t={t} />
+          </Suspense>
         )}
 
         {activeTab === 'history' && (
