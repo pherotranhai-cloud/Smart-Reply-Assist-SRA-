@@ -351,12 +351,6 @@ export default function App() {
   }, [isSpeaking, speak, stopSpeaking, showToast]);
 
   useEffect(() => {
-    if (activeTab === 'talk') {
-      setActiveTab('translate');
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
     if (transcript) {
       if (activeTab === 'translate') {
         setTranslateInput(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + transcript);
