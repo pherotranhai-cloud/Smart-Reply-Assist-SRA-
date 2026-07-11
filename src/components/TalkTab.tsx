@@ -80,8 +80,10 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
 
       const targetLangName = speaker === 'user' ? partnerLang : userLang;
       const targetLang = getLanguageCode(targetLangName);
-
-      const sessionRes = await fetch('/api/realtime/session', {
+      
+      const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || import.meta.env.VITE_API_URL || '';
+      
+      const sessionRes = await fetch(`${SERVER_BASE_URL}/api/realtime/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetLang })
