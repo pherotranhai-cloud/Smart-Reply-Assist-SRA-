@@ -89,6 +89,9 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetLang })
       });
+      if (!sessionRes.ok) {
+        throw new Error(`Render Server error: ${sessionRes.statusText}`);
+      }
       const sessionData = await sessionRes.json();
       if (!sessionData.client_secret || !sessionData.client_secret.value) {
         throw new Error('Failed to obtain client secret from Render Server');
@@ -170,9 +173,17 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
       
       await pc.setRemoteDescription(answer);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Realtime Stream Error:", error);
-      alert("Vui lòng cấp quyền truy cập Micro để sử dụng TalkTab hoặc kiểm tra lại kết nối.");
+      if (error.name === 'NotAllowedError' || error.name === 'NotFoundError') {
+        alert("Thiếu quyền Micro: Vui lòng cấp quyền truy cập Micro để sử dụng tính năng nói chuyện.");
+      } else if (error.message && error.message.includes("Render Server")) {
+        alert("Lỗi máy chủ kết nối Render: Không thể lấy khóa xác thực. Vui lòng thử lại sau hoặc báo IT.");
+      } else if (error.message && error.message.includes("OpenAI")) {
+        alert("Lỗi kết nối OpenAI: Không thể thiết lập luồng giọng nói. Vui lòng thử lại.");
+      } else {
+        alert("Kết nối không ổn định, vui lòng kiểm tra lại mạng Wifi/4G hoặc thử lại.");
+      }
       closeRealtimeStream();
     } finally {
       setIsInitializing(false);
