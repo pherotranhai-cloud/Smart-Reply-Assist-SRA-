@@ -38,10 +38,10 @@ async function startServer() {
       const languageMapper: Record<string, string> = {
         'Vietnamese': 'vi',
         'Chinese (Simplified)': 'zh',
-        'Chinese (Traditional)': 'zh-TW',
+        'Chinese (Traditional)': 'zh',
         'English': 'en',
         'Indonesian': 'id',
-        'Burmese': 'my'
+        'Burmese': 'en'
       };
       
       // Lấy mã code tương ứng, mặc định fallback về tiếng Anh nếu không khớp

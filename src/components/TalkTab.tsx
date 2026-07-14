@@ -19,6 +19,20 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t, showToast 
   
   useEffect(() => { safeLocalStorage.setItem('talk_my_lang', myLang); }, [myLang]);
 
+  const QUOTA_LIMIT = 900;
+  const todayDate = new Date().toISOString().split('T')[0];
+  
+  const [usedSeconds, setUsedSeconds] = useState<number>(() => {
+    const savedDate = safeLocalStorage.getItem('talktab_usage_date');
+    const savedSeconds = safeLocalStorage.getItem('talktab_usage_seconds');
+    if (savedDate === todayDate && savedSeconds) {
+      return parseInt(savedSeconds, 10);
+    }
+    safeLocalStorage.setItem('talktab_usage_date', todayDate);
+    safeLocalStorage.setItem('talktab_usage_seconds', '0');
+    return 0;
+  });
+
   const [isListening, setIsListening] = useState(false);
   const [sourceSubtitle, setSourceSubtitle] = useState<string>('');
   const [targetSubtitle, setTargetSubtitle] = useState<string>('');
@@ -66,6 +80,25 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t, showToast 
     setIsListening(false);
     setIsInitializing(false);
   };
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isListening) {
+      interval = setInterval(() => {
+        setUsedSeconds(prev => {
+          const newVal = prev + 1;
+          safeLocalStorage.setItem('talktab_usage_seconds', newVal.toString());
+          
+          if (newVal >= QUOTA_LIMIT) {
+            closeRealtimeStream();
+            showToast(t('quota_exceeded') || "Quota exceeded for today", 'error');
+          }
+          return newVal;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isListening, t, showToast]); // include closeRealtimeStream logic via closure but it's safe
 
   useEffect(() => {
     return () => {
@@ -230,8 +263,7 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t, showToast 
       longPressOccurred.current = false;
       return;
     }
-
-    if (menuOpen) {
+if (menuOpen) {
       setMenuOpen(false);
     } else {
       if (isListening) {
@@ -280,6 +312,8 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t, showToast 
       showToast(t('error_save_history') || "Lỗi lưu trữ, vui lòng thử lại.", 'error');
     }
   };
+
+  const isLimitReached = usedSeconds >= QUOTA_LIMIT;
 
   return (
     <div className="flex flex-col h-full bg-surface shadow-sm border border-border-main rounded-3xl overflow-hidden relative talk-tab-container"
@@ -371,31 +405,37 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t, showToast 
             )}
           </AnimatePresence>
 
+          <span className="text-[10px] text-text-muted opacity-60 font-medium">
+            {t('time_left') || 'Thời gian hôm nay'}: {Math.max(0, Math.floor((QUOTA_LIMIT - usedSeconds) / 60))} phút
+          </span>
+
           <motion.button 
             animate={menuOpen ? { scale: 0.95 } : { scale: 1 }}
-            onPointerDown={(e) => handlePointerDown(e)}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            onClick={(e) => handleClick(e)}
+            onPointerDown={(e) => !isLimitReached && handlePointerDown(e)}
+            onPointerMove={(e) => !isLimitReached && handlePointerMove(e)}
+            onPointerUp={(e) => !isLimitReached && handlePointerUp(e)}
+            onPointerCancel={(e) => !isLimitReached && handlePointerUp(e)}
+            onClick={(e) => !isLimitReached && handleClick(e)}
+            disabled={isLimitReached}
             className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${
               isListening 
                 ? 'bg-[#006D77] text-white border-2 border-[#006D77] animate-pulse shadow-[#006D77]/30 scale-110' 
-                : 'bg-panel text-accent border-2 border-accent/40 shadow-accent/10 hover:bg-bg-input'
+                : isLimitReached
+                  ? 'bg-panel text-text-muted border-2 border-border-main opacity-50 cursor-not-allowed'
+                  : 'bg-panel text-accent border-2 border-accent/40 shadow-accent/10 hover:bg-bg-input'
             }`}
           >
             {isListening ? <Square size={24} /> : <Mic size={24} />}
           </motion.button>
-          
-          <button
-            onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }} 
-            className="text-[11px] font-semibold text-[#006D77] uppercase flex items-center gap-1 opacity-80 hover:opacity-100 px-2 py-1 rounded-full hover:bg-black/5 transition-colors"
-          >
-            {LANGUAGE_FLAGS[myLang]} {myLang.split(' ')[0]}
-            <ChevronDown size={14} className="opacity-70" />
-          </button>
         </div>
-
+        
+        <button
+          onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }} 
+          className="text-[11px] font-semibold text-[#006D77] uppercase flex items-center gap-1 opacity-80 hover:opacity-100 px-2 py-1 rounded-full hover:bg-black/5 transition-colors"
+        >
+          {LANGUAGE_FLAGS[myLang]} {myLang.split(' ')[0]}
+          <ChevronDown size={14} className="opacity-70" />
+        </button>
       </div>
     </div>
   );
