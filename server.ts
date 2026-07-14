@@ -44,6 +44,8 @@ async function startServer() {
           session: {
             type: "realtime",
             model: "gpt-realtime-2.1", // Model tiêu chuẩn hỗ trợ đàm thoại WebRTC
+            modalities: ["audio", "text"],
+            instructions: `Sử dụng tiếng ${targetLang === 'Vietnamese' ? 'Việt' : 'Trung'}. Bạn là một thông dịch viên song song chuyên nghiệp tại nhà xưởng Trung - Việt. Nhiệm vụ duy nhất của bạn là dịch chính xác toàn bộ âm thanh nghe được từ ngôn ngữ này sang ngôn ngữ kia và ngược lại một cách trực tiếp. TUYỆT ĐỐI KHÔNG hội thoại, KHÔNG chào hỏi, KHÔNG trả lời câu hỏi của người nói. Chỉ nghe và dịch ngay lập tức.`,
             audio: {
               output: { voice: "marin" }
             }

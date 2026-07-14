@@ -118,35 +118,29 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
       const dataChannel = pc.createDataChannel("oai-events");
       dataChannelRef.current = dataChannel;
       
-      dataChannel.onmessage = (event) => {
+      // Lắng nghe các sự kiện Text/Audio chảy về từ OpenAI Server
+      dataChannel.addEventListener("message", (e) => {
         try {
-          const message = JSON.parse(event.data);
-          if (message.type === "response.audio_transcript.delta") {
-            setTargetSubtitle(prev => prev + message.delta);
-          } else if (message.type === "session.output_transcript.delta") {
-            setTargetSubtitle(prev => prev + message.delta);
-          } else if (message.type === "session.input_transcript.delta" || message.type === "conversation.item.input_audio_transcription.completed") {
-             if (message.delta) {
-               setSourceSubtitle(prev => prev + message.delta);
-             } else if (message.transcript) {
-               setSourceSubtitle(message.transcript);
-             }
+          const event = JSON.parse(e.data);
+          
+          // Khi AI bắt đầu trả về text dịch thuật (Delta / Streaming)
+          if (event.type === "response.audio_transcript.delta") {
+            setTargetSubtitle(prev => prev + event.delta);
           }
-        } catch (e) {
-          console.error("Data channel parse error", e);
-        }
-      };
+          
+          // Khi AI hoàn thành xong một câu dịch hoàn chỉnh
+          if (event.type === "response.audio_transcript.done") {
+            setTargetSubtitle(event.transcript);
+          }
 
-      dataChannel.onopen = () => {
-         // Send an event to update session if needed
-         dataChannel.send(JSON.stringify({
-           type: 'session.update',
-           session: {
-             modalities: ['audio', 'text'],
-             instructions: `Translate the spoken input to ${targetLangName}.`
-           }
-         }));
-      };
+          // Đoạn text gốc (Speech-to-Text) do AI nhận diện từ miệng người nói
+          if (event.type === "conversation.item.input_audio_transcription.completed") {
+            setSourceSubtitle(event.transcript);
+          }
+        } catch (err) {
+          console.error("Lỗi phân tích gói tin Data Channel:", err);
+        }
+      });
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
