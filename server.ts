@@ -32,8 +32,9 @@ async function startServer() {
   apiRouter.post('/realtime/session', async (req, res) => {
     try {
       const { targetLang } = req.body;
+      const targetLangName = targetLang === 'Vietnamese' ? 'tiếng Việt' : 'tiếng Trung';
       
-      const response = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
+      const response = await fetch("https://api.openai.com/v1/realtime/translations/client_secrets", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -42,27 +43,26 @@ async function startServer() {
         },
         body: JSON.stringify({
           session: {
-            type: "realtime",
-            model: "gpt-realtime-2.1", // Model tiêu chuẩn hỗ trợ đàm thoại WebRTC
-            modalities: ["audio", "text"],
-            instructions: `Sử dụng tiếng ${targetLang === 'Vietnamese' ? 'Việt' : 'Trung'}. Bạn là một thông dịch viên song song chuyên nghiệp tại nhà xưởng Trung - Việt. Nhiệm vụ duy nhất của bạn là dịch chính xác toàn bộ âm thanh nghe được từ ngôn ngữ này sang ngôn ngữ kia và ngược lại một cách trực tiếp. TUYỆT ĐỐI KHÔNG hội thoại, KHÔNG chào hỏi, KHÔNG trả lời câu hỏi của người nói. Chỉ nghe và dịch ngay lập tức.`,
-            audio: {
-              output: { voice: "marin" }
-            }
+            model: "gpt-realtime-translate",
+            audio: { 
+              output: { language: targetLang === 'Vietnamese' ? 'vi' : 'zh' } 
+            },
+            instructions: `Bạn là một thiết bị thông dịch viên song song tự động, chuyên nghiệp tại nhà xưởng phục vụ giao tiếp Trung - Việt. \nNhiệm vụ duy nhất: Khi nghe thấy tiếng Trung, lập tức dịch ngay sang tiếng Việt. Khi nghe thấy tiếng Việt, lập tức dịch ngay sang tiếng Trung.\nQuy tắc nghiêm ngặt: TUYỆT ĐỐI KHÔNG tự trả lời, KHÔNG hội thoại, KHÔNG thêm lời khuyên, KHÔNG chào hỏi người nói. Bạn chỉ được phép nghe và phát ra âm thanh dịch thuật chuẩn xác của câu nói đó.`
           }
         })
       });
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('[OpenAI Translation Error Data]:', errorText);
         return res.status(response.status).json({ error: `OpenAI Gateway Error: ${errorText}` });
       }
 
       const openAiData = await response.json();
-      const cleanToken = openAiData?.client_secret?.value || openAiData?.value || ''; // Trích xuất trực tiếp thuộc tính value của tài liệu
+      const cleanToken = openAiData?.client_secret?.value || '';
       
       if (!cleanToken) {
-        return res.status(500).json({ error: "Không tìm thấy mã token trong phản hồi từ OpenAI Gateway" });
+        return res.status(500).json({ error: "Không tìm thấy token phiên dịch phẳng từ OpenAI" });
       }
 
       return res.status(200).json({ token: cleanToken });
