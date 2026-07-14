@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mic, Square, Save, Globe } from 'lucide-react';
+import { Mic, Square, Save, Globe, ChevronDown } from 'lucide-react';
 import { LANGUAGE_FLAGS } from '../constants';
 import { safeLocalStorage } from '../utils/safeStorage';
 
@@ -27,6 +27,13 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [sourceSubtitle, targetSubtitle]);
   
   // Context Menu State
   const [menuOpen, setMenuOpen] = useState(false);
@@ -274,10 +281,10 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
         </div>
       </div>
 
-      <div className="flex-1 p-6 space-y-6 flex flex-col items-center justify-center pt-6 pb-40">
+      <div className="flex-1 p-6 flex flex-col pt-6 pb-32">
         
         {isListening || sourceSubtitle || targetSubtitle || conversationLog.length > 0 ? (
-          <div className="flex flex-col items-center w-full gap-8">
+          <div ref={scrollRef} className="flex-1 w-full max-h-[45vh] overflow-y-auto scroll-smooth pr-2 custom-scrollbar flex flex-col gap-6 items-center justify-center">
             <div className="w-full text-center space-y-2">
                <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Source</p>
                <p className="text-xl font-medium opacity-80 min-h-[3rem] transition-all">
@@ -285,7 +292,7 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
                </p>
             </div>
             
-            <div className="w-12 h-[1px] bg-border-main" />
+            <div className="w-12 h-[1px] bg-border-main shrink-0 mx-auto" />
             
             <div className="w-full text-center space-y-2">
                <p className="text-xs text-[#006D77] uppercase tracking-widest font-semibold">Translation</p>
@@ -295,7 +302,7 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
             </div>
           </div>
         ) : (
-          <div className="text-center opacity-40">
+          <div className="text-center opacity-40 m-auto">
             <Globe size={48} className="mx-auto mb-4" />
             <p>Tap the microphone to start real-time translation</p>
           </div>
@@ -367,9 +374,14 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
           >
             {isListening ? <Square size={24} /> : <Mic size={24} />}
           </motion.button>
-          <span className="text-[11px] font-semibold text-[#006D77] uppercase flex items-center gap-1 opacity-80">
+          
+          <button
+            onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }} 
+            className="text-[11px] font-semibold text-[#006D77] uppercase flex items-center gap-1 opacity-80 hover:opacity-100 px-2 py-1 rounded-full hover:bg-black/5 transition-colors"
+          >
             {LANGUAGE_FLAGS[myLang]} {myLang.split(' ')[0]}
-          </span>
+            <ChevronDown size={14} className="opacity-70" />
+          </button>
         </div>
 
       </div>
