@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mic, Square, RotateCcw, Globe } from 'lucide-react';
+import { Mic, Square, Save, Globe } from 'lucide-react';
 import { LANGUAGE_FLAGS } from '../constants';
 import { safeLocalStorage } from '../utils/safeStorage';
 
@@ -13,28 +13,35 @@ interface TalkTabProps {
 }
 
 export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
-  const [userLang, setUserLang] = useState<string>(() => safeLocalStorage.getItem('talk_user_lang') || 'Vietnamese');
-  const [partnerLang, setPartnerLang] = useState<string>(() => safeLocalStorage.getItem('talk_partner_lang') || 'Chinese (Simplified)');
+  const [myLang, setMyLang] = useState<string>(() => safeLocalStorage.getItem('talk_my_lang') || 'Vietnamese');
   
-  useEffect(() => { safeLocalStorage.setItem('talk_user_lang', userLang); }, [userLang]);
-  useEffect(() => { safeLocalStorage.setItem('talk_partner_lang', partnerLang); }, [partnerLang]);
+  useEffect(() => { safeLocalStorage.setItem('talk_my_lang', myLang); }, [myLang]);
 
-  const [activeSpeaker, setActiveSpeaker] = useState<'user' | 'partner' | null>(null);
+  const [isListening, setIsListening] = useState(false);
   const [sourceSubtitle, setSourceSubtitle] = useState<string>('');
   const [targetSubtitle, setTargetSubtitle] = useState<string>('');
   const [isInitializing, setIsInitializing] = useState(false);
+  
+  const [conversationLog, setConversationLog] = useState<{source: string, translated: string, timestamp: Date}[]>([]);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
   
   // Context Menu State
-  const [menuOpenFor, setMenuOpenFor] = useState<'user' | 'partner' | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const longPressOccurred = useRef(false);
   const [dragHoverLang, setDragHoverLang] = useState<string | null>(null);
 
   const closeRealtimeStream = () => {
+    setConversationLog(prev => {
+      if (sourceSubtitle || targetSubtitle) {
+        return [...prev, { source: sourceSubtitle, translated: targetSubtitle, timestamp: new Date() }];
+      }
+      return prev;
+    });
+
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
       localStreamRef.current = null;
@@ -47,7 +54,7 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
       peerConnectionRef.current.close();
       peerConnectionRef.current = null;
     }
-    setActiveSpeaker(null);
+    setIsListening(false);
     setIsInitializing(false);
   };
 
@@ -57,25 +64,23 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
     };
   }, []);
 
-  const initRealtimeStream = async (speaker: 'user' | 'partner') => {
-    if (activeSpeaker) {
+  const initRealtimeStream = async () => {
+    if (isListening) {
       closeRealtimeStream();
       return;
     }
 
     try {
       setIsInitializing(true);
-      setActiveSpeaker(speaker);
+      setIsListening(true);
       setSourceSubtitle('');
       setTargetSubtitle('');
 
-      // LOGIC ROUTING ĐA NGÔN NGỮ ĐỘNG:
-      // userLang và partnerLang là state lấy từ Dropdown menu trên giao diện
-      const currentTargetLang = speaker === 'user' ? partnerLang : userLang;
+      // Gửi string ngôn ngữ nguyên bản lên Backend để mapper xử lý
+      const currentTargetLang = myLang;
       
       const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || import.meta.env.VITE_API_URL || '';
       
-      // Gửi string ngôn ngữ nguyên bản lên Backend để mapper xử lý
       const sessionRes = await fetch(`${SERVER_BASE_URL}/api/realtime/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -170,7 +175,7 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
     }
   };
 
-  const handlePointerDown = (speaker: 'user' | 'partner', e: React.PointerEvent) => {
+  const handlePointerDown = (e: React.PointerEvent) => {
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     longPressOccurred.current = false;
     
@@ -180,12 +185,12 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
       }
       longPressOccurred.current = true;
       closeRealtimeStream();
-      setMenuOpenFor(speaker);
+      setMenuOpen(true);
     }, 500);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (menuOpenFor) {
+    if (menuOpen) {
       const el = document.elementFromPoint(e.clientX, e.clientY);
       const langEl = el?.closest('[data-lang]');
       if (langEl) {
@@ -204,56 +209,79 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
       longPressTimer.current = null;
     }
     
-    if (menuOpenFor && dragHoverLang) {
+    if (menuOpen && dragHoverLang) {
       selectLanguage(dragHoverLang);
     }
     setDragHoverLang(null);
   };
 
-  const handleClick = (speaker: 'user' | 'partner', e: React.MouseEvent) => {
+  const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (longPressOccurred.current) {
       longPressOccurred.current = false;
       return;
     }
 
-    if (menuOpenFor === speaker) {
-      setMenuOpenFor(null);
-    } else if (!menuOpenFor) {
-      if (activeSpeaker === speaker) {
+    if (menuOpen) {
+      setMenuOpen(false);
+    } else {
+      if (isListening) {
         closeRealtimeStream();
       } else {
-        initRealtimeStream(speaker);
+        initRealtimeStream();
       }
     }
   };
 
   const selectLanguage = (lang: string) => {
-    if (menuOpenFor === 'user') setUserLang(lang);
-    if (menuOpenFor === 'partner') setPartnerLang(lang);
-    setMenuOpenFor(null);
+    setMyLang(lang);
+    setMenuOpen(false);
+  };
+
+  const handleSaveHistory = async () => {
+    if (conversationLog.length === 0 && !sourceSubtitle && !targetSubtitle) return;
+    
+    const finalLog = [...conversationLog];
+    if (sourceSubtitle || targetSubtitle) {
+      finalLog.push({
+        source: sourceSubtitle,
+        translated: targetSubtitle,
+        timestamp: new Date()
+      });
+    }
+
+    try {
+      safeLocalStorage.setItem('talk_history', JSON.stringify(finalLog));
+      alert("Đã lưu cuộc trò chuyện vào Lịch sử!");
+      setConversationLog([]);
+      setSourceSubtitle('');
+      setTargetSubtitle('');
+    } catch (error) {
+      console.error("Lỗi khi lưu lịch sử:", error);
+      alert("Lỗi lưu trữ, vui lòng thử lại.");
+    }
   };
 
   return (
-    <div className="flex flex-col h-full bg-surface shadow-sm border border-border-main rounded-3xl overflow-hidden relative"
-         onClick={() => menuOpenFor && setMenuOpenFor(null)}>
+    <div className="flex flex-col h-full bg-surface shadow-sm border border-border-main rounded-3xl overflow-hidden relative talk-tab-container"
+         onClick={() => setMenuOpen(false)}>
       
       <div className="flex items-center justify-between p-4 border-b border-border-main bg-panel z-10">
         <div className="flex items-center gap-2">
            <span className="text-sm font-semibold text-text-main opacity-70">
-             {LANGUAGE_FLAGS[partnerLang]} &harr; {LANGUAGE_FLAGS[userLang]}
+             Listen-along
            </span>
         </div>
       </div>
 
       <div className="flex-1 p-6 space-y-6 flex flex-col items-center justify-center pt-6 pb-40">
         
-        {activeSpeaker ? (
+        {isListening || sourceSubtitle || targetSubtitle || conversationLog.length > 0 ? (
           <div className="flex flex-col items-center w-full gap-8">
             <div className="w-full text-center space-y-2">
                <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Source</p>
                <p className="text-xl font-medium opacity-80 min-h-[3rem] transition-all">
-                 {sourceSubtitle || "Listening..."}
+                 {sourceSubtitle || (isListening ? "Listening..." : "")}
                </p>
             </div>
             
@@ -262,30 +290,39 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
             <div className="w-full text-center space-y-2">
                <p className="text-xs text-[#006D77] uppercase tracking-widest font-semibold">Translation</p>
                <p className="text-2xl font-semibold text-[#006D77] min-h-[3rem] transition-all">
-                 {targetSubtitle || (isInitializing ? "Connecting..." : "...")}
+                 {targetSubtitle || (isInitializing ? "Connecting..." : "")}
                </p>
             </div>
           </div>
         ) : (
           <div className="text-center opacity-40">
             <Globe size={48} className="mx-auto mb-4" />
-            <p>Tap a microphone to start real-time translation</p>
+            <p>Tap the microphone to start real-time translation</p>
           </div>
         )}
 
       </div>
 
-      {menuOpenFor && (
-        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={() => setMenuOpenFor(null)} />
+      {menuOpen && (
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={() => setMenuOpen(false)} />
       )}
 
       {/* Mic Controls */}
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-panel via-panel/90 to-transparent flex justify-center gap-8 items-center pb-8 border-t border-border-main/50 z-50">
         
-        {/* Partner Mic */}
+        {/* Save History */}
+        <button
+          onClick={(e) => { e.stopPropagation(); handleSaveHistory(); }}
+          className="w-12 h-12 rounded-full bg-panel text-text-muted border border-border-main hover:bg-bg-input flex items-center justify-center transition-colors"
+          title="Save History"
+        >
+          <Save size={20} />
+        </button>
+
+        {/* Center Mic */}
         <div className="flex flex-col items-center gap-2 relative">
           <AnimatePresence>
-            {menuOpenFor === 'partner' && (
+            {menuOpen && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.8, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -293,9 +330,9 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
                 className="absolute bottom-full mb-4 bg-panel/90 backdrop-blur-xl border border-border-main rounded-2xl shadow-2xl p-2 w-48 flex flex-col gap-1 z-50 origin-bottom"
               >
-                <div className="text-[11px] font-medium tracking-widest text-slate-400 uppercase px-3 py-2">Select Partner Lang</div>
+                <div className="text-[11px] font-medium tracking-widest text-slate-400 uppercase px-3 py-2">Target Language</div>
                 {ALL_LANGUAGES.map(lang => {
-                  const isActive = partnerLang === lang;
+                  const isActive = myLang === lang;
                   const isHovered = dragHoverLang === lang;
                   return (
                     <button
@@ -316,75 +353,22 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
           </AnimatePresence>
 
           <motion.button 
-            animate={menuOpenFor === 'partner' ? { scale: 0.95 } : { scale: 1 }}
-            onPointerDown={(e) => handlePointerDown('partner', e)}
+            animate={menuOpen ? { scale: 0.95 } : { scale: 1 }}
+            onPointerDown={(e) => handlePointerDown(e)}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
-            onClick={(e) => handleClick('partner', e)}
+            onClick={(e) => handleClick(e)}
             className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${
-              activeSpeaker === 'partner' 
-                ? 'bg-[#006D77] text-white border-2 border-[#006D77] animate-pulse shadow-[#006D77]/30 scale-110' 
-                : 'bg-panel text-text-muted border-2 border-border-main hover:bg-bg-input'
-            }`}
-          >
-            {activeSpeaker === 'partner' ? <Square size={24} /> : <div className="text-center"><Mic size={24} /></div>}
-          </motion.button>
-          <span className="text-[11px] font-semibold text-slate-500 uppercase flex items-center gap-1 opacity-80">
-            {LANGUAGE_FLAGS[partnerLang]} {partnerLang.split(' ')[0]}
-          </span>
-        </div>
-
-        {/* User Mic */}
-        <div className="flex flex-col items-center gap-2 relative">
-          <AnimatePresence>
-            {menuOpenFor === 'user' && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                className="absolute bottom-full mb-4 bg-panel/90 backdrop-blur-xl border border-border-main rounded-2xl shadow-2xl p-2 w-48 flex flex-col gap-1 z-50 origin-bottom"
-              >
-                <div className="text-[11px] font-medium tracking-widest text-slate-400 uppercase px-3 py-2">Select Your Lang</div>
-                {ALL_LANGUAGES.map(lang => {
-                  const isActive = userLang === lang;
-                  const isHovered = dragHoverLang === lang;
-                  return (
-                    <button
-                      key={lang}
-                      data-lang={lang}
-                      onClick={(e) => { e.stopPropagation(); selectLanguage(lang); }}
-                      className={`flex items-center gap-3 w-full text-left px-3 py-3 rounded-xl transition-colors ${
-                        isHovered ? 'bg-[#006D77] text-white' : isActive ? 'bg-[#006D77]/10 text-[#006D77] font-medium' : 'text-text-main hover:bg-muted/5'
-                      }`}
-                    >
-                      <span className="text-lg">{LANGUAGE_FLAGS[lang]}</span>
-                      <span className="text-sm truncate flex-1">{lang}</span>
-                    </button>
-                  );
-                })}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <motion.button 
-            animate={menuOpenFor === 'user' ? { scale: 0.95 } : { scale: 1 }}
-            onPointerDown={(e) => handlePointerDown('user', e)}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            onClick={(e) => handleClick('user', e)}
-            className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${
-              activeSpeaker === 'user' 
+              isListening 
                 ? 'bg-[#006D77] text-white border-2 border-[#006D77] animate-pulse shadow-[#006D77]/30 scale-110' 
                 : 'bg-panel text-accent border-2 border-accent/40 shadow-accent/10 hover:bg-bg-input'
             }`}
           >
-            {activeSpeaker === 'user' ? <Square size={24} /> : <Mic size={24} />}
+            {isListening ? <Square size={24} /> : <Mic size={24} />}
           </motion.button>
           <span className="text-[11px] font-semibold text-[#006D77] uppercase flex items-center gap-1 opacity-80">
-            {LANGUAGE_FLAGS[userLang]} {userLang.split(' ')[0]}
+            {LANGUAGE_FLAGS[myLang]} {myLang.split(' ')[0]}
           </span>
         </div>
 
