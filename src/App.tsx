@@ -1339,7 +1339,7 @@ export default function App() {
 
         {activeTab === 'talk' && (
           <Suspense fallback={<FallbackSpinner />}>
-            <TalkTab settings={state.settings} vocab={vocab} t={t} />
+            <TalkTab settings={state.settings} vocab={vocab} t={t} showToast={showToast} />
           </Suspense>
         )}
 

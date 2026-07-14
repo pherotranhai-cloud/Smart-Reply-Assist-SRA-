@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Mic, Square, Save, Globe, ChevronDown } from 'lucide-react';
 import { LANGUAGE_FLAGS } from '../constants';
 import { safeLocalStorage } from '../utils/safeStorage';
+import { storage } from '../services/storage';
 
 const ALL_LANGUAGES = ['Vietnamese', 'Chinese (Simplified)', 'Chinese (Traditional)', 'English', 'Indonesian', 'Burmese'] as const;
 
@@ -10,9 +11,10 @@ interface TalkTabProps {
   settings: any;
   vocab: any[];
   t: (key: string) => string;
+  showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
 }
 
-export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
+export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t, showToast }) => {
   const [myLang, setMyLang] = useState<string>(() => safeLocalStorage.getItem('talk_my_lang') || 'Vietnamese');
   
   useEffect(() => { safeLocalStorage.setItem('talk_my_lang', myLang); }, [myLang]);
@@ -168,13 +170,13 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
     } catch (error: any) {
       console.error("Realtime Stream Error:", error);
       if (error.name === 'NotAllowedError' || error.name === 'NotFoundError') {
-        alert("Thiếu quyền Micro: Vui lòng cấp quyền truy cập Micro để sử dụng tính năng nói chuyện.");
+        showToast(t('error_mic_permission') || "Thiếu quyền Micro: Vui lòng cấp quyền truy cập Micro để sử dụng.", 'error');
       } else if (error.message && error.message.includes("Render Server")) {
-        alert("Lỗi máy chủ kết nối Render: Không thể lấy khóa xác thực. Vui lòng thử lại sau hoặc báo IT.");
+        showToast(t('error_render_server') || "Lỗi máy chủ kết nối Render: Không thể lấy khóa xác thực. Vui lòng thử lại sau.", 'error');
       } else if (error.message && error.message.includes("OpenAI")) {
-        alert("Lỗi kết nối OpenAI: Không thể thiết lập luồng giọng nói. Vui lòng thử lại.");
+        showToast(t('error_openai_connection') || "Lỗi kết nối OpenAI: Không thể thiết lập luồng giọng nói. Vui lòng thử lại.", 'error');
       } else {
-        alert("Kết nối không ổn định, vui lòng kiểm tra lại mạng Wifi/4G hoặc thử lại.");
+        showToast(t('error_network_unstable') || "Kết nối không ổn định, vui lòng kiểm tra lại mạng Wifi/4G hoặc thử lại.", 'error');
       }
       closeRealtimeStream();
     } finally {
@@ -258,14 +260,24 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
     }
 
     try {
-      safeLocalStorage.setItem('talk_history', JSON.stringify(finalLog));
-      alert("Đã lưu cuộc trò chuyện vào Lịch sử!");
+      const input = finalLog.map(l => l.source).join('\n\n');
+      const output = finalLog.map(l => l.translated).join('\n\n');
+
+      await storage.addHistory({
+        type: 'talk',
+        input,
+        output,
+        fromLang: 'Auto',
+        toLang: myLang
+      });
+
+      showToast(t('talk_save_success') || "Đã lưu cuộc trò chuyện vào Lịch sử!", 'success');
       setConversationLog([]);
       setSourceSubtitle('');
       setTargetSubtitle('');
     } catch (error) {
       console.error("Lỗi khi lưu lịch sử:", error);
-      alert("Lỗi lưu trữ, vui lòng thử lại.");
+      showToast(t('error_save_history') || "Lỗi lưu trữ, vui lòng thử lại.", 'error');
     }
   };
 
@@ -286,25 +298,25 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
         {isListening || sourceSubtitle || targetSubtitle || conversationLog.length > 0 ? (
           <div ref={scrollRef} className="flex-1 w-full max-h-[45vh] overflow-y-auto scroll-smooth pr-2 custom-scrollbar flex flex-col gap-6 items-center justify-center">
             <div className="w-full text-center space-y-2">
-               <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Source</p>
+               <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold">{t('talk_source_audio') || 'Source'}</p>
                <p className="text-xl font-medium opacity-80 min-h-[3rem] transition-all">
-                 {sourceSubtitle || (isListening ? "Listening..." : "")}
+                 {sourceSubtitle || (isListening ? (t('listening') || "Listening...") : "")}
                </p>
             </div>
             
             <div className="w-12 h-[1px] bg-border-main shrink-0 mx-auto" />
             
             <div className="w-full text-center space-y-2">
-               <p className="text-xs text-[#006D77] uppercase tracking-widest font-semibold">Translation</p>
+               <p className="text-xs text-[#006D77] uppercase tracking-widest font-semibold">{t('talk_translated_audio') || 'Translation'}</p>
                <p className="text-2xl font-semibold text-[#006D77] min-h-[3rem] transition-all">
-                 {targetSubtitle || (isInitializing ? "Connecting..." : "")}
+                 {targetSubtitle || (isInitializing ? (t('connecting') || "Connecting...") : "")}
                </p>
             </div>
           </div>
         ) : (
           <div className="text-center opacity-40 m-auto">
             <Globe size={48} className="mx-auto mb-4" />
-            <p>Tap the microphone to start real-time translation</p>
+            <p>{t('talk_tap_mic_hint') || 'Tap the microphone to start real-time translation'}</p>
           </div>
         )}
 
@@ -335,9 +347,9 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                className="absolute bottom-full mb-4 bg-panel/90 backdrop-blur-xl border border-border-main rounded-2xl shadow-2xl p-2 w-48 flex flex-col gap-1 z-50 origin-bottom"
+                className="absolute bottom-full mb-4 bg-panel/90 backdrop-blur-xl border border-border-main rounded-2xl shadow-2xl p-2 w-48 max-h-[200px] overflow-y-auto custom-scrollbar flex flex-col gap-1 z-[100] origin-bottom"
               >
-                <div className="text-[11px] font-medium tracking-widest text-slate-400 uppercase px-3 py-2">Target Language</div>
+                <div className="text-[11px] font-medium tracking-widest text-slate-400 uppercase px-3 py-2">{t('targetLanguage') || 'Target Language'}</div>
                 {ALL_LANGUAGES.map(lang => {
                   const isActive = myLang === lang;
                   const isHovered = dragHoverLang === lang;
