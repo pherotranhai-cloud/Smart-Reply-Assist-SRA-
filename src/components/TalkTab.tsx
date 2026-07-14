@@ -151,13 +151,12 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      const baseUrl = "https://api.openai.com/v1/realtime/translations/calls";
-      const model = "gpt-realtime-translate";
-      const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
+      // Thực hiện gửi trực tiếp gói tin SDP Offer lên cổng kết nối WebRTC của OpenAI
+      const sdpResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
         method: "POST",
         body: offer.sdp,
         headers: {
-          Authorization: `Bearer ${ephemeralKey}`,
+          Authorization: `Bearer ${ephemeralKey}`, // Token phẳng an toàn nhận từ Render
           "Content-Type": "application/sdp"
         },
       });
