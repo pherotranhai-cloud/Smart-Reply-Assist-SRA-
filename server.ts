@@ -31,36 +31,43 @@ async function startServer() {
   // POST /api/realtime/session
   apiRouter.post('/realtime/session', async (req, res) => {
     try {
-      const { targetLang } = req.body; // e.g., 'zh', 'vi'
-      const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
+      const { targetLang } = req.body; // 'zh', 'vi', v.v.
+      const langCode = targetLang || "zh";
+
+      // Gọi đúng endpoint chuyên dụng cho Realtime Translation
+      const response = await fetch("https://api.openai.com/v1/realtime/translations/client_secrets", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "OpenAI-Safety-Identifier": "aima-production-realtime"
         },
         body: JSON.stringify({
-          model: "gpt-4o-realtime-preview-2024-12-17",
-          modalities: ["audio", "text"],
-          instructions: `You are a real-time voice translator. Translate the spoken input to language code: ${targetLang || 'zh'}.`
+          session: {
+            model: "gpt-realtime-translate", // Khôi phục model thông dịch chuẩn
+            audio: { 
+              output: { language: langCode } 
+            }
+          }
         })
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('[OpenAI Session Refusal]:', errorText);
+        console.error('[OpenAI Translation Session Refusal]:', errorText);
         return res.status(response.status).json({ error: `OpenAI Gateway Error: ${errorText}` });
       }
 
       const openAiData = await response.json();
       
-      // Bóc tách trường client_secret.value từ response chuẩn của OpenAI
+      // Bóc tách token từ cấu trúc object chuẩn của luồng translations
       const cleanToken = openAiData?.client_secret?.value || '';
       
       if (!cleanToken) {
-        return res.status(500).json({ error: "Không tìm thấy trường client_secret.value trong phản hồi từ OpenAI" });
+        return res.status(500).json({ error: "Không tìm thấy token phiên dịch trong phản hồi từ OpenAI" });
       }
 
-      // Trả về object phẳng sạch sẽ cho Frontend
+      // Trả về object phẳng tối giản cho Frontend
       return res.status(200).json({ token: cleanToken });
     } catch (error: any) {
       console.error('[Render Realtime Core Error]:', error);
