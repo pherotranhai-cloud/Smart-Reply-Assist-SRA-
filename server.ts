@@ -32,7 +32,20 @@ async function startServer() {
   apiRouter.post('/realtime/session', async (req, res) => {
     try {
       const { targetLang } = req.body;
-      const langCode = targetLang === 'Vietnamese' ? 'vi' : 'zh';
+      // targetLang sẽ nhận các chuỗi như 'Vietnamese', 'English', 'Indonesian'...
+      
+      // Bộ từ điển ánh xạ sang mã ISO chuẩn cho OpenAI
+      const languageMapper: Record<string, string> = {
+        'Vietnamese': 'vi',
+        'Chinese (Simplified)': 'zh',
+        'Chinese (Traditional)': 'zh-TW',
+        'English': 'en',
+        'Indonesian': 'id',
+        'Burmese': 'my'
+      };
+      
+      // Lấy mã code tương ứng, mặc định fallback về tiếng Anh nếu không khớp
+      const langCode = languageMapper[targetLang] || 'en';
 
       const response = await fetch("https://api.openai.com/v1/realtime/translations/client_secrets", {
         method: "POST",

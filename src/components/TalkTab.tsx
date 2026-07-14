@@ -57,15 +57,6 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
     };
   }, []);
 
-  const getLanguageCode = (lang: string) => {
-    if (lang === 'Vietnamese') return 'vi';
-    if (lang.includes('Chinese')) return 'zh';
-    if (lang === 'English') return 'en';
-    if (lang === 'Indonesian') return 'id';
-    if (lang === 'Burmese') return 'my';
-    return 'en';
-  };
-
   const initRealtimeStream = async (speaker: 'user' | 'partner') => {
     if (activeSpeaker) {
       closeRealtimeStream();
@@ -78,15 +69,17 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
       setSourceSubtitle('');
       setTargetSubtitle('');
 
-      const targetLangName = speaker === 'user' ? partnerLang : userLang;
-      const targetLang = getLanguageCode(targetLangName);
+      // LOGIC ROUTING ĐA NGÔN NGỮ ĐỘNG:
+      // userLang và partnerLang là state lấy từ Dropdown menu trên giao diện
+      const currentTargetLang = speaker === 'user' ? partnerLang : userLang;
       
       const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || import.meta.env.VITE_API_URL || '';
       
+      // Gửi string ngôn ngữ nguyên bản lên Backend để mapper xử lý
       const sessionRes = await fetch(`${SERVER_BASE_URL}/api/realtime/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetLang })
+        body: JSON.stringify({ targetLang: currentTargetLang })
       });
       
       const sessionData = await sessionRes.json();
