@@ -32,7 +32,7 @@ async function startServer() {
   apiRouter.post('/realtime/session', async (req, res) => {
     try {
       const { targetLang } = req.body;
-      const targetLangName = targetLang === 'Vietnamese' ? 'tiếng Việt' : 'tiếng Trung';
+      const langCode = targetLang === 'Vietnamese' ? 'vi' : 'zh';
       
       const response = await fetch("https://api.openai.com/v1/realtime/translations/client_secrets", {
         method: "POST",
@@ -45,16 +45,15 @@ async function startServer() {
           session: {
             model: "gpt-realtime-translate",
             audio: { 
-              output: { language: targetLang === 'Vietnamese' ? 'vi' : 'zh' } 
-            },
-            instructions: `Bạn là một thiết bị thông dịch viên song song tự động, chuyên nghiệp tại nhà xưởng phục vụ giao tiếp Trung - Việt. \nNhiệm vụ duy nhất: Khi nghe thấy tiếng Trung, lập tức dịch ngay sang tiếng Việt. Khi nghe thấy tiếng Việt, lập tức dịch ngay sang tiếng Trung.\nQuy tắc nghiêm ngặt: TUYỆT ĐỐI KHÔNG tự trả lời, KHÔNG hội thoại, KHÔNG thêm lời khuyên, KHÔNG chào hỏi người nói. Bạn chỉ được phép nghe và phát ra âm thanh dịch thuật chuẩn xác của câu nói đó.`
+              output: { language: langCode } 
+            }
           }
         })
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('[OpenAI Translation Error Data]:', errorText);
+        console.error('[OpenAI Translation Error Payload]:', errorText);
         return res.status(response.status).json({ error: `OpenAI Gateway Error: ${errorText}` });
       }
 
@@ -62,7 +61,7 @@ async function startServer() {
       const cleanToken = openAiData?.client_secret?.value || '';
       
       if (!cleanToken) {
-        return res.status(500).json({ error: "Không tìm thấy token phiên dịch phẳng từ OpenAI" });
+        return res.status(500).json({ error: "Không tìm thấy token phẳng trong phản hồi của OpenAI" });
       }
 
       return res.status(200).json({ token: cleanToken });

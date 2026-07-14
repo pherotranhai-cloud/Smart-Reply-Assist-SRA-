@@ -142,6 +142,17 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
         }
       });
 
+      dataChannel.addEventListener("open", () => {
+        const sessionUpdateEvent = {
+          type: "session.update",
+          session: {
+            instructions: `Bạn là một máy thông dịch viên song song tự động tại nhà xưởng phục vụ giao tiếp song phương Trung - Việt. Nhiệm vụ duy nhất: Nghe tiếng Trung lập tức dịch chuẩn xác sang tiếng Việt và phát âm thanh ra. Nghe tiếng Việt lập tức dịch chuẩn xác sang tiếng Trung và phát âm thanh ra. TUYỆT ĐỐI KHÔNG tự trò chuyện, KHÔNG chào hỏi, KHÔNG đưa ra câu trả lời hay giải thích. Chỉ nghe và dịch.`
+          }
+        };
+        dataChannel.send(JSON.stringify(sessionUpdateEvent));
+        console.log('[Data Channel]: Đã kích hoạt chỉ thị Dịch thuật song song cho AI.');
+      });
+
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
