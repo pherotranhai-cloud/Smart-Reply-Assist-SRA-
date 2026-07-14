@@ -118,46 +118,29 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t }) => {
       const dataChannel = pc.createDataChannel("oai-events");
       dataChannelRef.current = dataChannel;
       
-      // Lắng nghe các sự kiện Text/Audio chảy về từ OpenAI Server
       dataChannel.addEventListener("message", (e) => {
         try {
           const event = JSON.parse(e.data);
           
-          // Khi AI bắt đầu trả về text dịch thuật (Delta / Streaming)
-          if (event.type === "response.audio_transcript.delta") {
+          // Phụ đề dịch (âm thanh từ AI)
+          if (event.type === "session.output_transcript.delta") {
             setTargetSubtitle(prev => prev + event.delta);
           }
           
-          // Khi AI hoàn thành xong một câu dịch hoàn chỉnh
-          if (event.type === "response.audio_transcript.done") {
-            setTargetSubtitle(event.transcript);
-          }
-
-          // Đoạn text gốc (Speech-to-Text) do AI nhận diện từ miệng người nói
-          if (event.type === "conversation.item.input_audio_transcription.completed") {
-            setSourceSubtitle(event.transcript);
+          // Phụ đề gốc (âm thanh từ người nói)
+          if (event.type === "session.input_transcript.delta") {
+            setSourceSubtitle(prev => prev + event.delta);
           }
         } catch (err) {
-          console.error("Lỗi phân tích gói tin Data Channel:", err);
+          console.error("Lỗi phân tích Data Channel:", err);
         }
-      });
-
-      dataChannel.addEventListener("open", () => {
-        const sessionUpdateEvent = {
-          type: "session.update",
-          session: {
-            instructions: `Bạn là một máy thông dịch viên song song tự động tại nhà xưởng phục vụ giao tiếp song phương Trung - Việt. Nhiệm vụ duy nhất: Nghe tiếng Trung lập tức dịch chuẩn xác sang tiếng Việt và phát âm thanh ra. Nghe tiếng Việt lập tức dịch chuẩn xác sang tiếng Trung và phát âm thanh ra. TUYỆT ĐỐI KHÔNG tự trò chuyện, KHÔNG chào hỏi, KHÔNG đưa ra câu trả lời hay giải thích. Chỉ nghe và dịch.`
-          }
-        };
-        dataChannel.send(JSON.stringify(sessionUpdateEvent));
-        console.log('[Data Channel]: Đã kích hoạt chỉ thị Dịch thuật song song cho AI.');
       });
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
       // Thực hiện gửi trực tiếp gói tin SDP Offer lên cổng kết nối WebRTC của OpenAI
-      const sdpResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
+      const sdpResponse = await fetch("https://api.openai.com/v1/realtime/translations/calls", {
         method: "POST",
         body: offer.sdp,
         headers: {

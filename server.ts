@@ -33,7 +33,7 @@ async function startServer() {
     try {
       const { targetLang } = req.body;
       const langCode = targetLang === 'Vietnamese' ? 'vi' : 'zh';
-      
+
       const response = await fetch("https://api.openai.com/v1/realtime/translations/client_secrets", {
         method: "POST",
         headers: {
@@ -41,6 +41,7 @@ async function startServer() {
           "Content-Type": "application/json",
           "OpenAI-Safety-Identifier": "aima-production-realtime"
         },
+        // Payload TỐI GIẢN tuyệt đối, KHÔNG THÊM modalities hay instructions
         body: JSON.stringify({
           session: {
             model: "gpt-realtime-translate",
@@ -53,15 +54,16 @@ async function startServer() {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('[OpenAI Translation Error Payload]:', errorText);
+        console.error('[OpenAI Translation Error]:', errorText);
         return res.status(response.status).json({ error: `OpenAI Gateway Error: ${errorText}` });
       }
 
       const openAiData = await response.json();
-      const cleanToken = openAiData?.client_secret?.value || '';
+      // Tương thích việc trích xuất token cho cả 2 trường hợp JSON trả về
+      const cleanToken = openAiData?.client_secret?.value || openAiData?.value || '';
       
       if (!cleanToken) {
-        return res.status(500).json({ error: "Không tìm thấy token phẳng trong phản hồi của OpenAI" });
+        return res.status(500).json({ error: "Không tìm thấy token phiên dịch từ OpenAI" });
       }
 
       return res.status(200).json({ token: cleanToken });
