@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Languages, PenTool, BookOpen, Settings, CheckCircle2, AlertCircle, X, MessagesSquare, History } from 'lucide-react';
+import { Languages, PenTool, BookOpen, Settings, CheckCircle2, AlertCircle, X, MessagesSquare, History, Mic } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -42,45 +42,41 @@ export const Layout: React.FC<LayoutProps> = ({
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-6 pt-2 bg-gradient-to-t from-app via-app/80 to-transparent pointer-events-none">
         <div className="pointer-events-auto relative w-full max-w-md mx-4 drop-shadow-sm">
-          {/* Edge Blurs for Horizontal Swipe (Mobile Only) */}
-          <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-panel/90 to-transparent pointer-events-none z-10 sm:hidden rounded-l-2xl" />
-          <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-panel/90 to-transparent pointer-events-none z-10 sm:hidden rounded-r-2xl" />
-          
           <div 
-            className="ios-glass rounded-[24px] flex items-center overflow-x-auto snap-x snap-mandatory no-scrollbar sm:justify-center px-4 sm:px-2 py-2 gap-2 sm:gap-4"
+            className="ios-glass rounded-[24px] flex items-center justify-around w-full px-2 py-2 md:px-6 gap-1 md:gap-3 overflow-hidden"
           >
             <NavItem 
-              icon={<Languages size={24} />} 
+              icon={<Languages className="w-5 h-5 md:w-6 md:h-6" />} 
               label={t('translate')}
               active={activeTab === 'translate'} 
               onClick={(e) => handleTabClick('translate', e)} 
             />
             <NavItem 
-              icon={<MessagesSquare size={24} />} 
-              label="Talk"
+              icon={<Mic className="w-5 h-5 md:w-6 md:h-6" />} 
+              label={t('live_translate') || 'Live Translate'}
               active={activeTab === 'talk'} 
               onClick={(e) => handleTabClick('talk', e)} 
             />
             <NavItem 
-              icon={<PenTool size={24} />} 
+              icon={<PenTool className="w-5 h-5 md:w-6 md:h-6" />} 
               label={t('compose')}
               active={activeTab === 'compose'} 
               onClick={(e) => handleTabClick('compose', e)} 
             />
             <NavItem 
-              icon={<BookOpen size={24} />} 
+              icon={<BookOpen className="w-5 h-5 md:w-6 md:h-6" />} 
               label={t('vocab')}
               active={activeTab === 'vocab'} 
               onClick={(e) => handleTabClick('vocab', e)} 
             />
             <NavItem 
-              icon={<History size={24} />} 
+              icon={<History className="w-5 h-5 md:w-6 md:h-6" />} 
               label={t('history') || 'History'}
               active={activeTab === 'history'} 
               onClick={(e) => handleTabClick('history', e)} 
             />
             <NavItem 
-              icon={<Settings size={24} />} 
+              icon={<Settings className="w-5 h-5 md:w-6 md:h-6" />} 
               label={t('settings')}
               active={activeTab === 'settings'} 
               onClick={(e) => handleTabClick('settings', e)} 
@@ -122,12 +118,12 @@ const NavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode, labe
     onClick={onClick}
     title={label}
     aria-label={label}
-    className={`relative flex items-center justify-center w-16 h-16 shrink-0 snap-center rounded-2xl transition-all duration-300 ${
+    className={`relative flex items-center justify-center flex-1 max-w-[48px] h-12 md:max-w-none md:w-16 md:h-16 shrink-0 rounded-2xl transition-all duration-300 ${
       active ? 'text-[#006D77] scale-110' : 'text-slate-400 hover:text-slate-500 dark:text-slate-500 dark:hover:text-slate-400'
     }`}
   >
     {/* Subtle active background glow */}
-    <div className={`absolute inset-1 bg-[#006D77]/5 dark:bg-[#006D77]/20 rounded-xl transition-opacity duration-300 ${
+    <div className={`absolute inset-0.5 md:inset-1 bg-[#006D77]/5 dark:bg-[#006D77]/20 rounded-xl transition-opacity duration-300 ${
       active ? 'opacity-100' : 'opacity-0'
     }`} />
     
@@ -139,7 +135,7 @@ const NavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode, labe
     {active && (
       <motion.div
         layoutId="activeTabIndicator"
-        className="absolute top-1.5 w-1.5 h-1.5 rounded-full bg-[#006D77]"
+        className="absolute top-1 md:top-1.5 w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-[#006D77]"
         initial={false}
         transition={{ type: "spring", stiffness: 500, damping: 30 }}
       />

@@ -54,12 +54,7 @@ export default defineConfig(({mode}) => {
     build: {
       rollupOptions: {
         output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom'],
-            markdown: ['react-markdown', 'remark-math', 'rehype-katex'],
-            icons: ['lucide-react'],
-            motion: ['motion']
-          }
+          // Default Vite chunking handles deduplication correctly
         }
       }
     },

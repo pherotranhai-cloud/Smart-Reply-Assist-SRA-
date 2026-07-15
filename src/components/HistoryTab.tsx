@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Copy, RefreshCw, Clock, History as HistoryIcon, MessageSquare, PenTool, Globe, Inbox } from 'lucide-react';
+import { Copy, RefreshCw, Clock, History as HistoryIcon, MessageSquare, PenTool, Globe, Inbox, Mic } from 'lucide-react';
 import { storage } from '../services/storage';
 import { HistoryItem } from '../types';
 import { copyTextToClipboard } from '../utils/clipboard';
@@ -71,7 +71,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({ t, showToast, onReuse })
     switch (type) {
       case 'translate': return <Globe size={18} className="text-blue-500" />;
       case 'compose': return <PenTool size={18} className="text-emerald-500" />;
-      case 'talk': return <MessageSquare size={18} className="text-purple-500" />;
+      case 'talk': return <Mic size={18} className="text-[#006D77]" />;
       default: return <Clock size={18} className="text-gray-500" />;
     }
   };
@@ -80,7 +80,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({ t, showToast, onReuse })
     switch (type) {
       case 'translate': return t('translate') || 'Translate';
       case 'compose': return t('compose') || 'Compose';
-      case 'talk': return t('talk') || 'Talk';
+      case 'talk': return t('live_translate') || 'Live Translate';
       default: return type;
     }
   };

@@ -316,74 +316,39 @@ if (menuOpen) {
   const isLimitReached = usedSeconds >= QUOTA_LIMIT;
 
   return (
-    <div className="flex flex-col h-full bg-surface shadow-sm border border-border-main rounded-3xl overflow-hidden relative talk-tab-container"
+    <div className="flex flex-col h-full bg-surface shadow-sm border border-border-main rounded-3xl relative overflow-visible pb-4 talk-tab-container"
          onClick={() => setMenuOpen(false)}>
       
-      <div className="flex items-center justify-between p-4 border-b border-border-main bg-panel z-10">
+      <div className="flex items-center justify-between p-4 border-b border-border-main bg-panel rounded-t-3xl z-10">
         <div className="flex items-center gap-2">
-           <span className="text-sm font-semibold text-text-main opacity-70">
-             Listen-along
+           <Mic size={18} className="text-[#006D77]" />
+           <span className="text-sm font-semibold text-text-main opacity-80">
+             {t('live_translator') || 'Live Translator'}
            </span>
         </div>
-      </div>
-
-      <div className="flex-1 p-6 flex flex-col pt-6 pb-32">
         
-        {isListening || sourceSubtitle || targetSubtitle || conversationLog.length > 0 ? (
-          <div ref={scrollRef} className="flex-1 w-full max-h-[45vh] overflow-y-auto scroll-smooth pr-2 custom-scrollbar flex flex-col gap-6 items-center justify-center">
-            <div className="w-full text-center space-y-2">
-               <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold">{t('talk_source_audio') || 'Source'}</p>
-               <p className="text-xl font-medium opacity-80 min-h-[3rem] transition-all">
-                 {sourceSubtitle || (isListening ? (t('listening') || "Listening...") : "")}
-               </p>
-            </div>
-            
-            <div className="w-12 h-[1px] bg-border-main shrink-0 mx-auto" />
-            
-            <div className="w-full text-center space-y-2">
-               <p className="text-xs text-[#006D77] uppercase tracking-widest font-semibold">{t('talk_translated_audio') || 'Translation'}</p>
-               <p className="text-2xl font-semibold text-[#006D77] min-h-[3rem] transition-all">
-                 {targetSubtitle || (isInitializing ? (t('connecting') || "Connecting...") : "")}
-               </p>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center opacity-40 m-auto">
-            <Globe size={48} className="mx-auto mb-4" />
-            <p>{t('talk_tap_mic_hint') || 'Tap the microphone to start real-time translation'}</p>
-          </div>
-        )}
-
-      </div>
-
-      {menuOpen && (
-        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={() => setMenuOpen(false)} />
-      )}
-
-      {/* Mic Controls */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-panel via-panel/90 to-transparent flex justify-center gap-8 items-center pb-8 border-t border-border-main/50 z-50">
-        
-        {/* Save History */}
-        <button
-          onClick={(e) => { e.stopPropagation(); handleSaveHistory(); }}
-          className="w-12 h-12 rounded-full bg-panel text-text-muted border border-border-main hover:bg-bg-input flex items-center justify-center transition-colors"
-          title="Save History"
-        >
-          <Save size={20} />
-        </button>
-
-        {/* Center Mic */}
-        <div className="flex flex-col items-center gap-2 relative">
+        {/* Dropdown Ngôn ngữ chuyển lên đây */}
+        <div className="relative">
+          {/* Nút bấm mở Dropdown tinh gọn */}
+          <button 
+            onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }} 
+            className="flex items-center gap-1 text-xs font-semibold text-[#006D77] bg-[#006D77]/10 px-3 py-1.5 rounded-full hover:bg-[#006D77]/20 transition-all"
+          >
+            <span>{LANGUAGE_FLAGS[myLang]} {myLang.split(' ')[0]}</span>
+            <ChevronDown size={14} />
+          </button>
+          
+          {/* List Dropdown hiển thị tuyệt đối (absolute) đè lên trên, căn lề phải (right-0) */}
           <AnimatePresence>
             {menuOpen && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                initial={{ opacity: 0, scale: 0.95, y: -10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                exit={{ opacity: 0, scale: 0.95, y: -10 }}
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                className="absolute bottom-full mb-4 bg-panel/90 backdrop-blur-xl border border-border-main rounded-2xl shadow-2xl p-2 w-48 max-h-[200px] overflow-y-auto custom-scrollbar flex flex-col gap-1 z-[100] origin-bottom"
+                className="absolute right-0 top-full mt-2 bg-panel/95 backdrop-blur-xl border border-border-main rounded-2xl shadow-2xl p-1.5 w-44 z-[999] max-h-[220px] overflow-y-auto custom-scrollbar flex flex-col gap-1 origin-top-right"
               >
-                <div className="text-[11px] font-medium tracking-widest text-slate-400 uppercase px-3 py-2">{t('targetLanguage') || 'Target Language'}</div>
+                <div className="text-[10px] font-medium tracking-widest text-slate-400 uppercase px-3 py-1">{t('targetLanguage') || 'Target Language'}</div>
                 {ALL_LANGUAGES.map(lang => {
                   const isActive = myLang === lang;
                   const isHovered = dragHoverLang === lang;
@@ -391,21 +356,71 @@ if (menuOpen) {
                     <button
                       key={lang}
                       data-lang={lang}
-                      onClick={(e) => { e.stopPropagation(); selectLanguage(lang); }}
-                      className={`flex items-center gap-3 w-full text-left px-3 py-3 rounded-xl transition-colors ${
+                      onClick={(e) => { e.stopPropagation(); selectLanguage(lang); setMenuOpen(false); }}
+                      className={`flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-xl text-xs transition-colors ${
                         isHovered ? 'bg-[#006D77] text-white' : isActive ? 'bg-[#006D77]/10 text-[#006D77] font-medium' : 'text-text-main hover:bg-muted/5'
                       }`}
                     >
-                      <span className="text-lg">{LANGUAGE_FLAGS[lang]}</span>
-                      <span className="text-sm truncate flex-1">{lang}</span>
+                      <span>{LANGUAGE_FLAGS[lang]}</span>
+                      <span className="truncate flex-1">{lang}</span>
                     </button>
                   );
                 })}
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
+      </div>
 
-          <span className="text-[10px] text-text-muted opacity-60 font-medium">
+      <div className="flex-1 px-6 pt-4 pb-36 flex flex-col min-h-0 w-full relative">
+        
+        {isListening || sourceSubtitle || targetSubtitle || conversationLog.length > 0 ? (
+          <div ref={scrollRef} className="flex-1 min-h-0 w-full overflow-y-auto scroll-smooth pr-2 custom-scrollbar flex flex-col justify-start gap-8 py-4">
+            <div className="w-full text-center space-y-1 flex-1 flex flex-col justify-center">
+               <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">{t('talk_source_audio') || 'Source'}</p>
+               <p className="text-lg md:text-xl font-medium opacity-80 min-h-[2.5rem] transition-all px-2 break-words">
+                 {sourceSubtitle || (isListening ? (t('listening') || "Listening...") : "")}
+               </p>
+            </div>
+            
+            <div className="w-12 h-[1px] bg-border-main shrink-0 mx-auto" />
+            
+            <div className="w-full text-center space-y-1 flex-1 flex flex-col justify-center">
+               <p className="text-[10px] text-[#006D77] uppercase tracking-widest font-semibold">{t('talk_translated_audio') || 'Translation'}</p>
+               <p className="text-xl md:text-2xl font-semibold text-[#006D77] min-h-[2.5rem] transition-all px-2 break-words">
+                 {targetSubtitle || (isInitializing ? (t('connecting') || "Connecting...") : "")}
+               </p>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center opacity-40 m-auto flex flex-col items-center justify-center">
+            <div className="relative mb-4 flex items-center justify-center">
+              <div className="absolute inset-0 bg-[#006D77]/10 rounded-full scale-150 animate-ping duration-1000" />
+              <Mic size={48} className="text-[#006D77] relative z-10" />
+            </div>
+            <p className="max-w-[280px] text-sm leading-relaxed">{t('talk_tap_mic_hint') || 'Tap the microphone to start real-time translation'}</p>
+          </div>
+        )}
+
+      </div>
+
+      {/* Mic Controls */}
+      <div className="absolute bottom-0 left-0 right-0 py-4 px-6 bg-gradient-to-t from-panel via-panel/90 to-transparent border-t border-border-main/50 z-50 grid grid-cols-3 items-center">
+        
+        {/* Left: Save History */}
+        <div className="flex justify-start">
+          <button
+            onClick={(e) => { e.stopPropagation(); handleSaveHistory(); }}
+            className="w-12 h-12 rounded-full bg-panel text-text-muted border border-border-main hover:bg-bg-input flex items-center justify-center transition-colors"
+            title="Save History"
+          >
+            <Save size={20} />
+          </button>
+        </div>
+
+        {/* Center: Mic */}
+        <div className="flex flex-col items-center gap-2 justify-center">
+          <span className="text-[10px] text-text-muted opacity-60 font-medium whitespace-nowrap">
             {t('time_left') || 'Thời gian hôm nay'}: {Math.max(0, Math.floor((QUOTA_LIMIT - usedSeconds) / 60))} phút
           </span>
 
@@ -429,13 +444,8 @@ if (menuOpen) {
           </motion.button>
         </div>
         
-        <button
-          onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }} 
-          className="text-[11px] font-semibold text-[#006D77] uppercase flex items-center gap-1 opacity-80 hover:opacity-100 px-2 py-1 rounded-full hover:bg-black/5 transition-colors"
-        >
-          {LANGUAGE_FLAGS[myLang]} {myLang.split(' ')[0]}
-          <ChevronDown size={14} className="opacity-70" />
-        </button>
+        {/* Right: Empty spacer to center mic controls */}
+        <div className="flex justify-end" />
       </div>
     </div>
   );
