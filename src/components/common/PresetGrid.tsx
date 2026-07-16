@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, FileText, FileSearch, Clock, HelpCircle, Megaphone, Settings2 } from 'lucide-react';
+import { X, FileText, FileSearch, Clock, HelpCircle, Megaphone, Settings2, ChevronDown } from 'lucide-react';
 import { CORE_PRESETS, AUDIENCES, TONES, LENGTHS, FORMATS, ComposePreset, LANGUAGES, LANGUAGE_FLAGS } from '../../constants';
 import { Audience, Tone, Length, Format, Language } from '../../types';
 import { useLongPress } from '../../hooks/useLongPress';
@@ -109,13 +109,19 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
       {/* Language Selection */}
       <div className="mt-3">
         <label className="text-[11px] font-medium tracking-widest text-slate-400 uppercase px-1">{t('language')}</label>
-        <select 
-          className="ios-select"
-          value={customParams.lang}
-          onChange={e => onUpdateCustomParams({ lang: e.target.value as Language })}
-        >
-          {LANGUAGES.filter(l => l !== 'Auto').map(l => <option key={l} value={l}>{LANGUAGE_FLAGS[l]} {l}</option>)}
-        </select>
+        <div className="relative inline-block w-full">
+          <div className="flex items-center gap-1 text-xs font-semibold text-accent bg-accent/10 px-4 py-3 rounded-xl pointer-events-none w-full justify-between border border-border-main">
+            <span className="text-text-main">{LANGUAGE_FLAGS[customParams.lang]} {customParams.lang}</span>
+            <ChevronDown size={16} className="text-muted"/>
+          </div>
+          <select 
+            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-20"
+            value={customParams.lang}
+            onChange={e => onUpdateCustomParams({ lang: e.target.value as Language })}
+          >
+            {LANGUAGES.filter(l => l !== 'Auto').map(l => <option key={l} value={l} className="bg-panel text-text-main">{LANGUAGE_FLAGS[l]} {l}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* Custom Parameters Modal */}

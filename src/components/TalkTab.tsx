@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, Square, Save, Globe, ChevronDown } from 'lucide-react';
+import { Mic, Square, Save, Globe, ChevronDown, Share2 } from 'lucide-react';
 import { LANGUAGE_FLAGS } from '../constants';
 import { safeLocalStorage } from '../utils/safeStorage';
 import { storage } from '../services/storage';
@@ -253,6 +253,43 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t, showToast 
     }
   };
 
+  const handleNativeShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (conversationLog.length === 0 && !sourceSubtitle && !targetSubtitle) {
+      showToast("Không có nội dung để chia sẻ", "info");
+      return;
+    }
+
+    const finalLog = [...conversationLog];
+    if (sourceSubtitle || targetSubtitle) {
+      finalLog.push({
+        source: sourceSubtitle,
+        translated: targetSubtitle,
+        timestamp: new Date()
+      });
+    }
+
+    const textToShare = finalLog.map(l => `Ngữ cảnh gốc:\n${l.source}\n\nDịch thuật:\n${l.translated}`).join('\n\n---\n\n');
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Cuộc trò chuyện (TalkTab)",
+          text: textToShare,
+        });
+      } catch (err) {
+        console.log("Người dùng hủy chia sẻ hoặc lỗi:", err);
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(textToShare);
+        showToast("Đã sao chép vào khay nhớ tạm", "success");
+      } catch (error) {
+        showToast("Sao chép thất bại", "error");
+      }
+    }
+  };
+
   const isLimitReached = usedSeconds >= QUOTA_LIMIT;
 
   return (
@@ -328,13 +365,20 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t, showToast 
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-panel via-panel/90 to-transparent border-t border-border-main/50 z-50 pb-8 grid grid-cols-3 items-center px-6">
         
         {/* Left: Save History */}
-        <div className="flex justify-start">
+        <div className="flex justify-start gap-2">
           <button
             onClick={(e) => { e.stopPropagation(); handleSaveHistory(); }}
             className="w-12 h-12 rounded-full bg-panel text-text-muted border border-border-main hover:bg-bg-input flex items-center justify-center transition-colors"
             title="Save History"
           >
             <Save size={20} />
+          </button>
+          <button
+            onClick={handleNativeShare}
+            className="w-12 h-12 rounded-full bg-panel text-text-muted border border-border-main hover:bg-bg-input flex items-center justify-center transition-colors"
+            title="Share"
+          >
+            <Share2 size={20} />
           </button>
         </div>
 
