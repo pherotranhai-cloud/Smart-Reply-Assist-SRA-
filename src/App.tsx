@@ -96,6 +96,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (activeTab === 'talk') {
+      const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || import.meta.env.VITE_API_URL || '';
+      fetch(`${SERVER_BASE_URL}/api/realtime/session`, { method: 'OPTIONS' })
+        .catch(() => { /* Ignore pre-warming error */ });
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     fetch('/api/security-rules')
       .then(res => res.json())
       .then(data => {

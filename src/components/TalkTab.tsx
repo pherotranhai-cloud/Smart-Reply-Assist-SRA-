@@ -36,6 +36,9 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t, showToast 
   const [sourceSubtitle, setSourceSubtitle] = useState<string>('');
   const [targetSubtitle, setTargetSubtitle] = useState<string>('');
   const [isInitializing, setIsInitializing] = useState(false);
+  const [connectionProgress, setConnectionProgress] = useState<number>(0);
+  const TRIVIA_KEYS = ['talk_trivia_1', 'talk_trivia_2', 'talk_trivia_3'];
+  const [currentTriviaKey, setCurrentTriviaKey] = useState<string>(TRIVIA_KEYS[0]);
   
   const [conversationLog, setConversationLog] = useState<{source: string, translated: string, timestamp: Date}[]>([]);
 
@@ -43,6 +46,122 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t, showToast 
   const localStreamRef = useRef<MediaStream | null>(null);
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const wakeLockRef = useRef<any>(null);
+
+  const playSystemSound = (type: 'connecting' | 'connected' | 'disconnect') => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      
+      if (type === 'connecting') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.12);
+      } else if (type === 'connected') {
+        const playBeep = (delay: number) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, ctx.currentTime + delay);
+          gain.gain.setValueAtTime(0.12, ctx.currentTime + delay);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + delay + 0.08);
+          osc.start(ctx.currentTime + delay);
+          osc.stop(ctx.currentTime + delay + 0.08);
+        };
+        playBeep(0);
+        playBeep(0.13);
+      } else if (type === 'disconnect') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(250, ctx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.2);
+      }
+    } catch (e) {
+      console.warn("Trình duyệt không hỗ trợ Web Audio API hoặc bị chặn autoplay:", e);
+    }
+  };
+
+  const requestWakeLock = async () => {
+    if ('wakeLock' in navigator) {
+      try {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        console.log("Màn hình đã được khóa giữ sáng.");
+      } catch (err) {
+        console.warn("Không thể giữ sáng màn hình:", err);
+      }
+    }
+  };
+
+  const releaseWakeLock = async () => {
+    if (wakeLockRef.current) {
+      try {
+        await wakeLockRef.current.release();
+        wakeLockRef.current = null;
+        console.log("Đã giải phóng khóa giữ sáng màn hình.");
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (wakeLockRef.current !== null && document.visibilityState === 'visible' && isListening) {
+        await requestWakeLock();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      releaseWakeLock();
+    };
+  }, [isListening]);
+
+  useEffect(() => {
+    let progressInterval: NodeJS.Timeout;
+    let triviaInterval: NodeJS.Timeout;
+
+    if (isInitializing) {
+      setConnectionProgress(0);
+      const startTime = Date.now();
+      progressInterval = setInterval(() => {
+        const elapsedTime = Date.now() - startTime;
+        const targetProgress = Math.min(90, Math.floor((elapsedTime / 10000) * 90));
+        setConnectionProgress(targetProgress);
+      }, 100);
+
+      triviaInterval = setInterval(() => {
+        setCurrentTriviaKey(prev => {
+          const currentIndex = TRIVIA_KEYS.indexOf(prev);
+          const nextIndex = (currentIndex + 1) % TRIVIA_KEYS.length;
+          return TRIVIA_KEYS[nextIndex];
+        });
+      }, 3500);
+    }
+
+    return () => {
+      clearInterval(progressInterval);
+      clearInterval(triviaInterval);
+    };
+  }, [isInitializing]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -51,6 +170,10 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t, showToast 
   }, [sourceSubtitle, targetSubtitle]);
   
   const closeRealtimeStream = () => {
+    if (isListening) {
+      playSystemSound('disconnect');
+      releaseWakeLock();
+    }
     setConversationLog(prev => {
       if (sourceSubtitle || targetSubtitle) {
         return [...prev, { source: sourceSubtitle, translated: targetSubtitle, timestamp: new Date() }];
@@ -151,6 +274,11 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t, showToast 
       const dataChannel = pc.createDataChannel("oai-events");
       dataChannelRef.current = dataChannel;
       
+      dataChannel.addEventListener("open", () => {
+        playSystemSound('connected');
+        requestWakeLock();
+      });
+
       dataChannel.addEventListener("message", (e) => {
         try {
           const event = JSON.parse(e.data);
@@ -193,6 +321,8 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t, showToast 
       
       await pc.setRemoteDescription(answer);
 
+      setConnectionProgress(100);
+      await new Promise(resolve => setTimeout(resolve, 500));
     } catch (error: any) {
       console.error("Realtime Stream Error:", error);
       if (error.name === 'NotAllowedError' || error.name === 'NotFoundError') {
@@ -215,6 +345,7 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t, showToast 
     if (isListening) {
       closeRealtimeStream();
     } else {
+      playSystemSound('connecting');
       initRealtimeStream();
     }
   };
@@ -329,8 +460,23 @@ export const TalkTab: React.FC<TalkTabProps> = ({ settings, vocab, t, showToast 
         </div>
       </div>
 
-      <div className="flex-1 p-6 flex flex-col pt-6 pb-24">
+      <div className="flex-1 p-6 flex flex-col pt-6 pb-24 relative">
         
+        {/* Progress & Trivia (when initializing) */}
+        {isInitializing && (
+          <div className="absolute top-4 left-0 right-0 z-10 px-6 flex flex-col items-center">
+            <div className="w-full max-w-sm h-1 bg-border-main rounded-full overflow-hidden mb-2">
+              <div 
+                className="h-full bg-[#006D77] transition-all duration-100 ease-linear"
+                style={{ width: `${connectionProgress}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-text-muted opacity-80 animate-pulse text-center max-w-xs">
+              {t(currentTriviaKey)}
+            </p>
+          </div>
+        )}
+
         {isListening || sourceSubtitle || targetSubtitle || conversationLog.length > 0 ? (
           <div ref={scrollRef} className="flex-grow w-full max-h-[52vh] overflow-y-auto scroll-smooth pr-2 custom-scrollbar flex flex-col gap-6 items-center justify-center">
             <div className="w-full text-center space-y-1">

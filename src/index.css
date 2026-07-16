@@ -151,8 +151,15 @@
   .markdown-body p {
     @apply mb-4 last:mb-0;
   }
-  .markdown-body strong {
-    @apply font-bold text-text-main dark:text-white;
+  .markdown-body strong, .markdown-body b {
+    color: #006D77;
+    font-weight: 700;
+  }
+  :root[data-theme="dark"] .markdown-body strong,
+  :root[data-theme="dark"] .markdown-body b,
+  .dark .markdown-body strong,
+  .dark .markdown-body b {
+    color: #f8fafc;
   }
   .markdown-body em {
     @apply italic;
