@@ -2,12 +2,18 @@ import { useState, useEffect, useMemo } from 'react';
 import { storage } from '../services/storage';
 import { VocabItem } from '../types';
 import Papa from 'papaparse';
+import { useTextToSpeech } from './useTextToSpeech';
 
 export function useVocabManager() {
   const [vocab, setVocab] = useState<VocabItem[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
+  const { speak } = useTextToSpeech();
+
+  const speakText = (text: string, langCode: string) => {
+    speak(text, langCode);
+  };
 
   useEffect(() => {
     const loadVocab = async () => {
@@ -65,5 +71,6 @@ export function useVocabManager() {
     lastSynced,
     filteredVocab,
     handleExport,
+    speakText,
   };
 }

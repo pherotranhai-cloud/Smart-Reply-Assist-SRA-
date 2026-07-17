@@ -1,17 +1,15 @@
 import React from 'react';
 import { Search, Download, BookOpen, Clock, Volume2 } from 'lucide-react';
 import { useVocabManager } from '../hooks/useVocabManager';
-import { useTextToSpeech } from '../hooks/useTextToSpeech';
 
 interface VocabManagerDesktopProps {
   t: (key: string) => string;
 }
 
 export const VocabManagerDesktop: React.FC<VocabManagerDesktopProps> = ({ t }) => {
-  const { speak } = useTextToSpeech();
   const {
     vocab, search, setSearch, loading, lastSynced,
-    filteredVocab, handleExport,
+    filteredVocab, handleExport, speakText,
   } = useVocabManager();
 
   return (
@@ -76,7 +74,7 @@ export const VocabManagerDesktop: React.FC<VocabManagerDesktopProps> = ({ t }) =
                     <span className="font-bold text-text-main text-base">{item.term}</span>
                   </div>
                   <button
-                    onClick={() => speak(item.vi || item.term, 'vi-VN')}
+                    onClick={() => speakText(item.vi || item.term, 'vi-VN')}
                     className="p-2 text-text-muted hover:text-accent hover:bg-accent/10 rounded-xl transition-colors"
                     title={t('pronounce')}
                   >
@@ -87,31 +85,51 @@ export const VocabManagerDesktop: React.FC<VocabManagerDesktopProps> = ({ t }) =
                 {/* Translations list */}
                 <div className="flex flex-col gap-2">
                   {item.vi && (
-                    <div className="flex items-center justify-between text-xs bg-panel/50 px-3 py-1.5 rounded-xl border border-border-main/50">
+                    <div 
+                      onClick={() => speakText(item.vi, 'vi-VN')}
+                      className="flex items-center justify-between text-xs bg-panel/50 px-3 py-1.5 rounded-xl border border-border-main/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
+                      title="Click to pronounce in Vietnamese"
+                    >
                       <span className="font-semibold text-text-muted">🇻🇳 VI</span>
                       <span className="font-medium text-text-main text-right truncate pl-2" title={item.vi}>{item.vi}</span>
                     </div>
                   )}
                   {item.en && (
-                    <div className="flex items-center justify-between text-xs bg-panel/50 px-3 py-1.5 rounded-xl border border-border-main/50">
+                    <div 
+                      onClick={() => speakText(item.en, 'en-US')}
+                      className="flex items-center justify-between text-xs bg-panel/50 px-3 py-1.5 rounded-xl border border-border-main/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
+                      title="Click to pronounce in English"
+                    >
                       <span className="font-semibold text-text-muted">🇬🇧 EN</span>
                       <span className="font-medium text-text-main text-right truncate pl-2" title={item.en}>{item.en}</span>
                     </div>
                   )}
                   {(item.zh_cn || item.zh_tw) && (
-                    <div className="flex items-center justify-between text-xs bg-panel/50 px-3 py-1.5 rounded-xl border border-border-main/50">
+                    <div 
+                      onClick={() => speakText(item.zh_cn || item.zh_tw || '', 'zh-CN')}
+                      className="flex items-center justify-between text-xs bg-panel/50 px-3 py-1.5 rounded-xl border border-border-main/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
+                      title="Click to pronounce in Chinese"
+                    >
                       <span className="font-semibold text-text-muted">🇨🇳 ZH</span>
                       <span className="font-medium text-text-main text-right truncate pl-2" title={item.zh_cn || item.zh_tw}>{item.zh_cn || item.zh_tw}</span>
                     </div>
                   )}
                   {item.id_lang && (
-                    <div className="flex items-center justify-between text-xs bg-panel/50 px-3 py-1.5 rounded-xl border border-border-main/50">
+                    <div 
+                      onClick={() => speakText(item.id_lang, 'id-ID')}
+                      className="flex items-center justify-between text-xs bg-panel/50 px-3 py-1.5 rounded-xl border border-border-main/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
+                      title="Click to pronounce in Indonesian"
+                    >
                       <span className="font-semibold text-text-muted">🇮🇩 ID</span>
                       <span className="font-medium text-text-main text-right truncate pl-2" title={item.id_lang}>{item.id_lang}</span>
                     </div>
                   )}
                   {item.my && (
-                    <div className="flex items-center justify-between text-xs bg-panel/50 px-3 py-1.5 rounded-xl border border-border-main/50">
+                    <div 
+                      onClick={() => speakText(item.my, 'my-MM')}
+                      className="flex items-center justify-between text-xs bg-panel/50 px-3 py-1.5 rounded-xl border border-border-main/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
+                      title="Click to pronounce in Burmese"
+                    >
                       <span className="font-semibold text-text-muted">🇲🇲 MY</span>
                       <span className="font-medium text-text-main text-right truncate pl-2" title={item.my}>{item.my}</span>
                     </div>
