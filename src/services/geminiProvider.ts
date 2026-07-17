@@ -29,7 +29,7 @@ export class GeminiProvider implements AIProvider {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
+        'x-goog-api-key': this.settings.apiKey,
       },
     });
 
@@ -111,6 +111,7 @@ export class GeminiProvider implements AIProvider {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-goog-api-key': this.settings.apiKey,
       },
       body: JSON.stringify(body),
     });

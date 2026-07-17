@@ -21,7 +21,7 @@ async function startServer() {
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
 
-  const PORT = Number(process.env.PORT) || 3000;
+  const PORT = 3000;
 
   // API Routes
   const apiRouter = express.Router();

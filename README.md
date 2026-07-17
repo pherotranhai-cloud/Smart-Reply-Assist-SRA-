@@ -1,12 +1,13 @@
 # Smart Reply Assist (SRA)
 
-AI assistant for translation and message composition.
+Cyberpunk-themed AI assistant for translation and message composition.
 
 ## Features
 
 - **AI Translation:** Multi-language support with vocabulary integration.
 - **Smart Composition:** Generate replies based on context, audience, and tone.
 - **Vocabulary Library:** Manage custom terms and meanings.
+- **Cyberpunk UI:** High-contrast, neon-themed interface.
 
 ## Development
 
