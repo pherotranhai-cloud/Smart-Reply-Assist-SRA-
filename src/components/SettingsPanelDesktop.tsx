@@ -243,7 +243,7 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
               </div>
               <div>
                 <p className="text-[17px] font-semibold text-text-main">{t('appName')}</p>
-                <p className="text-[13px] text-text-muted">{(t('version') || 'Phiên bản') + ' ' + APP_VERSION}</p>
+                <p className="text-[13px] text-text-muted">Phiên bản {APP_VERSION}</p>
               </div>
             </div>
             <p className="text-[15px] text-text-muted leading-relaxed">
