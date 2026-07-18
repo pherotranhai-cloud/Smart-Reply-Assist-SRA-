@@ -502,6 +502,7 @@ export default function App() {
             loading={loading}
             transcript={transcript}
             setTranscript={setTranscript}
+            userPreferences={userPreferences}
           />
         )}
 
@@ -527,6 +528,7 @@ export default function App() {
             loading={loading}
             transcript={transcript}
             setTranscript={setTranscript}
+            userPreferences={userPreferences}
           />
         )}
 
@@ -541,7 +543,7 @@ export default function App() {
           >
             <div className="premium-card h-full flex flex-col">
               <Suspense fallback={<FallbackSpinner />}>
-                <VocabManager t={t} />
+                <VocabManager t={t} userPreferences={userPreferences} />
               </Suspense>
             </div>
           </motion.div>
@@ -549,7 +551,7 @@ export default function App() {
 
         {activeTab === 'talk' && (
           <Suspense fallback={<FallbackSpinner />}>
-            <TalkTab settings={state.settings} vocab={vocab} t={t} showToast={showToast} />
+            <TalkTab settings={state.settings} vocab={vocab} t={t} showToast={showToast} userPreferences={userPreferences} />
           </Suspense>
         )}
 
@@ -563,7 +565,7 @@ export default function App() {
             className="h-full overflow-y-auto"
           >
             <Suspense fallback={<FallbackSpinner />}>
-              <HistoryTab t={t} showToast={showToast} onReuse={handleReuse} />
+              <HistoryTab t={t} showToast={showToast} onReuse={handleReuse} userPreferences={userPreferences} />
             </Suspense>
           </motion.div>
         )}

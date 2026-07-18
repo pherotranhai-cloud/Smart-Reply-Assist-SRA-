@@ -4,16 +4,21 @@ import { useVocabManager } from '../hooks/useVocabManager';
 
 interface VocabManagerDesktopProps {
   t: (key: string) => string;
+  userPreferences?: any;
 }
 
-export const VocabManagerDesktop: React.FC<VocabManagerDesktopProps> = ({ t }) => {
+export const VocabManagerDesktop: React.FC<VocabManagerDesktopProps> = ({ t, userPreferences }) => {
   const {
     vocab, search, setSearch, loading, lastSynced,
     filteredVocab, handleExport, speakText,
   } = useVocabManager();
 
+  const hasBgImage = !!userPreferences?.backgroundImage || (userPreferences?.backgroundEffect && userPreferences.backgroundEffect !== 'none');
+
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] min-h-0 overflow-hidden w-full bg-panel border border-border-main rounded-3xl p-6 justify-between">
+    <div className={`flex flex-col h-[calc(100vh-140px)] min-h-0 overflow-hidden w-full border border-border-main rounded-3xl p-6 justify-between transition-all duration-300 ${
+      hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'
+    }`}>
       {/* Header section (fixed at the top) */}
       <div className="flex items-center justify-between pb-4 border-b border-border-main flex-shrink-0">
         <div className="flex flex-col gap-1">
@@ -36,12 +41,16 @@ export const VocabManagerDesktop: React.FC<VocabManagerDesktopProps> = ({ t }) =
               placeholder={t('searchVocab')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-app border border-border-main rounded-xl text-sm focus:ring-2 focus:ring-accent/20 outline-none transition-all text-text-main"
+              className={`w-full pl-10 pr-4 py-2.5 border border-border-main rounded-xl text-sm focus:ring-2 focus:ring-accent/20 outline-none transition-all text-text-main ${
+                hasBgImage ? 'bg-panel/30' : 'bg-app'
+              }`}
             />
           </div>
           <button 
             onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2.5 bg-app border border-border-main text-text-main hover:bg-app/50 rounded-xl text-sm font-medium transition-colors"
+            className={`flex items-center gap-2 px-4 py-2.5 border border-border-main text-text-main hover:bg-app/50 rounded-xl text-sm font-medium transition-colors ${
+              hasBgImage ? 'bg-panel/30' : 'bg-app'
+            }`}
           >
             <Download size={18} />
             <span>{t('export_csv')}</span>
@@ -65,7 +74,9 @@ export const VocabManagerDesktop: React.FC<VocabManagerDesktopProps> = ({ t }) =
             {filteredVocab.map((item, idx) => (
               <div 
                 key={`${item.id || idx}-${idx}`} 
-                className="bg-app border border-border-main rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col gap-4 group relative"
+                className={`border border-border-main rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col gap-4 group relative ${
+                  hasBgImage ? 'bg-panel/30' : 'bg-app'
+                }`}
               >
                 {/* Term header */}
                 <div className="flex items-start justify-between border-b border-border-main pb-3">

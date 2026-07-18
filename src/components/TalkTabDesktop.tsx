@@ -11,9 +11,10 @@ interface TalkTabDesktopProps {
   vocab: any[];
   t: (key: string) => string;
   showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
+  userPreferences?: any;
 }
 
-export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab, t, showToast }) => {
+export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab, t, showToast, userPreferences }) => {
   const {
     myLang, setMyLang, usedSeconds, QUOTA_LIMIT, isListening,
     sourceSubtitle, targetSubtitle, isInitializing, connectionProgress,
@@ -22,11 +23,16 @@ export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab,
   } = useTalkTab({ t, showToast });
 
   const progressPercentage = Math.min(100, (usedSeconds / QUOTA_LIMIT) * 100);
+  const hasBgImage = !!userPreferences?.backgroundImage || (userPreferences?.backgroundEffect && userPreferences.backgroundEffect !== 'none');
 
   return (
-    <div className="grid grid-cols-12 gap-6 w-full h-[calc(100vh-140px)] min-h-0 overflow-hidden pb-4 p-6 bg-app">
+    <div className={`grid grid-cols-12 gap-6 w-full h-[calc(100vh-140px)] min-h-0 overflow-hidden pb-4 p-6 transition-all duration-300 ${
+      hasBgImage ? 'bg-transparent' : 'bg-app'
+    }`}>
       {/* Left Column (7/12): Dual Subtitle Panel */}
-      <div className="col-span-7 flex flex-col h-full min-h-0 bg-panel border border-border-main rounded-3xl p-6 justify-between">
+      <div className={`col-span-7 flex flex-col h-full min-h-0 border border-border-main rounded-3xl p-6 justify-between transition-all duration-300 ${
+        hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'
+      }`}>
         <div className="flex items-center justify-between pb-4 border-b border-border-main flex-shrink-0">
           <h2 className="text-xl font-semibold text-text-main">
             {t('live_translate')}
@@ -59,7 +65,9 @@ export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab,
         <div className={`flex-1 w-full overflow-y-auto my-4 pr-2 custom-scrollbar flex flex-col gap-6 ${conversationLog.length === 0 && !sourceSubtitle && !targetSubtitle ? 'justify-center items-center' : ''}`} ref={scrollRef}>
           {conversationLog.map((log, idx) => (
             <div key={idx} className="flex flex-col gap-3 w-full">
-              <div className="bg-app rounded-2xl rounded-tl-none p-5 max-w-[85%] self-start shadow-sm border border-border-main">
+              <div className={`rounded-2xl rounded-tl-none p-5 max-w-[85%] self-start shadow-sm border border-border-main transition-all duration-300 ${
+                hasBgImage ? 'bg-panel/10' : 'bg-app'
+              }`}>
                 <p className="text-xl text-text-main leading-relaxed">{log.source}</p>
                 <span className="text-xs text-text-muted mt-2 block opacity-70">
                   {log.timestamp.toLocaleTimeString()}
@@ -77,7 +85,9 @@ export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab,
           {(sourceSubtitle || targetSubtitle) && (
             <div className="flex flex-col gap-3 w-full">
               {sourceSubtitle && (
-                <div className="bg-app rounded-2xl rounded-tl-none p-5 max-w-[85%] self-start shadow-sm border border-border-main">
+                <div className={`rounded-2xl rounded-tl-none p-5 max-w-[85%] self-start shadow-sm border border-border-main transition-all duration-300 ${
+                  hasBgImage ? 'bg-panel/10' : 'bg-app'
+                }`}>
                   <p className="text-xl text-text-main leading-relaxed">{sourceSubtitle}</p>
                   <VoiceVisualizer isListening={true} onClick={() => handleMicClick({ stopPropagation: () => {} } as any)} />
                 </div>
@@ -120,10 +130,14 @@ export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab,
       </div>
 
       {/* Right Column (5/12): Control Panel */}
-      <div className="col-span-5 h-full min-h-0 bg-panel border border-border-main rounded-3xl p-6 flex flex-col items-center justify-center relative shadow-sm">
+      <div className={`col-span-5 h-full min-h-0 border border-border-main rounded-3xl p-6 flex flex-col items-center justify-center relative shadow-sm transition-all duration-300 ${
+        hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'
+      }`}>
         
         {/* Trivia Area */}
-        <div className="w-full bg-app rounded-2xl p-6 border border-border-main min-h-[120px] flex items-center justify-center text-center shadow-inner flex-shrink-0">
+        <div className={`w-full rounded-2xl p-6 border border-border-main min-h-[120px] flex items-center justify-center text-center shadow-inner flex-shrink-0 transition-all duration-300 ${
+          hasBgImage ? 'bg-panel/10' : 'bg-app'
+        }`}>
           {isInitializing ? (
             <div className="flex flex-col items-center gap-3">
               <div className="text-accent font-medium animate-pulse">{t('connecting')}... {connectionProgress}%</div>

@@ -40,7 +40,7 @@ export const LayoutDesktop: React.FC<LayoutDesktopProps> = ({
     { id: 'vocab', icon: BookOpen, label: t('vocab') || 'Sổ từ vựng' }
   ];
 
-  const hasBgImage = !!userPreferences?.backgroundImage;
+  const hasBgImage = !!userPreferences?.backgroundImage || (userPreferences?.backgroundEffect && userPreferences.backgroundEffect !== 'none');
 
   return (
     <div className={`flex flex-row h-screen w-screen overflow-hidden text-text-main transition-colors duration-500 ${
@@ -48,7 +48,7 @@ export const LayoutDesktop: React.FC<LayoutDesktopProps> = ({
     }`}>
       {/* Left Sidebar */}
       <div className={`w-20 h-full flex flex-col p-3 py-6 justify-between items-center flex-shrink-0 border-r border-border-main/50 transition-all duration-500 ${
-        hasBgImage ? 'bg-panel/30 backdrop-blur-xl' : 'bg-panel'
+        hasBgImage ? 'ios-glass bg-white/10 dark:bg-slate-900/40 backdrop-blur-xl' : 'bg-panel'
       }`}>
         <div className="flex flex-col items-center w-full gap-6">
           <nav className="flex flex-col gap-4 w-full items-center">
@@ -100,8 +100,8 @@ export const LayoutDesktop: React.FC<LayoutDesktopProps> = ({
       <div className={`flex-1 h-full overflow-hidden p-8 relative transition-all duration-500 ${
         hasBgImage ? 'bg-transparent' : 'bg-app'
       }`}>
-        <div className={`h-full w-full max-w-[1400px] mx-auto rounded-3xl shadow-sm border border-border-main/40 overflow-hidden transition-all duration-500 ${
-          hasBgImage ? 'bg-panel/40 backdrop-blur-2xl' : 'bg-app'
+        <div className={`h-full w-full max-w-[1400px] mx-auto rounded-3xl shadow-sm border overflow-hidden transition-all duration-500 ${
+          hasBgImage ? 'ios-glass bg-white/10 dark:bg-slate-900/40 backdrop-blur-xl border-border-main/50' : 'bg-app border-border-main/40'
         }`}>
           {children}
         </div>

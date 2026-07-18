@@ -128,15 +128,21 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
     { lang: 'zh-TW', label: '繁體中文' },
   ];
 
+  const hasBgImage = !!userPreferences?.backgroundImage || (userPreferences?.backgroundEffect && userPreferences.backgroundEffect !== 'none');
+
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] min-h-0 overflow-hidden w-full bg-panel border border-border-main rounded-3xl p-6">
+    <div className={`flex flex-col h-[calc(100vh-140px)] min-h-0 overflow-hidden w-full border border-border-main rounded-3xl p-6 transition-all duration-300 ${
+      hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'
+    }`}>
       <div className="flex-1 w-full overflow-y-auto pr-2 custom-scrollbar space-y-6">
         {/* Appearance */}
         <section>
           <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
             {t('themeMode')}
           </h3>
-          <div className="bg-panel rounded-xl overflow-hidden shadow-sm border border-border-main">
+          <div className={`rounded-xl overflow-hidden shadow-sm border border-border-main transition-all duration-300 ${
+            hasBgImage ? 'bg-panel/30' : 'bg-panel'
+          }`}>
             <div className="p-3">
               <div className="flex bg-text-muted/10 rounded-lg p-1">
                 {themeOptions.map((opt) => (
@@ -164,7 +170,9 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
             {t('settings.personalization') || 'Cá Nhân Hóa'}
           </h3>
 
-          <div className="bg-panel rounded-xl p-4 shadow-sm border border-border-main space-y-5">
+          <div className={`rounded-xl p-4 shadow-sm border border-border-main space-y-5 transition-all duration-300 ${
+            hasBgImage ? 'bg-panel/30' : 'bg-panel'
+          }`}>
             {/* Theme Selector */}
             <div>
               <span className="text-[13px] font-medium text-text-muted mb-2 block">
@@ -366,12 +374,14 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
           <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
             {t('interfaceLanguage')}
           </h3>
-          <div className="bg-panel rounded-xl overflow-hidden shadow-sm border border-border-main">
+          <div className={`rounded-xl overflow-hidden shadow-sm border border-border-main transition-all duration-300 ${
+            hasBgImage ? 'bg-panel/30' : 'bg-panel'
+          }`}>
             {languageOptions.map((opt, idx) => (
               <button
                 key={opt.lang}
                 onClick={() => onLanguageChange(opt.lang)}
-                className={`w-full flex items-center justify-between px-4 py-3 bg-panel transition-colors hover:bg-border-main/20 ${
+                className={`w-full flex items-center justify-between px-4 py-3 bg-transparent transition-colors hover:bg-border-main/20 ${
                   idx !== languageOptions.length - 1 ? 'border-b border-border-main' : ''
                 }`}
               >
@@ -394,10 +404,12 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
           <h3 className="text-[12px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
             {t('supportFeedback')}
           </h3>
-          <div className="bg-panel rounded-xl overflow-hidden shadow-sm border border-border-main">
+          <div className={`rounded-xl overflow-hidden shadow-sm border border-border-main transition-all duration-300 ${
+            hasBgImage ? 'bg-panel/30' : 'bg-panel'
+          }`}>
             <button
               onClick={() => setIsFeedbackOpen(true)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-panel transition-colors hover:bg-border-main/20"
+              className="w-full flex items-center justify-between px-4 py-3 bg-transparent transition-colors hover:bg-border-main/20"
             >
               <div className="flex items-center gap-3">
                 <div className="w-7 h-7 rounded-md bg-accent flex items-center justify-center text-white">
@@ -415,10 +427,12 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
           <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
             {t('system')}
           </h3>
-          <div className="bg-panel rounded-xl overflow-hidden shadow-sm border border-border-main">
+          <div className={`rounded-xl overflow-hidden shadow-sm border border-border-main transition-all duration-300 ${
+            hasBgImage ? 'bg-panel/30' : 'bg-panel'
+          }`}>
             <button
               onClick={handleResetApp}
-              className="w-full flex items-center justify-between px-4 py-3 bg-panel transition-colors hover:bg-border-main/20 border-b border-border-main"
+              className="w-full flex items-center justify-between px-4 py-3 bg-transparent transition-colors hover:bg-border-main/20 border-b border-border-main"
             >
               <div className="flex items-center gap-3">
                 <div className="w-7 h-7 rounded-md bg-red-500 flex items-center justify-center text-white">
@@ -431,7 +445,7 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
             
             <button
               onClick={handleClearHistory}
-              className="w-full flex items-center justify-between px-4 py-3 bg-panel transition-colors hover:bg-border-main/20"
+              className="w-full flex items-center justify-between px-4 py-3 bg-transparent transition-colors hover:bg-border-main/20"
             >
               <div className="flex items-center gap-3">
                 <div className="w-7 h-7 rounded-md bg-red-600 flex items-center justify-center text-white">
@@ -449,7 +463,9 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
           <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
             {t('about')}
           </h3>
-          <div className="bg-panel rounded-xl overflow-hidden shadow-sm border border-border-main p-4">
+          <div className={`rounded-xl overflow-hidden shadow-sm border border-border-main p-4 transition-all duration-300 ${
+            hasBgImage ? 'bg-panel/30' : 'bg-panel'
+          }`}>
             <div className="flex items-center gap-4 mb-3">
               <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center text-white shadow-sm">
                 <Languages size={24} />

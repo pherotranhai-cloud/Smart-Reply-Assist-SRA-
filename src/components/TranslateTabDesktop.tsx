@@ -32,6 +32,7 @@ interface TranslateTabDesktopProps {
   loading: boolean;
   transcript: string;
   setTranscript: React.Dispatch<React.SetStateAction<string>>;
+  userPreferences?: any;
 }
 
 export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
@@ -43,6 +44,8 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
     handleImageUpload, handlePaste, handlePasteFromClipboard,
     translateInputWithInterim
   } = useTranslateTab(props);
+
+  const hasBgImage = !!props.userPreferences?.backgroundImage || (props.userPreferences?.backgroundEffect && props.userPreferences.backgroundEffect !== 'none');
 
   useEffect(() => {
     if (props.transcript && props.activeTab === 'translate') {
@@ -78,7 +81,9 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
   };
 
   return (
-    <div className="grid grid-cols-2 gap-6 w-full h-[calc(100vh-140px)] min-h-0 overflow-hidden pb-4 p-6 bg-app">
+    <div className={`grid grid-cols-2 gap-6 w-full h-[calc(100vh-140px)] min-h-0 overflow-hidden pb-4 p-6 transition-all duration-300 ${
+      hasBgImage ? 'bg-transparent' : 'bg-app'
+    }`}>
       {/* Left Column: Input & Vocab */}
       <div className="flex flex-col h-full min-h-0 gap-4">
         <div className="flex items-center justify-between flex-shrink-0">
@@ -98,7 +103,9 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
           </div>
         </div>
 
-        <div className="relative flex-1 flex flex-col h-full min-h-0 bg-panel border border-border-main rounded-3xl p-5 overflow-hidden">
+        <div className={`relative flex-1 flex flex-col h-full min-h-0 border border-border-main rounded-3xl p-5 overflow-hidden transition-all duration-300 ${
+          hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'
+        }`}>
           <textarea
             value={translateInputWithInterim}
             onChange={(e) => {
@@ -189,7 +196,9 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
             </div>
             <div className="flex flex-wrap gap-2">
               {matchedTerms.map((item, idx) => (
-                <div key={idx} className="bg-panel border border-border-main rounded-lg px-3 py-1.5 text-sm shadow-sm flex flex-col">
+                <div key={idx} className={`border border-border-main rounded-lg px-3 py-1.5 text-sm shadow-sm flex flex-col transition-all duration-300 ${
+                  hasBgImage ? 'bg-panel/30' : 'bg-panel'
+                }`}>
                   <span className="font-medium text-text-main">{item.term}</span>
                   <span className="text-accent font-semibold">{getVocabTranslation(item, targetLang)}</span>
                 </div>
@@ -200,7 +209,9 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
       </div>
 
       {/* Right Column: Output */}
-      <div className="flex flex-col h-full min-h-0 bg-panel border border-border-main rounded-3xl p-5 justify-between relative">
+      <div className={`flex flex-col h-full min-h-0 border border-border-main rounded-3xl p-5 justify-between relative transition-all duration-300 ${
+        hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'
+      }`}>
         {/* Top bar: Header & Target Lang Selector */}
         <div className="flex items-center justify-between flex-shrink-0">
           <span className="text-sm font-semibold text-text-muted uppercase tracking-wider">

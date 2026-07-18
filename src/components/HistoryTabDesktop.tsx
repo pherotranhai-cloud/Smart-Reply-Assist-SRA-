@@ -7,12 +7,15 @@ interface HistoryTabDesktopProps {
   t: (key: string) => string;
   showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
   onReuse: (item: HistoryItem) => void;
+  userPreferences?: any;
 }
 
-export const HistoryTabDesktop: React.FC<HistoryTabDesktopProps> = ({ t, showToast, onReuse }) => {
+export const HistoryTabDesktop: React.FC<HistoryTabDesktopProps> = ({ t, showToast, onReuse, userPreferences }) => {
   const {
     filter, setFilter, loading, filteredHistory, handleCopy,
   } = useHistoryTab(t, showToast);
+
+  const hasBgImage = !!userPreferences?.backgroundImage || (userPreferences?.backgroundEffect && userPreferences.backgroundEffect !== 'none');
 
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -39,14 +42,18 @@ export const HistoryTabDesktop: React.FC<HistoryTabDesktopProps> = ({ t, showToa
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] min-h-0 overflow-hidden w-full bg-panel border border-border-main rounded-3xl p-6 justify-between">
+    <div className={`flex flex-col h-[calc(100vh-140px)] min-h-0 overflow-hidden w-full border border-border-main rounded-3xl p-6 justify-between transition-all duration-300 ${
+      hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'
+    }`}>
       <div className="flex items-center justify-between pb-4 border-b border-border-main flex-shrink-0">
         <h2 className="text-2xl font-bold text-text-main flex items-center gap-3">
           <Clock className="text-accent" size={28} />
           {t('history')}
         </h2>
         
-        <div className="flex items-center gap-2 bg-app p-1.5 rounded-xl border border-border-main">
+        <div className={`flex items-center gap-2 p-1.5 rounded-xl border border-border-main transition-all duration-300 ${
+          hasBgImage ? 'bg-panel/10' : 'bg-app'
+        }`}>
           {(['all', 'translate', 'compose', 'talk'] as const).map(f => (
             <button
               key={f}
@@ -76,7 +83,9 @@ export const HistoryTabDesktop: React.FC<HistoryTabDesktopProps> = ({ t, showToa
           </div>
         ) : (
           <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 bg-panel z-10 shadow-sm">
+            <thead className={`sticky top-0 z-10 shadow-sm transition-all duration-300 ${
+              hasBgImage ? 'bg-panel/40 backdrop-blur-md' : 'bg-panel'
+            }`}>
               <tr>
                 <th className="px-6 py-4 text-sm font-semibold text-text-muted border-b border-border-main w-48">{t('history_time')}</th>
                 <th className="px-6 py-4 text-sm font-semibold text-text-muted border-b border-border-main w-40">{t('history_type')}</th>

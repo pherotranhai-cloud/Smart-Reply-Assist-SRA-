@@ -55,6 +55,7 @@ interface ComposeTabDesktopProps {
   loading: boolean;
   transcript: string;
   setTranscript: React.Dispatch<React.SetStateAction<string>>;
+  userPreferences?: any;
 }
 
 export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
@@ -63,6 +64,8 @@ export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
     composeParams, setComposeParams, useContextInCompose, setUseContextInCompose,
     handleCompose
   } = useComposeTab(props);
+
+  const hasBgImage = !!props.userPreferences?.backgroundImage || (props.userPreferences?.backgroundEffect && props.userPreferences.backgroundEffect !== 'none');
 
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -99,9 +102,13 @@ export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-app">
+    <div className={`flex flex-col h-full min-h-0 transition-all duration-300 ${
+      hasBgImage ? 'bg-transparent' : 'bg-app'
+    }`}>
       {/* Top Bar: Horizontal Preset Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-4 border-b border-border-main bg-panel flex-shrink-0">
+      <div className={`flex flex-wrap items-center justify-between gap-4 p-4 border-b border-border-main flex-shrink-0 transition-all duration-300 ${
+        hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'
+      }`}>
         <div className="flex items-center gap-3">
           <PenTool size={20} className="text-accent shrink-0" />
           <h2 className="font-semibold text-lg text-text-main whitespace-nowrap">{props.t('compose')}</h2>
@@ -147,9 +154,13 @@ export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
       </div>
 
       {/* Main Workspace split into 2 equal height or full-height columns */}
-      <div className="grid grid-cols-2 gap-6 w-full h-[calc(100vh-180px)] min-h-0 overflow-hidden pb-4 p-6 bg-app">
+      <div className={`grid grid-cols-2 gap-6 w-full h-[calc(100vh-180px)] min-h-0 overflow-hidden pb-4 p-6 transition-all duration-300 ${
+        hasBgImage ? 'bg-transparent' : 'bg-app'
+      }`}>
         {/* Left Column: Input (Yêu cầu thêm) */}
-        <div className="flex flex-col h-full min-h-0 bg-panel border border-border-main rounded-3xl p-5 justify-between">
+        <div className={`flex flex-col h-full min-h-0 border border-border-main rounded-3xl p-5 justify-between transition-all duration-300 ${
+          hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'
+        }`}>
           <div className="flex items-center justify-between pb-3 border-b border-border-main flex-shrink-0">
             <span className="text-sm font-semibold text-text-muted uppercase tracking-wider">
               {props.t('additionalReqs')}
@@ -195,9 +206,13 @@ export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
         </div>
 
         {/* Right Column: Generated Reply / Output Editor */}
-        <div className="flex flex-col h-full min-h-0 bg-panel border border-border-main rounded-3xl p-5 justify-between relative">
+        <div className={`flex flex-col h-full min-h-0 border border-border-main rounded-3xl p-5 justify-between relative transition-all duration-300 ${
+          hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'
+        }`}>
           {/* Target Language selector: Ghost Native Select */}
-          <div className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-panel/80 backdrop-blur-md border border-border-main p-1.5 rounded-xl shadow-sm">
+          <div className={`absolute top-4 right-4 z-10 flex items-center gap-2 border border-border-main p-1.5 rounded-xl shadow-sm transition-all duration-300 ${
+            hasBgImage ? 'bg-panel/40 backdrop-blur-md' : 'bg-panel/80'
+          }`}>
             <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider pl-1">{props.t('language') || 'Ngôn ngữ'}:</span>
             <div className="relative inline-block w-40">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-accent bg-accent/10 px-3 py-1.5 rounded-lg pointer-events-none w-full justify-between border border-border-main">
