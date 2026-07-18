@@ -15,9 +15,14 @@ import {
   History,
   MessageSquareWarning,
   X,
-  Send
+  Send,
+  Palette,
+  Type,
+  Sliders,
+  Sparkles,
+  Image as ImageIcon
 } from 'lucide-react';
-import { ThemeMode, GlobalLanguage, AISettings } from '../types';
+import { ThemeMode, GlobalLanguage, AISettings, UserPreferences } from '../types';
 import { AIService } from '../services/ai';
 import { APP_VERSION } from '../config/version';
 
@@ -32,6 +37,8 @@ interface SettingsPanelProps {
   onSaveSettings: (s: AISettings) => void;
   t: (key: string) => string;
   onOpenAdmin?: () => void;
+  userPreferences: UserPreferences;
+  onUserPreferencesChange: (prefs: UserPreferences) => void;
 }
 
 export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
@@ -44,7 +51,9 @@ export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
   settings,
   onSaveSettings,
   t,
-  onOpenAdmin
+  onOpenAdmin,
+  userPreferences,
+  onUserPreferencesChange
 }) => {
   const [localSettings, setLocalSettings] = useState(settings);
   const [testing, setTesting] = useState(false);
@@ -140,6 +149,210 @@ export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
                   }`}
                 >
                   {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Personalization Section */}
+      <section className="space-y-4">
+        <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-1 flex items-center gap-2">
+          <Palette size={14} className="text-accent" />
+          {t('settings.personalization') || 'Cá Nhân Hóa'}
+        </h3>
+
+        <div className="bg-panel rounded-xl p-4 shadow-sm border border-border-main space-y-5">
+          {/* Theme Selector */}
+          <div>
+            <span className="text-[13px] font-medium text-text-muted mb-2 block">
+              {t('personalization.theme') || 'Chủ đề giao diện'}
+            </span>
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { mode: 'light', key: 'personalization.theme.light', label: 'Light', emoji: '☀️' },
+                { mode: 'dark', key: 'personalization.theme.dark', label: 'Dark', emoji: '🌙' },
+                { mode: 'cyberpunk', key: 'personalization.theme.cyberpunk', label: 'Cyberpunk', emoji: '👾' },
+                { mode: 'industrial', key: 'personalization.theme.industrial', label: 'Industrial', emoji: '⚙️' }
+              ].map((opt) => (
+                <button
+                  key={opt.mode}
+                  onClick={() => {
+                    onUserPreferencesChange({
+                      ...userPreferences,
+                      theme: opt.mode as any
+                    });
+                  }}
+                  className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
+                    userPreferences.theme === opt.mode
+                      ? 'border-accent bg-accent/5 text-text-main font-semibold'
+                      : 'border-border-main text-text-muted hover:border-text-muted/30 hover:text-text-main'
+                  }`}
+                >
+                  <span className="text-lg mb-1">{opt.emoji}</span>
+                  <span className="text-[12px]">{t(opt.key) || opt.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Font Selector */}
+          <div>
+            <span className="text-[13px] font-medium text-text-muted mb-2 block">
+              {t('personalization.font') || 'Phông chữ hệ thống'}
+            </span>
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { id: 'sans', key: 'personalization.font.sans', label: 'Sans (Standard)', style: 'font-sans' },
+                { id: 'mono', key: 'personalization.font.mono', label: 'Mono (Technical)', style: 'font-mono' },
+                { id: 'serif', key: 'personalization.font.serif', label: 'Serif (Classic)', style: 'font-serif' },
+                { id: 'playfair', key: 'personalization.font.playfair', label: 'Fancy (Playfair)', style: 'font-custom-fancy' }
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => {
+                    onUserPreferencesChange({
+                      ...userPreferences,
+                      fontFamily: opt.id as any
+                    });
+                  }}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    userPreferences.fontFamily === opt.id
+                      ? 'border-accent bg-accent/5 text-text-main font-semibold'
+                      : 'border-border-main text-text-muted hover:border-text-muted/30 hover:text-text-main'
+                  }`}
+                >
+                  <div className="text-[11px] text-text-muted mb-1 font-sans">Abc</div>
+                  <div className={`text-[15px] truncate ${opt.style}`}>
+                    {t(opt.key) || opt.label}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Font Size Selector */}
+          <div>
+            <span className="text-[13px] font-medium text-text-muted mb-2 block">
+              {t('personalization.fontSize') || 'Kích thước chữ'}
+            </span>
+            <div className="flex bg-text-muted/10 rounded-lg p-1 max-w-sm">
+              {[
+                { id: 'sm', key: 'personalization.fontSize.sm', label: 'A-' },
+                { id: 'base', key: 'personalization.fontSize.base', label: 'A' },
+                { id: 'lg', key: 'personalization.fontSize.lg', label: 'A+' },
+                { id: 'xl', key: 'personalization.fontSize.xl', label: 'A++' }
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  title={t(opt.key)}
+                  onClick={() => {
+                    onUserPreferencesChange({
+                      ...userPreferences,
+                      fontSize: opt.id as any
+                    });
+                  }}
+                  className={`flex-1 py-1.5 text-[13px] font-medium rounded-md transition-all ${
+                    userPreferences.fontSize === opt.id
+                      ? 'bg-panel text-text-main shadow-sm font-semibold'
+                      : 'text-text-muted hover:text-text-main'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Background Image / Glassmorphic Preset Selector */}
+          <div>
+            <span className="text-[13px] font-medium text-text-muted mb-2 block flex items-center gap-1.5">
+              <ImageIcon size={14} className="text-text-muted" />
+              {t('personalization.background') || 'Hình nền & Kính mờ (Glassmorphism)'}
+            </span>
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { id: '', name: 'Mặc định', key: 'personalization.bg.default', style: 'bg-app border-border-main' },
+                { id: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80', name: 'Hoàng hôn', key: 'personalization.bg.sunset', style: 'bg-gradient-to-r from-orange-300 to-rose-300' },
+                { id: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=800&q=80', name: 'Tinh vân', key: 'personalization.bg.nebula', style: 'bg-gradient-to-r from-indigo-900 to-purple-900' },
+                { id: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=800&q=80', name: 'Lục bảo', key: 'personalization.bg.emerald', style: 'bg-gradient-to-r from-emerald-800 to-teal-800' }
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => {
+                    onUserPreferencesChange({
+                      ...userPreferences,
+                      backgroundImage: opt.id
+                    });
+                  }}
+                  className={`flex flex-col h-16 rounded-xl border overflow-hidden p-2 justify-end relative transition-all ${
+                    userPreferences.backgroundImage === opt.id
+                      ? 'border-accent ring-2 ring-accent/20'
+                      : 'border-border-main hover:border-text-muted/30'
+                  }`}
+                >
+                  {opt.id ? (
+                    <img 
+                      src={opt.id} 
+                      alt={t(opt.key) || opt.name} 
+                      referrerPolicy="no-referrer"
+                      className="absolute inset-0 w-full h-full object-cover opacity-70"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 w-full h-full bg-panel" />
+                  )}
+                  <span className="text-[11px] font-medium text-white bg-black/40 px-1.5 py-0.5 rounded backdrop-blur-sm z-10 w-fit">
+                    {t(opt.key) || opt.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Custom Background URL input */}
+          <div className="pt-1">
+            <input
+              type="text"
+              placeholder={t('personalization.custom_bg_placeholder') || 'Dán link ảnh nền tùy chọn của bạn...'}
+              value={userPreferences.backgroundImage && !userPreferences.backgroundImage.includes('unsplash') ? userPreferences.backgroundImage : ''}
+              onChange={(e) => {
+                onUserPreferencesChange({
+                  ...userPreferences,
+                  backgroundImage: e.target.value
+                });
+              }}
+              className="w-full text-[13px] px-3.5 py-2 rounded-xl bg-app text-text-main border border-border-main focus:outline-none focus:ring-1 focus:ring-accent"
+            />
+          </div>
+
+          {/* Background Effects */}
+          <div>
+            <span className="text-[13px] font-medium text-text-muted mb-2 block flex items-center gap-1.5">
+              <Sparkles size={14} className="text-text-muted" />
+              {t('personalization.effects') || 'Hiệu ứng nền chuyển động'}
+            </span>
+            <div className="flex bg-text-muted/10 rounded-lg p-1 max-w-sm">
+              {[
+                { id: 'none', label: 'Tắt', key: 'personalization.effect.none' },
+                { id: 'liquid-glow', label: 'Dòng chảy', key: 'personalization.effect.liquid' },
+                { id: 'particles', label: 'Hạt ánh sáng', key: 'personalization.effect.particles' }
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => {
+                    onUserPreferencesChange({
+                      ...userPreferences,
+                      backgroundEffect: opt.id as any
+                    });
+                  }}
+                  className={`flex-1 py-1.5 text-[13px] font-medium rounded-md transition-all ${
+                    userPreferences.backgroundEffect === opt.id
+                      ? 'bg-panel text-text-main shadow-sm font-semibold'
+                      : 'text-text-muted hover:text-text-main'
+                  }`}
+                >
+                  {t(opt.key) || opt.label}
                 </button>
               ))}
             </div>

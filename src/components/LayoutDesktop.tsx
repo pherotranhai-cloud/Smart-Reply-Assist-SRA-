@@ -10,7 +10,7 @@ import {
   Mic,
   X
 } from 'lucide-react';
-import { AppState } from '../types';
+import { AppState, UserPreferences } from '../types';
 import { APP_VERSION } from '../config/version';
 
 interface LayoutDesktopProps {
@@ -20,6 +20,7 @@ interface LayoutDesktopProps {
   toast?: { message: string; type: 'info' | 'error' | 'success' } | null;
   onCloseToast?: () => void;
   t: (key: string) => string;
+  userPreferences?: UserPreferences;
 }
 
 export const LayoutDesktop: React.FC<LayoutDesktopProps> = ({
@@ -28,7 +29,8 @@ export const LayoutDesktop: React.FC<LayoutDesktopProps> = ({
   setActiveTab,
   toast,
   onCloseToast,
-  t
+  t,
+  userPreferences
 }) => {
   const tabs = [
     { id: 'translate', icon: Globe, label: t('tabTranslate') || 'Dịch văn bản' },
@@ -38,10 +40,16 @@ export const LayoutDesktop: React.FC<LayoutDesktopProps> = ({
     { id: 'vocab', icon: BookOpen, label: t('vocab') || 'Sổ từ vựng' }
   ];
 
+  const hasBgImage = !!userPreferences?.backgroundImage;
+
   return (
-    <div className="flex flex-row h-screen w-screen overflow-hidden bg-app text-text-main">
+    <div className={`flex flex-row h-screen w-screen overflow-hidden text-text-main transition-colors duration-500 ${
+      hasBgImage ? 'bg-black/20' : 'bg-app'
+    }`}>
       {/* Left Sidebar */}
-      <div className="w-20 h-full bg-panel border-r border-border-main flex flex-col p-3 py-6 justify-between items-center flex-shrink-0">
+      <div className={`w-20 h-full flex flex-col p-3 py-6 justify-between items-center flex-shrink-0 border-r border-border-main/50 transition-all duration-500 ${
+        hasBgImage ? 'bg-panel/30 backdrop-blur-xl' : 'bg-panel'
+      }`}>
         <div className="flex flex-col items-center w-full gap-6">
           <nav className="flex flex-col gap-4 w-full items-center">
             {tabs.map(tab => {
@@ -60,7 +68,7 @@ export const LayoutDesktop: React.FC<LayoutDesktopProps> = ({
                   className={`flex items-center justify-center w-12 h-12 rounded-2xl transition-all ${
                     isSelected
                       ? 'bg-accent text-white shadow-md shadow-accent/20'
-                      : 'text-text-muted hover:bg-app hover:text-text-main'
+                      : 'text-text-muted hover:bg-app/50 hover:text-text-main'
                   }`}
                 >
                   <Icon size={22} className={isSelected ? 'text-white' : ''} />
@@ -77,7 +85,7 @@ export const LayoutDesktop: React.FC<LayoutDesktopProps> = ({
             className={`flex items-center justify-center w-12 h-12 rounded-2xl transition-all ${
               activeTab === 'settings'
                 ? 'bg-accent text-white shadow-md shadow-accent/20'
-                : 'text-text-muted hover:bg-app hover:text-text-main'
+                : 'text-text-muted hover:bg-app/50 hover:text-text-main'
             }`}
           >
             <Settings size={22} className={activeTab === 'settings' ? 'text-white' : ''} />
@@ -89,8 +97,12 @@ export const LayoutDesktop: React.FC<LayoutDesktopProps> = ({
       </div>
 
       {/* Main Content Canvas */}
-      <div className="flex-1 h-full overflow-hidden p-8 relative bg-app">
-        <div className="h-full w-full max-w-[1400px] mx-auto bg-app rounded-3xl shadow-sm border border-border-main overflow-hidden">
+      <div className={`flex-1 h-full overflow-hidden p-8 relative transition-all duration-500 ${
+        hasBgImage ? 'bg-transparent' : 'bg-app'
+      }`}>
+        <div className={`h-full w-full max-w-[1400px] mx-auto rounded-3xl shadow-sm border border-border-main/40 overflow-hidden transition-all duration-500 ${
+          hasBgImage ? 'bg-panel/40 backdrop-blur-2xl' : 'bg-app'
+        }`}>
           {children}
         </div>
         

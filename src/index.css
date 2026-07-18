@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
 
 @theme {
   /* Requested names */
@@ -34,6 +35,9 @@
 
   --ios-glass-bg: rgba(255, 255, 255, 0.8);
   --ios-glass-border: rgba(255, 255, 255, 0.3);
+
+  --app-bg-opacity: 1;
+  --app-blur-intensity: 0px;
 }
 
 :root[data-theme="dark"], .dark { /* Dark Mode */
@@ -47,6 +51,41 @@
 
   --ios-glass-bg: rgba(21, 31, 50, 0.7);
   --ios-glass-border: rgba(255, 255, 255, 0.1);
+
+  --app-bg-opacity: 1;
+  --app-blur-intensity: 0px;
+}
+
+:root[data-theme="cyberpunk"] {
+  --bg-app: #0A0216;
+  --bg-card: rgba(23, 8, 41, 0.85);
+  --text-primary: #00F0FF;
+  --text-muted: #FF0055;
+  --bg-input: rgba(255, 0, 85, 0.1);
+  --border-main: #FF0055;
+  --accent: #FF0055;
+
+  --ios-glass-bg: rgba(23, 8, 41, 0.7);
+  --ios-glass-border: rgba(255, 0, 85, 0.3);
+
+  --app-bg-opacity: 1;
+  --app-blur-intensity: 0px;
+}
+
+:root[data-theme="industrial"] {
+  --bg-app: #1D2125;
+  --bg-card: rgba(43, 49, 56, 0.85);
+  --text-primary: #F4F5F7;
+  --text-muted: #8993A4;
+  --bg-input: rgba(9, 30, 66, 0.2);
+  --border-main: #454F59;
+  --accent: #E67E22;
+
+  --ios-glass-bg: rgba(43, 49, 56, 0.7);
+  --ios-glass-border: rgba(69, 79, 89, 0.3);
+
+  --app-bg-opacity: 1;
+  --app-blur-intensity: 0px;
 }
 
 @layer base {
@@ -243,5 +282,18 @@
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.font-custom-sans {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+.font-custom-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.font-custom-serif {
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+}
+.font-custom-fancy {
+  font-family: 'Playfair Display', Didot, "Bodoni MT", serif;
 }
 

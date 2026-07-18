@@ -8,7 +8,10 @@ export const STORAGE_KEYS = {
   STRUCTURED_SUMMARY: 'sra_structured_summary',
   GLOBAL_LANGUAGE: 'sra_global_language',
   TRANSLATION_CACHE: 'sra_translation_cache',
+  USER_PREFERENCES: 'sra_user_preferences',
 };
+
+export const USER_PREFERENCES_KEY = 'sra_user_preferences';
 
 export const DATA_KEYS = [
   STORAGE_KEYS.LAST_OUTPUTS,

@@ -1,4 +1,4 @@
-import { VocabItem, AISettings, AppState, HistoryItem, ConversationContext, GlobalLanguage } from '../types';
+import { VocabItem, AISettings, AppState, HistoryItem, ConversationContext, GlobalLanguage, UserPreferences } from '../types';
 import { DEFAULT_STATE } from '../constants';
 import { STORAGE_KEYS, DATA_KEYS } from '../constants/storageKeys';
 
@@ -201,5 +201,23 @@ export const storage = {
 
   async setTranslationCache(cache: Record<string, { translatedText: string, timestamp: number }>): Promise<void> {
     await adapter.set(STORAGE_KEYS.TRANSLATION_CACHE, cache);
+  },
+
+  async getUserPreferences(): Promise<UserPreferences> {
+    const prefs = await adapter.get<UserPreferences>(STORAGE_KEYS.USER_PREFERENCES);
+    if (!prefs) {
+      return {
+        theme: 'dark',
+        backgroundImage: '',
+        backgroundEffect: 'none',
+        fontFamily: 'sans',
+        fontSize: 'base'
+      };
+    }
+    return prefs;
+  },
+
+  async saveUserPreferences(prefs: UserPreferences): Promise<void> {
+    await adapter.set(STORAGE_KEYS.USER_PREFERENCES, prefs);
   }
 };

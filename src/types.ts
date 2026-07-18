@@ -90,6 +90,14 @@ export interface StructuredSummary {
   };
 }
 
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'cyberpunk' | 'industrial';
+  backgroundImage: string;
+  backgroundEffect: 'none' | 'liquid-glow' | 'particles';
+  fontFamily: 'sans' | 'mono' | 'serif' | 'playfair';
+  fontSize: 'sm' | 'base' | 'lg' | 'xl';
+}
+
 export interface AppState {
   themeMode: ThemeMode;
   globalLanguage: GlobalLanguage;

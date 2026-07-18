@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Languages, PenTool, BookOpen, Settings, CheckCircle2, AlertCircle, X, MessagesSquare, History, Mic } from 'lucide-react';
+import { UserPreferences } from '../types';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,6 +10,7 @@ interface LayoutProps {
   toast: { message: string; type: 'info' | 'error' | 'success' } | null;
   onCloseToast: () => void;
   t: (key: string) => string;
+  userPreferences?: UserPreferences;
 }
 
 export const LayoutMobile: React.FC<LayoutProps> = ({ 
@@ -17,7 +19,8 @@ export const LayoutMobile: React.FC<LayoutProps> = ({
   setActiveTab, 
   toast, 
   onCloseToast,
-  t
+  t,
+  userPreferences
 }) => {
 
   const handleTabClick = (tab: string, e: React.MouseEvent<HTMLButtonElement>) => {
@@ -28,8 +31,12 @@ export const LayoutMobile: React.FC<LayoutProps> = ({
     setActiveTab(tab);
   };
 
+  const hasBgImage = !!userPreferences?.backgroundImage;
+
   return (
-    <div className="flex flex-col min-h-screen bg-app text-text-main">
+    <div className={`flex flex-col min-h-screen text-text-main transition-colors duration-500 ${
+      hasBgImage ? 'bg-transparent' : 'bg-app'
+    }`}>
       {/* Main Content */}
       <motion.main 
         initial={{ opacity: 0 }}
@@ -40,7 +47,9 @@ export const LayoutMobile: React.FC<LayoutProps> = ({
       </motion.main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-6 pt-2 bg-gradient-to-t from-app via-app/80 to-transparent pointer-events-none">
+      <nav className={`fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-6 pt-2 pointer-events-none transition-all duration-500 ${
+        hasBgImage ? 'bg-gradient-to-t from-black/20 via-transparent to-transparent' : 'bg-gradient-to-t from-app via-app/80 to-transparent'
+      }`}>
         <div className="pointer-events-auto relative w-full max-w-md mx-4 drop-shadow-sm">
           <div 
             className="ios-glass rounded-[24px] flex items-center justify-around w-full px-2 py-2 md:px-6 gap-1 md:gap-3 overflow-hidden"

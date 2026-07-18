@@ -27,7 +27,8 @@ import {
   Length,
   Format,
   ConversationContext,
-  HistoryItem
+  HistoryItem,
+  UserPreferences
 } from './types';
 import { 
   DEFAULT_STATE, 
@@ -85,6 +86,13 @@ export default function App() {
   const [isIosPromptVisible, setIsIosPromptVisible] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
+  const [userPreferences, setUserPreferences] = useState<UserPreferences>({
+    theme: 'dark',
+    backgroundImage: '',
+    backgroundEffect: 'none',
+    fontFamily: 'sans',
+    fontSize: 'base'
+  });
   
   useEffect(() => {
     const lastSeenVersion = safeLocalStorage.getItem('app_last_seen_version');
@@ -207,14 +215,15 @@ export default function App() {
   useEffect(() => {
     const init = async () => {
       try {
-        const [settings, themeMode, lang, localVocab, outputs, ctx, summary] = await Promise.all([
+        const [settings, themeMode, lang, localVocab, outputs, ctx, summary, prefs] = await Promise.all([
           storage.getSettings(),
           storage.getTheme(),
           storage.getGlobalLanguage(),
           storage.getVocab(),
           storage.getLastOutputs(),
           storage.getContext(),
-          storage.getStructuredSummary()
+          storage.getStructuredSummary(),
+          storage.getUserPreferences()
         ]);
 
         let v = localVocab;
@@ -237,10 +246,20 @@ export default function App() {
         }));
         setVocab(v);
         setContext(ctx);
-        
-        // Initial theme application
-        const resolved = resolveTheme(themeMode);
-        applyTheme(resolved);
+
+        if (prefs) {
+          setUserPreferences(prefs);
+        } else {
+          // Sync default theme if preferences don't exist yet
+          const resolved = resolveTheme(themeMode);
+          setUserPreferences({
+            theme: resolved as any,
+            backgroundImage: '',
+            backgroundEffect: 'none',
+            fontFamily: 'sans',
+            fontSize: 'base'
+          });
+        }
       } catch (err) {
         console.error('Hydration failed:', err);
       } finally {
@@ -250,6 +269,41 @@ export default function App() {
     };
     init();
   }, [resetNonce]);
+
+  // Apply Personalization variables dynamically
+  useEffect(() => {
+    if (userPreferences) {
+      document.documentElement.setAttribute('data-theme', userPreferences.theme);
+      
+      const isDarkTheme = userPreferences.theme === 'dark' || userPreferences.theme === 'cyberpunk' || userPreferences.theme === 'industrial';
+      document.documentElement.classList.toggle('dark', isDarkTheme);
+
+      // Handle custom fonts
+      document.documentElement.classList.remove('font-custom-sans', 'font-custom-mono', 'font-custom-serif', 'font-custom-fancy');
+      let fontClass = 'font-custom-sans';
+      if (userPreferences.fontFamily === 'mono') fontClass = 'font-custom-mono';
+      else if (userPreferences.fontFamily === 'serif') fontClass = 'font-custom-serif';
+      else if (userPreferences.fontFamily === 'playfair') fontClass = 'font-custom-fancy';
+      document.documentElement.classList.add(fontClass);
+
+      // Handle custom font sizes
+      document.documentElement.classList.remove('text-sm', 'text-base', 'text-lg', 'text-xl');
+      let sizeClass = 'text-base';
+      if (userPreferences.fontSize === 'sm') sizeClass = 'text-sm';
+      else if (userPreferences.fontSize === 'lg') sizeClass = 'text-lg';
+      else if (userPreferences.fontSize === 'xl') sizeClass = 'text-xl';
+      document.documentElement.classList.add(sizeClass);
+
+      // Set background opacity/blur for glassmorphism
+      if (userPreferences.backgroundImage) {
+        document.documentElement.style.setProperty('--app-bg-opacity', '0.4');
+        document.documentElement.style.setProperty('--app-blur-intensity', '12px');
+      } else {
+        document.documentElement.style.setProperty('--app-bg-opacity', '1');
+        document.documentElement.style.setProperty('--app-blur-intensity', '0px');
+      }
+    }
+  }, [userPreferences]);
 
   // System theme watcher
   useEffect(() => {
@@ -421,6 +475,7 @@ export default function App() {
         toast={toast}
         onCloseToast={() => setToast(null)}
         t={t}
+        userPreferences={userPreferences}
       >
       <div className="flex-1 overflow-y-auto pb-24">
         {activeTab === 'translate' && (
@@ -546,6 +601,11 @@ export default function App() {
                 }}
                 t={t}
                 onOpenAdmin={() => setIsAdminMode(true)}
+                userPreferences={userPreferences}
+                onUserPreferencesChange={(prefs) => {
+                  setUserPreferences(prefs);
+                  storage.saveUserPreferences(prefs);
+                }}
               />
             </Suspense>
           </motion.div>
