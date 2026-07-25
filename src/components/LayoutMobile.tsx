@@ -35,13 +35,13 @@ export const LayoutMobile: React.FC<LayoutProps> = ({
 
   return (
     <div className={`flex flex-col min-h-screen text-text-main transition-colors duration-500 ${
-      hasBgImage ? 'bg-transparent' : 'bg-app'
+      hasBgImage ? 'has-custom-bg bg-transparent' : 'bg-app'
     }`}>
       {/* Main Content */}
       <motion.main 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="flex-1 flex flex-col pb-20 max-w-2xl mx-auto w-full px-4 pt-6"
+        className="flex-1 flex flex-col pb-20 max-w-2xl mx-auto w-full px-4 pt-4"
       >
         {children}
       </motion.main>

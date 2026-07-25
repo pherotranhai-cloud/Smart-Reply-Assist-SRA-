@@ -297,3 +297,19 @@
   font-family: 'Playfair Display', Didot, "Bodoni MT", serif;
 }
 
+/* Dynamic Glassmorphism for Mobile Cards when Custom Background is active */
+.has-custom-bg .bg-card,
+.has-custom-bg .bg-panel {
+  background-color: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+}
+
+.dark .has-custom-bg .bg-card,
+.dark .has-custom-bg .bg-panel {
+  background-color: rgba(15, 23, 42, 0.78) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
