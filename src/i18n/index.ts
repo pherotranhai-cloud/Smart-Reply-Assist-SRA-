@@ -228,6 +228,10 @@ export const translations = {
     "personalization.effect.none": "Off",
     "personalization.effect.liquid": "Liquid Glow",
     "personalization.effect.particles": "Particles",
+    "personalization.save_wallpaper": "Save Wallpaper",
+    "personalization.save_btn": "Save",
+    "personalization.saved_wallpapers": "Saved Wallpapers Collection",
+    "personalization.remove_wallpaper": "Remove wallpaper",
   },
   vi: {
     translate: 'Dịch',
@@ -458,6 +462,10 @@ export const translations = {
     "personalization.effect.none": "Tắt",
     "personalization.effect.liquid": "Dòng chảy",
     "personalization.effect.particles": "Hạt ánh sáng",
+    "personalization.save_wallpaper": "Lưu hình nền",
+    "personalization.save_btn": "Lưu",
+    "personalization.saved_wallpapers": "Bộ sưu tập hình nền đã lưu",
+    "personalization.remove_wallpaper": "Xóa hình nền",
   },
   'zh-CN': {
     translate: '翻译',
@@ -660,6 +668,10 @@ export const translations = {
     "personalization.effect.none": "关闭",
     "personalization.effect.liquid": "流动光流",
     "personalization.effect.particles": "发光微粒",
+    "personalization.save_wallpaper": "保存壁纸",
+    "personalization.save_btn": "保存",
+    "personalization.saved_wallpapers": "已保存壁纸收藏",
+    "personalization.remove_wallpaper": "删除壁纸",
   },
   'zh-TW': {
     translate: '翻譯',
@@ -862,5 +874,9 @@ export const translations = {
     "personalization.effect.none": "關閉",
     "personalization.effect.liquid": "流動光流",
     "personalization.effect.particles": "發光微粒",
+    "personalization.save_wallpaper": "保存壁紙",
+    "personalization.save_btn": "保存",
+    "personalization.saved_wallpapers": "已保存壁紙收藏",
+    "personalization.remove_wallpaper": "刪除壁紙",
   }
 };

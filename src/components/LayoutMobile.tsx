@@ -31,7 +31,7 @@ export const LayoutMobile: React.FC<LayoutProps> = ({
     setActiveTab(tab);
   };
 
-  const hasBgImage = !!userPreferences?.backgroundImage;
+  const hasBgImage = !!userPreferences?.backgroundImage || (userPreferences?.backgroundEffect && userPreferences.backgroundEffect !== 'none');
 
   return (
     <div className={`flex flex-col min-h-screen text-text-main transition-colors duration-500 ${

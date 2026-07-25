@@ -20,7 +20,10 @@ import {
   Type,
   Sliders,
   Sparkles,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Bookmark,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { ThemeMode, GlobalLanguage, AISettings, UserPreferences } from '../types';
 import { AIService } from '../services/ai';
@@ -58,6 +61,33 @@ export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
   const [localSettings, setLocalSettings] = useState(settings);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
+  const [customUrlInput, setCustomUrlInput] = useState('');
+
+  const handleSaveCustomWallpaper = () => {
+    const urlToSave = customUrlInput.trim() || (userPreferences.backgroundImage && !userPreferences.backgroundImage.includes('unsplash.com/photo-') ? userPreferences.backgroundImage : '');
+    if (!urlToSave) return;
+    const currentSaved = userPreferences.savedWallpapers || [];
+    if (!currentSaved.includes(urlToSave)) {
+      const updatedSaved = [...currentSaved, urlToSave];
+      onUserPreferencesChange({
+        ...userPreferences,
+        backgroundImage: urlToSave,
+        savedWallpapers: updatedSaved
+      });
+      setCustomUrlInput('');
+    }
+  };
+
+  const handleRemoveSavedWallpaper = (url: string) => {
+    const currentSaved = userPreferences.savedWallpapers || [];
+    const updatedSaved = currentSaved.filter(item => item !== url);
+    const updatedBg = userPreferences.backgroundImage === url ? '' : userPreferences.backgroundImage;
+    onUserPreferencesChange({
+      ...userPreferences,
+      backgroundImage: updatedBg,
+      savedWallpapers: updatedSaved
+    });
+  };
   const [availableModels, setAvailableModels] = useState<{ id: string; name: string }[]>([]);
   const [manualMode, setManualMode] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
@@ -310,21 +340,90 @@ export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
             </div>
           </div>
 
-          {/* Custom Background URL input */}
-          <div className="pt-1">
+          {/* Custom Background URL input with Save button */}
+          <div className="pt-1 flex gap-2 items-center">
             <input
               type="text"
               placeholder={t('personalization.custom_bg_placeholder') || 'Dán link ảnh nền tùy chọn của bạn...'}
-              value={userPreferences.backgroundImage && !userPreferences.backgroundImage.includes('unsplash') ? userPreferences.backgroundImage : ''}
+              value={customUrlInput || (userPreferences.backgroundImage && !userPreferences.backgroundImage.includes('unsplash') ? userPreferences.backgroundImage : '')}
               onChange={(e) => {
+                const url = e.target.value;
+                setCustomUrlInput(url);
                 onUserPreferencesChange({
                   ...userPreferences,
-                  backgroundImage: e.target.value
+                  backgroundImage: url
                 });
               }}
-              className="w-full text-[13px] px-3.5 py-2 rounded-xl bg-app text-text-main border border-border-main focus:outline-none focus:ring-1 focus:ring-accent"
+              className="flex-1 text-[13px] px-3.5 py-2 rounded-xl bg-app text-text-main border border-border-main focus:outline-none focus:ring-1 focus:ring-accent"
             />
+            <button
+              type="button"
+              title={t('personalization.save_wallpaper') || 'Lưu hình nền này'}
+              disabled={!userPreferences.backgroundImage && !customUrlInput}
+              onClick={handleSaveCustomWallpaper}
+              className="px-3 py-2 bg-accent text-white rounded-xl text-xs font-semibold hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 shrink-0 transition-all shadow-sm"
+            >
+              <Plus size={16} />
+              <span>{t('personalization.save_btn') || 'Lưu'}</span>
+            </button>
           </div>
+
+          {/* Saved Wallpapers Collection Grid */}
+          {userPreferences.savedWallpapers && userPreferences.savedWallpapers.length > 0 && (
+            <div className="pt-2">
+              <span className="text-[12px] font-medium text-text-muted mb-2 block flex items-center gap-1.5">
+                <Bookmark size={13} className="text-accent" />
+                {t('personalization.saved_wallpapers') || 'Bộ sưu tập hình nền đã lưu'} ({userPreferences.savedWallpapers.length})
+              </span>
+              <div className="grid grid-cols-4 gap-2 max-h-44 overflow-y-auto pr-1 custom-scrollbar">
+                {userPreferences.savedWallpapers.map((url, idx) => {
+                  const isSelected = userPreferences.backgroundImage === url;
+                  return (
+                    <div
+                      key={`${url}-${idx}`}
+                      onClick={() => {
+                        onUserPreferencesChange({
+                          ...userPreferences,
+                          backgroundImage: url
+                        });
+                      }}
+                      className={`group relative flex flex-col h-14 rounded-xl border overflow-hidden cursor-pointer transition-all ${
+                        isSelected
+                          ? 'border-accent ring-2 ring-accent/30 shadow-md'
+                          : 'border-border-main hover:border-text-muted/40'
+                      }`}
+                    >
+                      <img 
+                        src={url} 
+                        alt={`Saved ${idx + 1}`} 
+                        referrerPolicy="no-referrer"
+                        className="absolute inset-0 w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-1">
+                        <button
+                          type="button"
+                          title={t('personalization.remove_wallpaper') || 'Xóa hình nền'}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveSavedWallpaper(url);
+                          }}
+                          className="p-1.5 bg-red-500/80 hover:bg-red-600 text-white rounded-lg transition-colors shadow-sm"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                      {isSelected && (
+                        <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-accent ring-2 ring-white dark:ring-slate-900 z-10" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Background Effects */}
           <div>

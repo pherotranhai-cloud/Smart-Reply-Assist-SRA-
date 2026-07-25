@@ -96,6 +96,7 @@ export interface UserPreferences {
   backgroundEffect: 'none' | 'liquid-glow' | 'particles';
   fontFamily: 'sans' | 'mono' | 'serif' | 'playfair';
   fontSize: 'sm' | 'base' | 'lg' | 'xl';
+  savedWallpapers?: string[];
 }
 
 export interface AppState {
