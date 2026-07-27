@@ -42,6 +42,8 @@ import {
 
 // --- Components ---
 import { Layout } from './components/Layout';
+import { BackgroundCanvas } from './components/BackgroundCanvas';
+import { useUserPreferences } from './hooks/useUserPreferences';
 import { Skeleton, VocabSkeleton } from './components/Skeleton';
 import { FallbackSpinner } from './components/FallbackSpinner';
 import { InstallBanner } from './components/InstallBanner';
@@ -86,13 +88,7 @@ export default function App() {
   const [isIosPromptVisible, setIsIosPromptVisible] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
-  const [userPreferences, setUserPreferences] = useState<UserPreferences>({
-    theme: 'dark',
-    backgroundImage: '',
-    backgroundEffect: 'none',
-    fontFamily: 'sans',
-    fontSize: 'base'
-  });
+  const { preferences: userPreferences, setPreferences: setUserPreferences } = useUserPreferences();
   
   useEffect(() => {
     const lastSeenVersion = safeLocalStorage.getItem('app_last_seen_version');
@@ -215,15 +211,14 @@ export default function App() {
   useEffect(() => {
     const init = async () => {
       try {
-        const [settings, themeMode, lang, localVocab, outputs, ctx, summary, prefs] = await Promise.all([
+        const [settings, themeMode, lang, localVocab, outputs, ctx, summary] = await Promise.all([
           storage.getSettings(),
           storage.getTheme(),
           storage.getGlobalLanguage(),
           storage.getVocab(),
           storage.getLastOutputs(),
           storage.getContext(),
-          storage.getStructuredSummary(),
-          storage.getUserPreferences()
+          storage.getStructuredSummary()
         ]);
 
         let v = localVocab;
@@ -247,17 +242,11 @@ export default function App() {
         setVocab(v);
         setContext(ctx);
 
-        if (prefs) {
-          setUserPreferences(prefs);
-        } else {
-          // Sync default theme if preferences don't exist yet
+        if (!userPreferences.theme) {
           const resolved = resolveTheme(themeMode);
           setUserPreferences({
-            theme: resolved as any,
-            backgroundImage: '',
-            backgroundEffect: 'none',
-            fontFamily: 'sans',
-            fontSize: 'base'
+            ...userPreferences,
+            theme: resolved as any
           });
         }
       } catch (err) {
@@ -437,9 +426,7 @@ export default function App() {
 
   return (
     <>
-
-
-
+      <BackgroundCanvas preferences={userPreferences} />
 
       <ChangelogModal 
         isOpen={isChangelogOpen} 
@@ -606,7 +593,6 @@ export default function App() {
                 userPreferences={userPreferences}
                 onUserPreferencesChange={(prefs) => {
                   setUserPreferences(prefs);
-                  storage.saveUserPreferences(prefs);
                 }}
               />
             </Suspense>

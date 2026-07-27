@@ -209,38 +209,16 @@ export const storage = {
       return {
         theme: 'dark',
         backgroundImage: '',
+        savedWallpapers: [],
         backgroundEffect: 'none',
         fontFamily: 'sans',
-        fontSize: 'base',
-        savedWallpapers: []
+        fontSize: 'base'
       };
-    }
-    return {
-      ...prefs,
-      savedWallpapers: prefs.savedWallpapers || []
-    };
-  },
-
-  async saveUserPreferences(prefs: UserPreferences): Promise<void> {
-    await adapter.set(STORAGE_KEYS.USER_PREFERENCES, prefs);
-  },
-
-  async addSavedWallpaper(url: string): Promise<UserPreferences> {
-    const prefs = await this.getUserPreferences();
-    const current = prefs.savedWallpapers || [];
-    if (url && !current.includes(url)) {
-      const updated = { ...prefs, savedWallpapers: [...current, url] };
-      await this.saveUserPreferences(updated);
-      return updated;
     }
     return prefs;
   },
 
-  async removeSavedWallpaper(url: string): Promise<UserPreferences> {
-    const prefs = await this.getUserPreferences();
-    const current = prefs.savedWallpapers || [];
-    const updated = { ...prefs, savedWallpapers: current.filter(item => item !== url) };
-    await this.saveUserPreferences(updated);
-    return updated;
+  async saveUserPreferences(prefs: UserPreferences): Promise<void> {
+    await adapter.set(STORAGE_KEYS.USER_PREFERENCES, prefs);
   }
 };

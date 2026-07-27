@@ -90,13 +90,15 @@ export interface StructuredSummary {
   };
 }
 
+export type BackgroundEffect = 'none' | 'particles' | 'liquid' | 'aurora' | 'waves';
+
 export interface UserPreferences {
-  theme: 'light' | 'dark' | 'cyberpunk' | 'industrial';
-  backgroundImage: string;
-  backgroundEffect: 'none' | 'liquid-glow' | 'particles';
-  fontFamily: 'sans' | 'mono' | 'serif' | 'playfair';
-  fontSize: 'sm' | 'base' | 'lg' | 'xl';
-  savedWallpapers?: string[];
+  theme?: 'light' | 'dark' | 'cyberpunk' | 'industrial';
+  backgroundImage?: string;
+  savedWallpapers: string[];
+  backgroundEffect: BackgroundEffect;
+  fontSize?: 'sm' | 'base' | 'md' | 'lg' | 'xl';
+  fontFamily?: string;
 }
 
 export interface AppState {

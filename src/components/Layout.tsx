@@ -4,7 +4,6 @@ import { LayoutMobile } from './LayoutMobile';
 import { LayoutDesktop } from './LayoutDesktop';
 import { UserPreferences } from '../types';
 import { storage } from '../services/storage';
-import { BackgroundCanvas } from './BackgroundCanvas';
 
 interface LayoutDispatcherProps {
   children: React.ReactNode;
@@ -52,14 +51,6 @@ export const Layout: React.FC<LayoutDispatcherProps> = (props) => {
     : activePrefs?.fontSize === 'xl' ? 'text-xl'
     : 'text-base';
 
-  // Dynamic style for container element
-  const layoutStyle: React.CSSProperties = activePrefs?.backgroundImage ? {
-    backgroundImage: `url(${activePrefs.backgroundImage})`,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    backgroundAttachment: 'fixed',
-  } : {};
-
   const layoutProps = {
     ...props,
     userPreferences: activePrefs,
@@ -68,11 +59,7 @@ export const Layout: React.FC<LayoutDispatcherProps> = (props) => {
   return (
     <div 
       className={`min-h-screen w-full relative transition-all duration-300 ${fontClass} ${sizeClass}`}
-      style={layoutStyle}
     >
-      {/* Background canvas wrapper running under all controls, z-[-1] or similar */}
-      {activePrefs && <BackgroundCanvas preferences={activePrefs} />}
-      
       {isDesktop ? (
         <LayoutDesktop {...layoutProps} />
       ) : (
