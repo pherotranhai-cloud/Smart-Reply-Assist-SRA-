@@ -36,7 +36,7 @@ export class OpenAIProvider implements AIProvider {
       body: JSON.stringify({
         model: this.settings.model,
         messages: params.messages,
-        temperature: params.temperature ?? (isLuna ? 0.6 : 0.7),
+        temperature: params.temperature ?? (isLuna ? 1 : 0.7),
         max_tokens: params.maxTokens ?? (isLuna ? 4096 : undefined),
         response_format: params.responseMimeType === 'application/json' ? { type: 'json_object' } : undefined,
         stream: params.stream,

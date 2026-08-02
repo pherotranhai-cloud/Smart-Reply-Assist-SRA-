@@ -136,7 +136,6 @@ ${summaryInstruction}`;
     const stream = await openai.chat.completions.create({
       model: targetModel,
       messages,
-      temperature: 0,
       stream: true
     });
 
@@ -210,7 +209,6 @@ router.post('/ocr', async (req, res) => {
     const response = await openai.chat.completions.create({
       model: req.body.model || "gpt-5.6-luna",
       messages,
-      temperature: 0,
     });
 
     res.json({ extractedText: response.choices[0].message.content });
@@ -251,7 +249,6 @@ router.post('/talk', async (req, res) => {
         { role: 'system', content: systemPrompt },
         { role: 'user', content: text }
       ],
-      temperature: 0.1,
       top_p: 0.8,
       presence_penalty: 0,
       frequency_penalty: 0,
@@ -383,7 +380,6 @@ ${structureInstruction}`;
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `${contextText}\n${requirements}` }
       ],
-      temperature: 0,
     });
 
     const outputText = response.choices[0].message.content;
@@ -543,7 +539,6 @@ router.post('/expert-search', async (req, res) => {
           { role: 'user', content: message }
         ],
         tools: [{ type: "web_search" }] as any,
-        temperature: 0.2,
       });
     } catch (searchError: any) {
       console.warn("Web search failed or quota exceeded. Falling back to offline knowledge.", searchError.message);
@@ -553,7 +548,6 @@ router.post('/expert-search', async (req, res) => {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: message }
         ],
-        temperature: 0.2,
       });
     }
 
