@@ -26,6 +26,8 @@ export class OpenAIProvider implements AIProvider {
       ? `${this.settings.baseUrl}chat/completions`
       : `${this.settings.baseUrl}/chat/completions`;
 
+    const isLuna = this.settings.model === 'gpt-5.6-luna';
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -34,8 +36,8 @@ export class OpenAIProvider implements AIProvider {
       body: JSON.stringify({
         model: this.settings.model,
         messages: params.messages,
-        temperature: params.temperature ?? 0.7,
-        max_tokens: params.maxTokens,
+        temperature: params.temperature ?? (isLuna ? 0.6 : 0.7),
+        max_tokens: params.maxTokens ?? (isLuna ? 4096 : undefined),
         response_format: params.responseMimeType === 'application/json' ? { type: 'json_object' } : undefined,
         stream: params.stream,
       }),

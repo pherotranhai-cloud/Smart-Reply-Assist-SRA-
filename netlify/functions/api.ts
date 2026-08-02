@@ -13,7 +13,7 @@ import { createClient } from '@supabase/supabase-js';
 dotenv.config();
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const APP_ENGINE_ID = process.env.APP_ENGINE_ID || 'gpt-5.4-mini-2026-03-17';
+const APP_ENGINE_ID = process.env.APP_ENGINE_ID || 'gpt-5.6-luna';
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || '16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY';
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -131,7 +131,7 @@ ${summaryInstruction}`;
     // 4. Push the unified content as a single user message
     messages.push({ role: 'user', content: userContent });
 
-    const targetModel = isAuto ? "gpt-5.4-nano-2026-03-17" : APP_ENGINE_ID;
+    const targetModel = req.body.model || (isAuto ? "gpt-5.6-luna" : APP_ENGINE_ID);
 
     const stream = await openai.chat.completions.create({
       model: targetModel,
@@ -208,7 +208,7 @@ router.post('/ocr', async (req, res) => {
     ];
 
     const response = await openai.chat.completions.create({
-      model: "gpt-5.4-nano-2026-03-17",
+      model: req.body.model || "gpt-5.6-luna",
       messages,
       temperature: 0,
     });
@@ -246,7 +246,7 @@ router.post('/talk', async (req, res) => {
     res.setHeader('Connection', 'keep-alive');
 
     const stream = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: req.body.model || 'gpt-5.6-luna',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: text }
@@ -378,7 +378,7 @@ router.post('/compose', async (req, res) => {
 ${structureInstruction}`;
     
     const response = await openai.chat.completions.create({
-      model: APP_ENGINE_ID,
+      model: req.body.model || APP_ENGINE_ID,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `${contextText}\n${requirements}` }
@@ -537,7 +537,7 @@ router.post('/expert-search', async (req, res) => {
     let response;
     try {
       response = await openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: req.body.model || 'gpt-5.6-luna',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: message }
@@ -548,7 +548,7 @@ router.post('/expert-search', async (req, res) => {
     } catch (searchError: any) {
       console.warn("Web search failed or quota exceeded. Falling back to offline knowledge.", searchError.message);
       response = await openai.chat.completions.create({
-        model: APP_ENGINE_ID,
+        model: req.body.model || APP_ENGINE_ID,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: message }
@@ -602,7 +602,7 @@ router.post('/security-analyze', async (req, res) => {
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-5.4-nano-2026-03-17',
+      model: req.body.model || 'gpt-5.6-luna',
       messages: [
         {
           role: 'system',

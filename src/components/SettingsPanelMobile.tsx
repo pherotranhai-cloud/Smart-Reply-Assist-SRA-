@@ -25,6 +25,7 @@ import {
 import { ThemeMode, GlobalLanguage, AISettings, UserPreferences } from '../types';
 import { AIService } from '../services/ai';
 import { APP_VERSION } from '../config/version';
+import { SUPPORTED_MODELS } from '../constants';
 
 interface SettingsPanelProps {
   themeMode: ThemeMode;
@@ -428,6 +429,36 @@ export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* AI Model Section */}
+      <section>
+        <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2 flex items-center gap-2">
+          <Cpu size={14} className="text-accent" />
+          {t('model')}
+        </h3>
+        <div className="bg-panel rounded-xl overflow-hidden shadow-sm border border-border-main p-3">
+          <div className="grid grid-cols-1 gap-2">
+            {SUPPORTED_MODELS.map((modelId) => (
+              <button
+                key={modelId}
+                onClick={() => updateCurrent({ model: modelId })}
+                className={`w-full flex flex-col p-3 rounded-xl border text-left transition-all ${
+                  localSettings.openai.model === modelId
+                    ? 'border-accent bg-accent/5 text-text-main font-semibold'
+                    : 'border-border-main text-text-muted hover:border-text-muted/30 hover:text-text-main'
+                }`}
+              >
+                <div className="flex justify-between items-center w-full">
+                  <span className="text-[15px]">{modelId === 'gpt-5.6-luna' ? 'GPT-5.6 Luna' : modelId}</span>
+                  {localSettings.openai.model === modelId && (
+                    <span className="text-accent text-[15px]">✓</span>
+                  )}
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       </section>

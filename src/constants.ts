@@ -1,10 +1,17 @@
 import { AISettings, AppState, Audience, Tone, Length, Format } from './types';
 
+export const DEFAULT_AI_MODEL = 'gpt-5.6-luna';
+export const SUPPORTED_MODELS = [
+  'gpt-5.6-luna',
+  'gpt-4o',
+  'gpt-3.5-turbo',
+] as const;
+
 export const DEFAULT_SETTINGS: AISettings = {
   activeProvider: 'openai',
   openai: {
     baseUrl: 'https://api.openai.com/v1',
-    model: 'gpt-4o',
+    model: DEFAULT_AI_MODEL,
   },
 };
 

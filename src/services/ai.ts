@@ -118,7 +118,8 @@ export class AIService {
   async extractTextFromImage(imagePayload: string): Promise<string> {
     try {
       const response = await axios.post('/api/ocr', {
-        image: imagePayload
+        image: imagePayload,
+        model: this.settings.openai.model
       });
       return response.data.extractedText;
     } catch (err: any) {
@@ -143,7 +144,8 @@ export class AIService {
           glossary, // Gửi Prompt Glossary đã dựng sẵn sang Backend
           image,
           summarize,
-          isAuto
+          isAuto,
+          model: this.settings.openai.model
         })
       });
       
@@ -220,7 +222,8 @@ export class AIService {
         requirements,
         params,
         glossary,
-        structuredSummary
+        structuredSummary,
+        model: this.settings.openai.model
       });
       
       const generatedReply = response.data.generatedReply;
@@ -263,7 +266,7 @@ export class AIService {
       const response = await fetch('/api/talk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, targetLang }),
+        body: JSON.stringify({ text, targetLang, model: this.settings.openai.model }),
       });
 
       if (!response.ok) {
