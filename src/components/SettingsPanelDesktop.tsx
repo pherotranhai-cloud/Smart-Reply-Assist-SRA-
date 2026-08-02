@@ -26,6 +26,7 @@ import { ThemeMode, GlobalLanguage, AISettings, UserPreferences } from '../types
 import { AIService } from '../services/ai';
 import { APP_VERSION } from '../config/version';
 import { SUPPORTED_MODELS } from '../constants';
+import { DEFAULT_WALLPAPERS, INITIAL_WALLPAPER } from '../constants/wallpapers';
 
 interface SettingsPanelProps {
   themeMode: ThemeMode;
@@ -284,9 +285,7 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
               <div className="grid grid-cols-4 gap-2">
                 {[
                   { id: '', name: 'Mặc định', key: 'personalization.bg.default', style: 'bg-app border-border-main' },
-                  { id: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80', name: 'Hoàng hôn', key: 'personalization.bg.sunset', style: 'bg-gradient-to-r from-orange-300 to-rose-300' },
-                  { id: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=800&q=80', name: 'Tinh vân', key: 'personalization.bg.nebula', style: 'bg-gradient-to-r from-indigo-900 to-purple-900' },
-                  { id: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=800&q=80', name: 'Lục bảo', key: 'personalization.bg.emerald', style: 'bg-gradient-to-r from-emerald-800 to-teal-800' }
+                  ...DEFAULT_WALLPAPERS
                 ].map((opt) => (
                   <button
                     key={opt.id}
@@ -326,7 +325,7 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
                 <input
                   type="text"
                   placeholder={t('personalization.custom_bg_placeholder') || 'Dán link ảnh nền tùy chọn của bạn...'}
-                  value={userPreferences.backgroundImage && !userPreferences.backgroundImage.includes('unsplash') && !userPreferences.savedWallpapers?.includes(userPreferences.backgroundImage) ? userPreferences.backgroundImage : ''}
+                  value={userPreferences.backgroundImage && !DEFAULT_WALLPAPERS.find(w => w.id === userPreferences.backgroundImage) && !userPreferences.savedWallpapers?.includes(userPreferences.backgroundImage) ? userPreferences.backgroundImage : ''}
                   onChange={(e) => {
                     onUserPreferencesChange({
                       ...userPreferences,

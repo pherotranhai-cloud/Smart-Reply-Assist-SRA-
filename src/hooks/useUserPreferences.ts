@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { UserPreferences, BackgroundEffect } from '../types';
+import { INITIAL_WALLPAPER } from '../constants/wallpapers';
 
 const STORAGE_KEY = 'app_user_preferences';
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   theme: 'dark',
+  backgroundImage: INITIAL_WALLPAPER,
   savedWallpapers: [],
   backgroundEffect: 'none',
   fontSize: 'base',

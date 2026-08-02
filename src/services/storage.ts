@@ -1,5 +1,6 @@
 import { VocabItem, AISettings, AppState, HistoryItem, ConversationContext, GlobalLanguage, UserPreferences } from '../types';
 import { DEFAULT_STATE } from '../constants';
+import { INITIAL_WALLPAPER } from '../constants/wallpapers';
 import { STORAGE_KEYS, DATA_KEYS } from '../constants/storageKeys';
 
 import { safeLocalStorage } from '../utils/safeStorage';
@@ -208,12 +209,16 @@ export const storage = {
     if (!prefs) {
       return {
         theme: 'dark',
-        backgroundImage: '',
+        backgroundImage: INITIAL_WALLPAPER,
         savedWallpapers: [],
         backgroundEffect: 'none',
         fontFamily: 'sans',
         fontSize: 'base'
       };
+    }
+    // Handle case where user has old empty backgroundImage
+    if (!prefs.backgroundImage && prefs.backgroundImage !== '') {
+      prefs.backgroundImage = INITIAL_WALLPAPER;
     }
     return prefs;
   },
