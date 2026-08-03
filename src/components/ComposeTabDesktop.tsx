@@ -175,6 +175,12 @@ export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
           <textarea
             value={composeInputWithInterim}
             onChange={(e) => setComposeReq(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleCompose();
+              }
+            }}
             placeholder={props.t('composePlaceholder')}
             className="flex-1 w-full h-full overflow-y-auto resize-none bg-transparent focus:outline-none focus:ring-0 custom-scrollbar text-text-main text-base my-3 border-none p-0"
           />

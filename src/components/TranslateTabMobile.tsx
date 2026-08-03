@@ -72,7 +72,6 @@ export function TranslateTabMobile({
     matchedTerms,
     getVocabTranslation,
     handleTranslate,
-    triggerDebouncedAutoTranslate,
     handleClearInput,
     handleImageUpload,
     handlePaste,
@@ -164,10 +163,6 @@ export function TranslateTabMobile({
                 e.preventDefault();
                 handleTranslate(false);
               }
-            }}
-            onKeyUp={e => {
-              if (['Control', 'Alt', 'Shift', 'Meta', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Escape', 'Tab', 'CapsLock'].includes(e.key)) return;
-              triggerDebouncedAutoTranslate();
             }}
             maxLength={1500}
           />

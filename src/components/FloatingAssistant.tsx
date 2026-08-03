@@ -162,6 +162,12 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSearch();
+                    }
+                  }}
                   placeholder={t('assistant.placeholder', 'Hỏi về keo, xử lý bề mặt, lỗi kỹ thuật...')}
                   className="w-full h-20 resize-none bg-input text-text-main text-[15px] p-3 rounded-2xl border border-border-main focus:border-accent focus:ring-1 focus:ring-accent transition-all outline-none"
                 />

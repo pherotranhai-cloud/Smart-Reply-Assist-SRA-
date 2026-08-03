@@ -47,7 +47,6 @@ export function useTranslateTab({
 
   const lastAutoTranslatedInput = useRef("");
   const lastSentTextRef = useRef('');
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleClearInput = useCallback(() => {
     setTranslateInput('');
@@ -222,49 +221,6 @@ export function useTranslateTab({
     }
   }, [translateInput, translateImage, targetLang, state.settings, state.lastOutputs, t, showToast, getDetectedGlossaryTerms, isSummaryMode, isTranslating, checkRateLimit, stopSpeaking, setLoading, setIsStreaming, setState, setContext]);
 
-  const triggerDebouncedAutoTranslate = useCallback(() => {
-    if (isTranslating) {
-      return;
-    }
-
-    if (!translateInput.trim() || translateInput.trim().length < 3) {
-      return;
-    }
-
-    if (isListening) {
-      return;
-    }
-
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    debounceTimerRef.current = setTimeout(() => {
-      const currentLength = translateInput.trim().length;
-      const lastLength = lastAutoTranslatedInput.current.length;
-      
-      if (currentLength - lastLength < 20) {
-        return;
-      }
-
-      const trimmedText = translateInput.trim();
-      if (trimmedText === lastSentTextRef.current) {
-        return; 
-      }
-      lastSentTextRef.current = trimmedText;
-
-      handleTranslate(true);
-    }, 2000);
-  }, [translateInput, isListening, handleTranslate, isTranslating]);
-
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, []);
-
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -342,7 +298,6 @@ export function useTranslateTab({
     matchedTerms,
     getVocabTranslation,
     handleTranslate,
-    triggerDebouncedAutoTranslate,
     handleClearInput,
     handleImageUpload,
     handlePaste,

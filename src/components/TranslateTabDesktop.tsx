@@ -40,7 +40,7 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
     translateInput, setTranslateInput, translateImage, setTranslateImage,
     targetLang, setTargetLang, isSummaryMode, setIsSummaryMode,
     isTranslating, isCached, matchedTerms, getVocabTranslation,
-    handleTranslate, triggerDebouncedAutoTranslate, handleClearInput,
+    handleTranslate, handleClearInput,
     handleImageUpload, handlePaste, handlePasteFromClipboard,
     translateInputWithInterim
   } = useTranslateTab(props);
@@ -110,7 +110,12 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
             value={translateInputWithInterim}
             onChange={(e) => {
               setTranslateInput(e.target.value);
-              triggerDebouncedAutoTranslate();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleTranslate(false);
+              }
             }}
             onPaste={handlePaste}
             placeholder={props.t('inputPlaceholder')}
