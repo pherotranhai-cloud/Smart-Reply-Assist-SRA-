@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mic, Square, Save, Globe, ChevronDown, Share2 } from 'lucide-react';
+import { Mic, Square, Save, ChevronDown, Share2 } from 'lucide-react';
 import { LANGUAGE_FLAGS } from '../constants';
 import { useTalkTab } from '../hooks/useTalkTab';
 

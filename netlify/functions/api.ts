@@ -8,7 +8,11 @@ import crypto from 'crypto';
 import axios from 'axios';
 import Papa from 'papaparse';
 import OpenAI from 'openai';
-import { createClient } from '@supabase/supabase-js';
+import {
+  createSupabaseClient,
+  fetchAdminData,
+  setDeviceStatus
+} from '../../shared/adminService';
 
 dotenv.config();
 
@@ -16,13 +20,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const APP_ENGINE_ID = process.env.APP_ENGINE_ID || 'gpt-5.6-luna';
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || '16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY';
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-let supabase: ReturnType<typeof createClient> | null = null;
-
-if (supabaseUrl && supabaseServiceRoleKey) {
-  supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-}
+const supabase = createSupabaseClient();
 
 const logToSupabase = async (payload: any) => {
   if (!supabase) return;
@@ -278,7 +276,7 @@ router.post('/compose', async (req, res) => {
     return res.status(500).json({ error: "Server Configuration Error" });
   }
 
-  const { contextText, requirements, params, glossary, structuredSummary } = req.body;
+  const { contextText, requirements, params, glossary } = req.body;
   try {
     let mappedLang = params.lang;
     let scriptRule = '';
@@ -649,55 +647,8 @@ router.get('/vocab', (req, res) => {
 
 router.get('/admin/data', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
-
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    const monthAgo = new Date();
-    monthAgo.setMonth(monthAgo.getMonth() - 1);
-
-    // Active user stats from ip_tracker and total count from app_logs
-    const [{ count: activeDay }, { count: activeWeek }, { count: activeMonth }, { count: totalRequests }] = await Promise.all([
-      (supabase as any).from('ip_tracker').select('*', { count: 'exact', head: true }).gte('last_request_at', today.toISOString()),
-      (supabase as any).from('ip_tracker').select('*', { count: 'exact', head: true }).gte('last_request_at', weekAgo.toISOString()),
-      (supabase as any).from('ip_tracker').select('*', { count: 'exact', head: true }).gte('last_request_at', monthAgo.toISOString()),
-      (supabase as any).from('app_logs').select('*', { count: 'exact', head: true })
-    ]);
-
-    const { data: feedbacks } = await supabase.from('user_feedbacks').select('*').order('created_at', { ascending: false }).limit(50);
-    
-    let logs: any[] = [];
-    const { data: logsWithIp, error: logsError } = await supabase
-      .from('app_logs')
-      .select('ip_address, input_text, created_at')
-      .order('created_at', { ascending: false })
-      .limit(100);
-
-    if (logsError) {
-      console.warn("Failed to fetch logs with ip_address, retrying without ip_address...", logsError.message);
-      const { data: logsNoIp, error: retryError } = await supabase
-        .from('app_logs')
-        .select('input_text, created_at')
-        .order('created_at', { ascending: false })
-        .limit(100);
-      if (retryError) {
-        throw retryError;
-      }
-      logs = (logsNoIp || []).map(log => ({ ...log, ip_address: '' }));
-    } else {
-      logs = logsWithIp || [];
-    }
-
-    const { data: ipTrackers } = await (supabase as any).from('ip_tracker').select('*').order('last_request_at', { ascending: false });
-
-    res.json({
-      stats: { day: activeDay || 0, week: activeWeek || 0, month: activeMonth || 0, totalRequests: totalRequests || 0 },
-      feedbacks: feedbacks || [],
-      logs: logs,
-      ipTrackers: ipTrackers || []
-    });
+    res.json(await fetchAdminData(supabase));
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to fetch admin data' });
   }
@@ -709,24 +660,7 @@ router.post('/admin/ip-tracker/status', async (req, res) => {
   if (!ip_address || !status) return res.status(400).json({ error: 'Missing ip_address or status' });
 
   try {
-    if (status === 'good') {
-      await (supabase as any)
-        .from('ip_tracker')
-        .update({ status: 'good', spam_logs: null })
-        .eq('ip_address', ip_address);
-      
-    } else if (status === 'block') {
-      await (supabase as any)
-        .from('ip_tracker')
-        .update({ status: 'block' })
-        .eq('ip_address', ip_address);
-      
-    } else if (status === 'warning') {
-      await (supabase as any)
-        .from('ip_tracker')
-        .update({ status: 'warning' })
-        .eq('ip_address', ip_address);
-    }
+    await setDeviceStatus(supabase, ip_address, status);
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to update IP tracker status' });

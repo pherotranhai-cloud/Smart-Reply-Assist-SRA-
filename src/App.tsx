@@ -1,16 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
+import { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import 'katex/dist/katex.min.css';
-import { 
-  Download,
-  AlertCircle,
-  X
-} from 'lucide-react';
 import { storage } from './services/storage';
 import { AIService } from './services/ai';
-import { validateSecurity } from './utils/security';
 import { applyTheme, resolveTheme, watchSystemThemeChanges } from './utils/theme';
-import { generateHash } from './utils/hash';
 import { copyTextToClipboard } from './utils/clipboard';
 import { safeLocalStorage } from './utils/safeStorage';
 import { translations } from './i18n';
@@ -18,33 +11,21 @@ import { SplashScreen } from './components/SplashScreen';
 import { useSpeechToText } from './hooks/useSpeechToText';
 import { useTextToSpeech } from './hooks/useTextToSpeech';
 import { VoiceModal } from './components/common/VoiceModal';
-import { 
-  VocabItem, 
-  AppState, 
-  Language, 
-  Audience, 
-  Tone, 
-  Length,
-  Format,
+import {
+  VocabItem,
+  AppState,
   ConversationContext,
   HistoryItem,
-  UserPreferences
+  Language,
+  Tone,
+  Format
 } from './types';
-import { 
-  DEFAULT_STATE, 
-  LANGUAGES, 
-  AUDIENCES, 
-  TONES, 
-  FORMATS,
-  ComposePreset,
-  LANGUAGE_FLAGS
-} from './constants';
+import { DEFAULT_STATE, LANGUAGES } from './constants';
 
 // --- Components ---
 import { Layout } from './components/Layout';
 import { BackgroundCanvas } from './components/BackgroundCanvas';
 import { useUserPreferences } from './hooks/useUserPreferences';
-import { Skeleton, VocabSkeleton } from './components/Skeleton';
 import { FallbackSpinner } from './components/FallbackSpinner';
 import { InstallBanner } from './components/InstallBanner';
 import { ChangelogModal } from './components/ChangelogModal';
@@ -54,7 +35,7 @@ import { TranslateTab } from './components/TranslateTab';
 import { ComposeTab } from './components/ComposeTab';
 import { useTabNavigation } from './hooks/useTabNavigation';
 import { useTranslateTab } from './hooks/useTranslateTab';
-
+import { useComposeTab } from './hooks/useComposeTab';
 
 const VocabManager = lazy(() => import('./components/VocabManager').then(module => ({ default: module.VocabManager })));
 const SettingsPanel = lazy(() => import('./components/SettingsPanel').then(module => ({ default: module.SettingsPanel })));
@@ -68,8 +49,6 @@ export default function App() {
   const { activeTab, setActiveTab } = useTabNavigation();
   const [state, setState] = useState<AppState>(DEFAULT_STATE);
   const [vocab, setVocab] = useState<VocabItem[]>([]);
-  const [isVocabOpen, setIsVocabOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isAppLoading, setIsAppLoading] = useState(true);
@@ -77,12 +56,7 @@ export default function App() {
   const [toast, setToast] = useState<{ message: string; type: 'info' | 'error' | 'success' } | null>(null);
   const [isAdminMode, setIsAdminMode] = useState(false);
 
-  const requestTimestamps = useRef<number[]>([]);
   const [context, setContext] = useState<ConversationContext | null>(null);
-  const [isContextExpanded, setIsContextExpanded] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
-  const [extracting, setExtracting] = useState(false);
-  const [resetNonce, setResetNonce] = useState(0);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(true);
   const [isIosPromptVisible, setIsIosPromptVisible] = useState(false);
@@ -118,13 +92,6 @@ export default function App() {
   }, []);
 
 
-  // Tab States
-  const checkRateLimit = useCallback(() => {
-    return true; // Rate limiting removed
-  }, []);
-
-  const [reviewToggle, setReviewToggle] = useState<'reply' | 'summary'>('reply');
-
   const { isListening, transcript, interimTranscript, error: speechError, startListening, stopListening, setTranscript } = useSpeechToText();
   const { speak, stop: stopSpeaking, isSpeaking } = useTextToSpeech();
 
@@ -140,32 +107,10 @@ export default function App() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const saveToLocalHistory = useCallback(async (type: 'translate' | 'compose', input?: string, output?: string, toLang?: string, meta?: any) => {
-    try {
-      if (!input || !output) return;
-
-      const historyList = await storage.getHistory();
-      const exists = historyList.some(h => h.type === type && h.input === input && h.output === output);
-      if (!exists) {
-        await storage.addHistory({
-          type,
-          input,
-          output,
-          toLang,
-          meta
-        });
-      }
-    } catch (err) {
-      console.error('Failed to save to local history:', err);
-    }
-  }, []);
-
   const handleToggleListening = useCallback(() => {
     if (isListening) {
       stopListening();
     } else {
-      // Need a way to pass speechLang or get it from state.
-      // But speechLang is now in useTranslateTab. Let's just use a default or derive it.
       const langMap: Record<string, string> = {
         'en': 'en-US',
         'vi': 'vi-VN',
@@ -187,13 +132,6 @@ export default function App() {
       }
     }
   }, [isSpeaking, speak, stopSpeaking, showToast]);
-
-  useEffect(() => {
-    if (transcript) {
-      // We need a way to pass this to the tabs, or let them handle it.
-      // Actually, since the state for inputs is inside the hooks now, we can pass `transcript` as a prop and use `useEffect` inside the tabs to append it.
-    }
-  }, [transcript]);
 
   useEffect(() => {
     if (isListening) {
@@ -252,12 +190,11 @@ export default function App() {
       } catch (err) {
         console.error('Hydration failed:', err);
       } finally {
-        setHydrated(true);
         setIsAppLoading(false);
       }
     };
     init();
-  }, [resetNonce]);
+  }, []);
 
   // Apply Personalization variables dynamically
   useEffect(() => {
@@ -358,7 +295,6 @@ export default function App() {
   };
 
   const handleExtract = async (text: string, sourceLang: string, contextSource: 'original' | 'translated') => {
-    setExtracting(true);
     try {
       const ai = new AIService(state.settings);
       const summary = await ai.extractStructuredSummary(text, sourceLang, contextSource);
@@ -368,11 +304,45 @@ export default function App() {
     } catch (err: any) {
       showToast(t('extractPrioritiesError'), 'error');
       return null;
-    } finally {
-      setExtracting(false);
     }
   };
 
+
+  // Translate/Compose state lives here, not inside the tab components.
+  // App stays mounted for the whole session, so switching tabs or crossing the
+  // desktop breakpoint (which swaps <TabMobile/> for <TabDesktop/>) no longer
+  // discards whatever the user had typed.
+  const translateTab = useTranslateTab({
+    state,
+    setState,
+    vocab,
+    t,
+    showToast,
+    isListening,
+    interimTranscript,
+    activeTab,
+    setContext,
+    stopSpeaking,
+    setLoading,
+    setIsStreaming,
+    transcript,
+    setTranscript,
+  });
+
+  const composeTab = useComposeTab({
+    state,
+    setState,
+    vocab,
+    t,
+    showToast,
+    activeTab,
+    context,
+    stopSpeaking,
+    setLoading,
+    handleExtract,
+    transcript,
+    setTranscript,
+  });
 
   const handleResetApp = useCallback(() => {
     if (window.confirm(t('confirmResetApp') || 'Bạn có chắc chắn muốn đặt lại toàn bộ ứng dụng không? Mọi cài đặt và dữ liệu sẽ bị xóa sạch.')) {
@@ -396,12 +366,37 @@ export default function App() {
     }
   }, [showToast, t]);
 
+  // Sends a history entry back to the tab that produced it, restoring the input,
+  // its parameters and the previous result. 'talk' entries are transcripts of a
+  // translation session, so they reopen in Translate alongside 'translate' ones.
   const handleReuse = useCallback((item: HistoryItem) => {
-    // The reuse logic can just set the state in App or we can pass an event bus.
-    // Actually, setting state inside App for these isn't easy if we moved the states to tabs.
-    // But we can keep `reuseItem` in state and pass it down.
-    // Wait, the task says: "Tái cơ cấu tất cả các tab thành Presentational Components (chỉ gọi Hook, lấy dữ liệu và render)".
-  }, [activeTab]);
+    if (item.type === 'compose') {
+      composeTab.setComposeReq(item.input);
+      composeTab.setComposeParams(prev => ({
+        ...prev,
+        ...(item.meta?.tone ? { tone: item.meta.tone as Tone } : {}),
+        ...(item.meta?.format ? { format: item.meta.format as Format } : {}),
+        ...(item.toLang && LANGUAGES.includes(item.toLang) ? { lang: item.toLang as Language } : {})
+      }));
+      setState(prev => ({
+        ...prev,
+        lastOutputs: { ...prev.lastOutputs, generatedReply: item.output, subject: '' }
+      }));
+      setActiveTab('compose');
+    } else {
+      translateTab.setTranslateInput(item.input);
+      translateTab.setTranslateImage(null);
+      if (item.toLang && LANGUAGES.includes(item.toLang)) {
+        translateTab.setTargetLang(item.toLang as Language);
+      }
+      setState(prev => ({
+        ...prev,
+        lastOutputs: { ...prev.lastOutputs, translatedText: item.output }
+      }));
+      setActiveTab('translate');
+    }
+    showToast(t('reuseLoaded'), 'success');
+  }, [composeTab, translateTab, setActiveTab, showToast, t]);
 
   const handleCopy = useCallback(async (text: string) => {
     if (!text) return;
@@ -467,6 +462,7 @@ export default function App() {
       <div className="flex-1 overflow-y-auto pb-24">
         {activeTab === 'translate' && (
           <TranslateTab
+            translate={translateTab}
             state={state}
             setState={setState}
             vocab={vocab}
@@ -476,7 +472,6 @@ export default function App() {
             interimTranscript={interimTranscript}
             activeTab={activeTab}
             setContext={setContext}
-            checkRateLimit={checkRateLimit}
             stopSpeaking={stopSpeaking}
             setLoading={setLoading}
             isStreaming={isStreaming}
@@ -495,6 +490,7 @@ export default function App() {
 
         {activeTab === 'compose' && (
           <ComposeTab
+            compose={composeTab}
             state={state}
             setState={setState}
             vocab={vocab}
@@ -502,7 +498,6 @@ export default function App() {
             showToast={showToast}
             activeTab={activeTab}
             context={context}
-            checkRateLimit={checkRateLimit}
             stopSpeaking={stopSpeaking}
             setLoading={setLoading}
             handleExtract={handleExtract}

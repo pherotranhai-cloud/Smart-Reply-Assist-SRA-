@@ -1,5 +1,4 @@
 import React, { useRef, useEffect } from 'react';
-import { motion } from 'motion/react';
 import Markdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -8,6 +7,8 @@ import { LANGUAGES, LANGUAGE_FLAGS } from '../constants';
 import { Language, AppState, VocabItem, ConversationContext } from '../types';
 import { VoiceVisualizer } from './common/VoiceVisualizer';
 import { useTranslateTab } from '../hooks/useTranslateTab';
+
+type TranslateTabState = ReturnType<typeof useTranslateTab>;
 
 interface TranslateTabDesktopProps {
   state: AppState;
@@ -19,7 +20,6 @@ interface TranslateTabDesktopProps {
   interimTranscript: string;
   activeTab: string;
   setContext: (context: ConversationContext | null) => void;
-  checkRateLimit: () => boolean;
   stopSpeaking: () => void;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   isStreaming: boolean;
@@ -33,6 +33,8 @@ interface TranslateTabDesktopProps {
   transcript: string;
   setTranscript: React.Dispatch<React.SetStateAction<string>>;
   userPreferences?: any;
+  /** Lifted into App so the text survives tab and layout changes. */
+  translate: TranslateTabState;
 }
 
 export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
@@ -43,16 +45,9 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
     handleTranslate, handleClearInput,
     handleImageUpload, handlePaste, handlePasteFromClipboard,
     translateInputWithInterim
-  } = useTranslateTab(props);
+  } = props.translate;
 
   const hasBgImage = !!props.userPreferences?.backgroundImage || (props.userPreferences?.backgroundEffect && props.userPreferences.backgroundEffect !== 'none');
-
-  useEffect(() => {
-    if (props.transcript && props.activeTab === 'translate') {
-      setTranslateInput(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + props.transcript);
-      props.setTranscript('');
-    }
-  }, [props.transcript, props.setTranscript, props.activeTab, setTranslateInput]);
 
   const outputRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);

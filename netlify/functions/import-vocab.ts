@@ -3,7 +3,6 @@ import crypto from 'crypto';
 import axios from 'axios';
 import Papa from 'papaparse';
 
-const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY;
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || '16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY';
 
 export const handler: Handler = async (event) => {

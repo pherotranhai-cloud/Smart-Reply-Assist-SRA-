@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-
+import { motion } from 'motion/react';
 interface SplashScreenProps {
   isDataLoaded: boolean;
   onComplete: () => void;
@@ -27,8 +26,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ isDataLoaded, onComp
 
   // SVG Precision Paths (Tỉ lệ chuẩn cho Logo Lạc Tỷ)
   const borderPath = "M90 1510 L90 850 L250 850 A850 850 0 0 1 1750 850 L1910 850 L1910 1510 Z";
-
-  const text = "LAI YIH GROUP";
 
   return (
     <motion.div

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Copy, RefreshCw, Clock, History as HistoryIcon, MessageSquare, PenTool, Globe, Inbox, Mic } from 'lucide-react';
+import { Copy, RefreshCw, Clock, History as HistoryIcon, PenTool, Globe, Inbox, Mic } from 'lucide-react';
 import { HistoryItem } from '../types';
 import { useHistoryTab } from '../hooks/useHistoryTab';
 

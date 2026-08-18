@@ -1,17 +1,19 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import { createClient } from '@supabase/supabase-js';
+import {
+  createSupabaseClient,
+  fetchAdminData,
+  fetchFeedbacks,
+  fetchIpTrackers,
+  fetchRecentLogs,
+  fetchStats,
+  setDeviceStatus
+} from './shared/adminService';
 
 dotenv.config();
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-let supabase: any = null;
-
-if (supabaseUrl && supabaseServiceRoleKey) {
-  supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-}
+const supabase = createSupabaseClient();
 
 async function startServer() {
   const app = express();
@@ -124,47 +126,7 @@ async function startServer() {
   apiRouter.get('/admin/kpis', async (req, res) => {
     if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const monthAgo = new Date();
-      monthAgo.setMonth(monthAgo.getMonth() - 1);
-
-      let activeDay = 0;
-      let activeWeek = 0;
-      let activeMonth = 0;
-      let totalRequests = 0;
-
-      try {
-        const { count } = await supabase.from('ip_tracker').select('*', { count: 'exact', head: true }).gte('last_request_at', today.toISOString());
-        activeDay = count || 0;
-      } catch (err) { console.error('Error counting activeDay:', err); }
-
-      try {
-        const { count } = await supabase.from('ip_tracker').select('*', { count: 'exact', head: true }).gte('last_request_at', weekAgo.toISOString());
-        activeWeek = count || 0;
-      } catch (err) { console.error('Error counting activeWeek:', err); }
-
-      try {
-        const { count } = await supabase.from('ip_tracker').select('*', { count: 'exact', head: true }).gte('last_request_at', monthAgo.toISOString());
-        activeMonth = count || 0;
-      } catch (err) { console.error('Error counting activeMonth:', err); }
-
-      try {
-        const { count: totalCount, error: errTotal } = await supabase.from('app_logs').select('id', { count: 'exact' });
-        totalRequests = totalCount || 0;
-      } catch (err) { console.error('Error counting totalRequests:', err); }
-
-      res.json({
-        success: true,
-        stats: {
-          day: activeDay,
-          week: activeWeek,
-          month: activeMonth,
-          totalRequests: totalRequests
-        }
-      });
+      res.json({ success: true, stats: await fetchStats(supabase) });
     } catch (error: any) {
       console.error('Failed to fetch KPIs:', error);
       res.status(500).json({ error: 'Failed to fetch KPIs' });
@@ -175,8 +137,7 @@ async function startServer() {
   apiRouter.get('/admin/feedbacks', async (req, res) => {
     if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
     try {
-      const { data: feedbacks } = await supabase.from('user_feedbacks').select('*').order('created_at', { ascending: false }).limit(100);
-      res.json({ feedbacks: feedbacks || [] });
+      res.json({ feedbacks: await fetchFeedbacks(supabase, 100) });
     } catch (error: any) {
       console.error('Failed to fetch feedbacks:', error);
       res.status(500).json({ error: 'Failed to fetch feedbacks' });
@@ -187,34 +148,11 @@ async function startServer() {
   apiRouter.get('/admin/devices', async (req, res) => {
     if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
     try {
-      const { data: ipTrackers } = await supabase.from('ip_tracker').select('*').order('last_request_at', { ascending: false });
-      
-      let logs: any[] = [];
-      const { data: logsWithIp, error: logsError } = await supabase
-        .from('app_logs')
-        .select('ip_address, input_text, created_at')
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (logsError) {
-        console.warn("Failed to fetch logs with ip_address, retrying without ip_address...", logsError.message);
-        const { data: logsNoIp, error: retryError } = await supabase
-          .from('app_logs')
-          .select('input_text, created_at')
-          .order('created_at', { ascending: false })
-          .limit(100);
-        if (retryError) {
-          throw retryError;
-        }
-        logs = (logsNoIp || []).map(log => ({ ...log, ip_address: '' }));
-      } else {
-        logs = logsWithIp || [];
-      }
-
-      res.json({
-        ipTrackers: ipTrackers || [],
-        logs: logs
-      });
+      const [ipTrackers, logs] = await Promise.all([
+        fetchIpTrackers(supabase),
+        fetchRecentLogs(supabase)
+      ]);
+      res.json({ ipTrackers, logs });
     } catch (error: any) {
       console.error('Failed to fetch devices and logs:', error);
       res.status(500).json({ error: 'Failed to fetch devices' });
@@ -229,22 +167,7 @@ async function startServer() {
     if (!targetId || !status) return res.status(400).json({ error: 'Missing device_uuid/ip_address or status' });
 
     try {
-      if (status === 'good') {
-        await (supabase as any)
-          .from('ip_tracker')
-          .update({ status: 'good', spam_logs: null })
-          .eq('ip_address', targetId);
-      } else if (status === 'block') {
-        await (supabase as any)
-          .from('ip_tracker')
-          .update({ status: 'block' })
-          .eq('ip_address', targetId);
-      } else if (status === 'warning') {
-        await (supabase as any)
-          .from('ip_tracker')
-          .update({ status: 'warning' })
-          .eq('ip_address', targetId);
-      }
+      await setDeviceStatus(supabase, targetId, status);
       res.json({ success: true });
     } catch (error: any) {
       console.error('Failed to update device status:', error);
@@ -256,68 +179,7 @@ async function startServer() {
   apiRouter.get('/admin/data', async (req, res) => {
     if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const monthAgo = new Date();
-      monthAgo.setMonth(monthAgo.getMonth() - 1);
-
-      let activeDay = 0;
-      let activeWeek = 0;
-      let activeMonth = 0;
-      let totalRequests = 0;
-
-      try {
-        const { count } = await supabase.from('ip_tracker').select('*', { count: 'exact', head: true }).gte('last_request_at', today.toISOString());
-        activeDay = count || 0;
-      } catch (err) {}
-      try {
-        const { count } = await supabase.from('ip_tracker').select('*', { count: 'exact', head: true }).gte('last_request_at', weekAgo.toISOString());
-        activeWeek = count || 0;
-      } catch (err) {}
-      try {
-        const { count } = await supabase.from('ip_tracker').select('*', { count: 'exact', head: true }).gte('last_request_at', monthAgo.toISOString());
-        activeMonth = count || 0;
-      } catch (err) {}
-      try {
-        const { count: totalCount, error: errTotal } = await supabase.from('app_logs').select('id', { count: 'exact' });
-        totalRequests = totalCount || 0;
-      } catch (err) {}
-
-      const { data: feedbacks } = await supabase.from('user_feedbacks').select('*').order('created_at', { ascending: false }).limit(50);
-      
-      let logs: any[] = [];
-      const { data: logsWithIp, error: logsError } = await supabase
-        .from('app_logs')
-        .select('ip_address, input_text, created_at')
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (logsError) {
-        console.warn("Failed to fetch logs with ip_address, retrying without ip_address...", logsError.message);
-        const { data: logsNoIp, error: retryError } = await supabase
-          .from('app_logs')
-          .select('input_text, created_at')
-          .order('created_at', { ascending: false })
-          .limit(100);
-        if (retryError) {
-          throw retryError;
-        }
-        logs = (logsNoIp || []).map(log => ({ ...log, ip_address: '' }));
-      } else {
-        logs = logsWithIp || [];
-      }
-
-      const { data: ipTrackers } = await supabase.from('ip_tracker').select('*').order('last_request_at', { ascending: false });
-
-      res.json({
-        success: true,
-        stats: { day: activeDay, week: activeWeek, month: activeMonth, totalRequests: totalRequests },
-        feedbacks: feedbacks || [],
-        logs: logs,
-        ipTrackers: ipTrackers || []
-      });
+      res.json({ success: true, ...(await fetchAdminData(supabase)) });
     } catch (error: any) {
       res.status(500).json({ error: 'Failed to fetch admin data' });
     }
@@ -329,22 +191,7 @@ async function startServer() {
     if (!ip_address || !status) return res.status(400).json({ error: 'Missing ip_address or status' });
 
     try {
-      if (status === 'good') {
-        await (supabase as any)
-          .from('ip_tracker')
-          .update({ status: 'good', spam_logs: null })
-          .eq('ip_address', ip_address);
-      } else if (status === 'block') {
-        await (supabase as any)
-          .from('ip_tracker')
-          .update({ status: 'block' })
-          .eq('ip_address', ip_address);
-      } else if (status === 'warning') {
-        await (supabase as any)
-          .from('ip_tracker')
-          .update({ status: 'warning' })
-          .eq('ip_address', ip_address);
-      }
+      await setDeviceStatus(supabase, ip_address, status);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: 'Failed to update IP tracker status' });
