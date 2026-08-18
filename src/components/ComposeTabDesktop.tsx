@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { AppState, ConversationContext, Audience, Tone, Length, Format, Language } from '../types';
 import { useComposeTab } from '../hooks/useComposeTab';
+
+type ComposeTabState = ReturnType<typeof useComposeTab>;
 import { VoiceVisualizer } from './common/VoiceVisualizer';
 import { LANGUAGES, LANGUAGE_FLAGS, CORE_PRESETS } from '../constants';
 
@@ -55,6 +57,8 @@ interface ComposeTabDesktopProps {
   transcript: string;
   setTranscript: React.Dispatch<React.SetStateAction<string>>;
   userPreferences?: any;
+  /** Lifted into App so the text survives tab and layout changes. */
+  compose: ComposeTabState;
 }
 
 export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
@@ -62,19 +66,12 @@ export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
     composeReq, setComposeReq, activePresetId, setActivePresetId,
     composeParams, setComposeParams, 
     handleCompose
-  } = useComposeTab(props);
+  } = props.compose;
 
   const hasBgImage = !!props.userPreferences?.backgroundImage || (props.userPreferences?.backgroundEffect && props.userPreferences.backgroundEffect !== 'none');
 
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-
-  useEffect(() => {
-    if (props.transcript && props.activeTab === 'compose') {
-      setComposeReq(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + props.transcript);
-      props.setTranscript('');
-    }
-  }, [props.transcript, props.setTranscript, props.activeTab, setComposeReq]);
 
   const tInterim = props.isListening && props.interimTranscript ? props.interimTranscript : '';
   const composeInputWithInterim = composeReq + (props.activeTab === 'compose' && tInterim ? (composeReq && !composeReq.endsWith(' ') ? ' ' : '') + tInterim : '');

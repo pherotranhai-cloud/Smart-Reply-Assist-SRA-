@@ -18,6 +18,8 @@ interface UseTranslateTabParams {
   stopSpeaking: () => void;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   setIsStreaming: React.Dispatch<React.SetStateAction<boolean>>;
+  transcript: string;
+  setTranscript: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export function useTranslateTab({
@@ -33,6 +35,8 @@ export function useTranslateTab({
   stopSpeaking,
   setLoading,
   setIsStreaming,
+  transcript,
+  setTranscript,
 }: UseTranslateTabParams) {
   const [translateInput, setTranslateInput] = useState('');
   const [translateImage, setTranslateImage] = useState<string | null>(null);
@@ -269,6 +273,16 @@ export function useTranslateTab({
       setSpeechLang(langMap[state.globalLanguage]);
     }
   }, [state.globalLanguage]);
+
+  // Owned here rather than in the tab components: the mobile and desktop
+  // layouts would otherwise each run it, re-appending the transcript whenever
+  // the viewport crossed the desktop breakpoint.
+  useEffect(() => {
+    if (transcript && activeTab === 'translate') {
+      setTranslateInput(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + transcript);
+      setTranscript('');
+    }
+  }, [transcript, setTranscript, activeTab]);
 
   const tInterim = isListening && interimTranscript ? interimTranscript : '';
   const translateInputWithInterim = translateInput + (activeTab === 'translate' && tInterim ? (translateInput && !translateInput.endsWith(' ') ? ' ' : '') + tInterim : '');

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import Markdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -8,6 +8,8 @@ import { PresetGrid } from './common/PresetGrid';
 import { VoiceVisualizer } from './common/VoiceVisualizer';
 import { AppState, ConversationContext } from '../types';
 import { useComposeTab } from '../hooks/useComposeTab';
+
+type ComposeTabState = ReturnType<typeof useComposeTab>;
 
 interface ComposeTabProps {
   state: AppState;
@@ -29,6 +31,8 @@ interface ComposeTabProps {
   loading: boolean;
   transcript: string;
   setTranscript: React.Dispatch<React.SetStateAction<string>>;
+  /** Lifted into App so the text survives tab and layout changes. */
+  compose: ComposeTabState;
 }
 
 export function ComposeTabMobile({
@@ -49,8 +53,7 @@ export function ComposeTabMobile({
   copyToClipboard,
   isSpeaking,
   loading,
-  transcript,
-  setTranscript,
+  compose,
 }: ComposeTabProps) {
   const {
     composeReq,
@@ -62,25 +65,7 @@ export function ComposeTabMobile({
     useContextInCompose,
     setUseContextInCompose,
     handleCompose,
-  } = useComposeTab({
-    state,
-    setState,
-    vocab,
-    t,
-    showToast,
-    activeTab,
-    context,
-      stopSpeaking,
-    setLoading,
-    handleExtract,
-  });
-
-  useEffect(() => {
-    if (transcript && activeTab === 'compose') {
-      setComposeReq(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + transcript);
-      setTranscript('');
-    }
-  }, [transcript, setTranscript, activeTab, setComposeReq]);
+  } = compose;
 
   const [isCopied, setIsCopied] = useState(false);
   const tInterim = isListening && interimTranscript ? interimTranscript : '';

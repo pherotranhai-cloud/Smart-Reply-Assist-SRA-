@@ -15,9 +15,12 @@ import {
   VocabItem,
   AppState,
   ConversationContext,
-  HistoryItem
+  HistoryItem,
+  Language,
+  Tone,
+  Format
 } from './types';
-import { DEFAULT_STATE } from './constants';
+import { DEFAULT_STATE, LANGUAGES } from './constants';
 
 // --- Components ---
 import { Layout } from './components/Layout';
@@ -31,6 +34,9 @@ import { APP_VERSION } from './config/version';
 import { TranslateTab } from './components/TranslateTab';
 import { ComposeTab } from './components/ComposeTab';
 import { useTabNavigation } from './hooks/useTabNavigation';
+import { useTranslateTab } from './hooks/useTranslateTab';
+import { useComposeTab } from './hooks/useComposeTab';
+
 const VocabManager = lazy(() => import('./components/VocabManager').then(module => ({ default: module.VocabManager })));
 const SettingsPanel = lazy(() => import('./components/SettingsPanel').then(module => ({ default: module.SettingsPanel })));
 const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
@@ -302,6 +308,42 @@ export default function App() {
   };
 
 
+  // Translate/Compose state lives here, not inside the tab components.
+  // App stays mounted for the whole session, so switching tabs or crossing the
+  // desktop breakpoint (which swaps <TabMobile/> for <TabDesktop/>) no longer
+  // discards whatever the user had typed.
+  const translateTab = useTranslateTab({
+    state,
+    setState,
+    vocab,
+    t,
+    showToast,
+    isListening,
+    interimTranscript,
+    activeTab,
+    setContext,
+    stopSpeaking,
+    setLoading,
+    setIsStreaming,
+    transcript,
+    setTranscript,
+  });
+
+  const composeTab = useComposeTab({
+    state,
+    setState,
+    vocab,
+    t,
+    showToast,
+    activeTab,
+    context,
+    stopSpeaking,
+    setLoading,
+    handleExtract,
+    transcript,
+    setTranscript,
+  });
+
   const handleResetApp = useCallback(() => {
     if (window.confirm(t('confirmResetApp') || 'Bạn có chắc chắn muốn đặt lại toàn bộ ứng dụng không? Mọi cài đặt và dữ liệu sẽ bị xóa sạch.')) {
       try {
@@ -324,9 +366,37 @@ export default function App() {
     }
   }, [showToast, t]);
 
-  // TODO: Reuse is not implemented yet. The History "reuse" button is wired to this
-  // no-op, so clicking it currently does nothing.
-  const handleReuse = useCallback((_item: HistoryItem) => {}, []);
+  // Sends a history entry back to the tab that produced it, restoring the input,
+  // its parameters and the previous result. 'talk' entries are transcripts of a
+  // translation session, so they reopen in Translate alongside 'translate' ones.
+  const handleReuse = useCallback((item: HistoryItem) => {
+    if (item.type === 'compose') {
+      composeTab.setComposeReq(item.input);
+      composeTab.setComposeParams(prev => ({
+        ...prev,
+        ...(item.meta?.tone ? { tone: item.meta.tone as Tone } : {}),
+        ...(item.meta?.format ? { format: item.meta.format as Format } : {}),
+        ...(item.toLang && LANGUAGES.includes(item.toLang) ? { lang: item.toLang as Language } : {})
+      }));
+      setState(prev => ({
+        ...prev,
+        lastOutputs: { ...prev.lastOutputs, generatedReply: item.output, subject: '' }
+      }));
+      setActiveTab('compose');
+    } else {
+      translateTab.setTranslateInput(item.input);
+      translateTab.setTranslateImage(null);
+      if (item.toLang && LANGUAGES.includes(item.toLang)) {
+        translateTab.setTargetLang(item.toLang as Language);
+      }
+      setState(prev => ({
+        ...prev,
+        lastOutputs: { ...prev.lastOutputs, translatedText: item.output }
+      }));
+      setActiveTab('translate');
+    }
+    showToast(t('reuseLoaded'), 'success');
+  }, [composeTab, translateTab, setActiveTab, showToast, t]);
 
   const handleCopy = useCallback(async (text: string) => {
     if (!text) return;
@@ -392,6 +462,7 @@ export default function App() {
       <div className="flex-1 overflow-y-auto pb-24">
         {activeTab === 'translate' && (
           <TranslateTab
+            translate={translateTab}
             state={state}
             setState={setState}
             vocab={vocab}
@@ -419,6 +490,7 @@ export default function App() {
 
         {activeTab === 'compose' && (
           <ComposeTab
+            compose={composeTab}
             state={state}
             setState={setState}
             vocab={vocab}

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { storage } from '../services/storage';
 import { AIService } from '../services/ai';
 import { validateSecurity } from '../utils/security';
@@ -15,6 +15,8 @@ interface UseComposeTabParams {
   stopSpeaking: () => void;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   handleExtract: (text: string, sourceLang: string, contextSource: 'original' | 'translated') => Promise<any>;
+  transcript: string;
+  setTranscript: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export function useComposeTab({
@@ -28,6 +30,8 @@ export function useComposeTab({
   stopSpeaking,
   setLoading,
   handleExtract,
+  transcript,
+  setTranscript,
 }: UseComposeTabParams) {
   const [composeReq, setComposeReq] = useState('');
   const [activePresetId, setActivePresetId] = useState('custom');
@@ -41,6 +45,15 @@ export function useComposeTab({
   const [useContextInCompose, setUseContextInCompose] = useState(false);
 
   const composeCacheRef = useRef<Map<string, string>>(new Map());
+
+  // See the matching note in useTranslateTab: owned by the hook so the mobile
+  // and desktop layouts cannot both append the same transcript.
+  useEffect(() => {
+    if (transcript && activeTab === 'compose') {
+      setComposeReq(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + transcript);
+      setTranscript('');
+    }
+  }, [transcript, setTranscript, activeTab]);
 
   const handleCompose = useCallback(async () => {
     stopSpeaking();

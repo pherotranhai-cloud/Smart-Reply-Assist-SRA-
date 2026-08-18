@@ -9,6 +9,8 @@ import { Language, AppState, VocabItem, ConversationContext } from '../types';
 import { VoiceVisualizer } from './common/VoiceVisualizer';
 import { useTranslateTab } from '../hooks/useTranslateTab';
 
+type TranslateTabState = ReturnType<typeof useTranslateTab>;
+
 interface TranslateTabProps {
   state: AppState;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
@@ -31,6 +33,8 @@ interface TranslateTabProps {
   loading: boolean;
   transcript: string;
   setTranscript: React.Dispatch<React.SetStateAction<string>>;
+  /** Lifted into App so the text survives tab and layout changes. */
+  translate: TranslateTabState;
 }
 
 export function TranslateTabMobile({
@@ -53,8 +57,7 @@ export function TranslateTabMobile({
   isSpeaking,
   isCopied,
   loading,
-  transcript,
-  setTranscript,
+  translate,
 }: TranslateTabProps) {
   const {
     translateInput,
@@ -75,27 +78,7 @@ export function TranslateTabMobile({
     handlePaste,
     handlePasteFromClipboard,
     translateInputWithInterim,
-  } = useTranslateTab({
-    state,
-    setState,
-    vocab,
-    t,
-    showToast,
-    isListening,
-    interimTranscript,
-    activeTab,
-    setContext,
-      stopSpeaking,
-    setLoading,
-    setIsStreaming,
-  });
-
-  useEffect(() => {
-    if (transcript && activeTab === 'translate') {
-      setTranslateInput(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + transcript);
-      setTranscript('');
-    }
-  }, [transcript, setTranscript, activeTab, setTranslateInput]);
+  } = translate;
 
   const outputRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
