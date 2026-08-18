@@ -1,5 +1,4 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { X, Download, Share, PlusSquare } from 'lucide-react';
 
 export const InstallBanner = ({ 

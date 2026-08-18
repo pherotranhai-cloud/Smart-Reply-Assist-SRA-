@@ -73,7 +73,6 @@ const DeviceCard = ({ ip, onStatusUpdate }: { ip: any, onStatusUpdate: (id: stri
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   const [stats, setStats] = useState({ day: 0, week: 0, month: 0, totalRequests: 0 });
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
-  const [logs, setLogs] = useState<any[]>([]);
   const [ipTrackers, setIpTrackers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -131,7 +130,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
       if (res.ok) {
         const data = await res.json();
         setIpTrackers(data.ipTrackers || []);
-        setLogs(data.logs || []);
       }
     } catch (e) {
       console.error(e);

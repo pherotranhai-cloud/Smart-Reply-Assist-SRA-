@@ -9,7 +9,7 @@ interface VocabManagerDesktopProps {
 
 export const VocabManagerDesktop: React.FC<VocabManagerDesktopProps> = ({ t, userPreferences }) => {
   const {
-    vocab, search, setSearch, loading, lastSynced,
+    search, setSearch, loading, lastSynced,
     filteredVocab, handleExport, speakText,
   } = useVocabManager();
 

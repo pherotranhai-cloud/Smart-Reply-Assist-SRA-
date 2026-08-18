@@ -105,16 +105,6 @@ export class AIService {
     return JSON.stringify(matches);
   }
 
-  async logToServer(payload: { task_type: string, input_text: string, output_text: string, from_lang: string, to_lang: string }) {
-    try {
-      axios.post('/api/log', payload).catch(err => {
-        console.error('Failed to log to server:', err);
-      });
-    } catch (err) {
-      console.error('Failed to log to server:', err);
-    }
-  }
-
   async extractTextFromImage(imagePayload: string): Promise<string> {
     try {
       const response = await axios.post('/api/ocr', {
@@ -332,16 +322,8 @@ export class AIService {
     }
   }
 
-  // Các hàm bổ trợ khác giữ nguyên cấu trúc gọi Backend
+  // NOTE: still a stub — returns metadata only, no extraction is performed server-side.
   async extractStructuredSummary(text: string, sourceLang: string, contextSource: 'original' | 'translated'): Promise<any> {
     return { meta: { sourceLanguage: sourceLang, contextSource, extractedAtIso: new Date().toISOString() } };
-  }
-
-  async summarize(text: string) {
-    return 'Summarize not implemented in backend yet';
-  }
-
-  async analyzeFileContent(text: string, language: string = 'Vietnamese') {
-    return 'AnalyzeFileContent not implemented in backend yet';
   }
 }

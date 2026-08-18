@@ -6,7 +6,7 @@ import rehypeKatex from 'rehype-katex';
 import { Loader2, PenTool, AlertCircle, X, Square, Volume2, Copy, Check, Share2 } from 'lucide-react';
 import { PresetGrid } from './common/PresetGrid';
 import { VoiceVisualizer } from './common/VoiceVisualizer';
-import { AppState, ConversationContext, Audience, Tone, Length, Format, Language } from '../types';
+import { AppState, ConversationContext } from '../types';
 import { useComposeTab } from '../hooks/useComposeTab';
 
 interface ComposeTabProps {
@@ -17,7 +17,6 @@ interface ComposeTabProps {
   showToast: (message: string, type?: 'info' | 'error' | 'success') => void;
   activeTab: string;
   context: ConversationContext | null;
-  checkRateLimit: () => boolean;
   stopSpeaking: () => void;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   handleExtract: (text: string, sourceLang: string, contextSource: 'original' | 'translated') => Promise<any>;
@@ -40,7 +39,6 @@ export function ComposeTabMobile({
   showToast,
   activeTab,
   context,
-  checkRateLimit,
   stopSpeaking,
   setLoading,
   handleExtract,
@@ -72,8 +70,7 @@ export function ComposeTabMobile({
     showToast,
     activeTab,
     context,
-    checkRateLimit,
-    stopSpeaking,
+      stopSpeaking,
     setLoading,
     handleExtract,
   });

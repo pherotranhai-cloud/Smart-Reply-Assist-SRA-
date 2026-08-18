@@ -15,7 +15,6 @@ interface UseTranslateTabParams {
   interimTranscript: string;
   activeTab: string;
   setContext: (context: ConversationContext | null) => void;
-  checkRateLimit: () => boolean;
   stopSpeaking: () => void;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   setIsStreaming: React.Dispatch<React.SetStateAction<boolean>>;
@@ -31,7 +30,6 @@ export function useTranslateTab({
   interimTranscript,
   activeTab,
   setContext,
-  checkRateLimit,
   stopSpeaking,
   setLoading,
   setIsStreaming,
@@ -43,10 +41,8 @@ export function useTranslateTab({
   const [isSummaryMode, setIsSummaryMode] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [isCached, setIsCached] = useState(false);
-  const [isPasted, setIsPasted] = useState(false);
 
   const lastAutoTranslatedInput = useRef("");
-  const lastSentTextRef = useRef('');
 
   const handleClearInput = useCallback(() => {
     setTranslateInput('');
@@ -99,8 +95,6 @@ export function useTranslateTab({
       if (!isAuto) showToast(t('provideTextOrImage'), 'error');
       return;
     }
-
-    if (!isAuto && !checkRateLimit()) return;
 
     const securityCheck = validateSecurity(translateInput);
     if (!securityCheck.isValid) {
@@ -219,7 +213,7 @@ export function useTranslateTab({
       setIsStreaming(false);
       setIsTranslating(false);
     }
-  }, [translateInput, translateImage, targetLang, state.settings, state.lastOutputs, t, showToast, getDetectedGlossaryTerms, isSummaryMode, isTranslating, checkRateLimit, stopSpeaking, setLoading, setIsStreaming, setState, setContext]);
+  }, [translateInput, translateImage, targetLang, state.settings, state.lastOutputs, t, showToast, getDetectedGlossaryTerms, isSummaryMode, isTranslating, stopSpeaking, setLoading, setIsStreaming, setState, setContext]);
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -234,7 +228,6 @@ export function useTranslateTab({
   }, [showToast, t]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
-    setIsPasted(true);
     const items = e.clipboardData.items;
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf('image') !== -1) {
@@ -255,8 +248,7 @@ export function useTranslateTab({
     try {
       const text = await navigator.clipboard.readText();
       if (text) {
-        setIsPasted(true);
-        setTranslateInput(prev => prev + (prev ? '\n' : '') + text);
+            setTranslateInput(prev => prev + (prev ? '\n' : '') + text);
         showToast(t('textPasted'), 'success');
       }
     } catch (err) {

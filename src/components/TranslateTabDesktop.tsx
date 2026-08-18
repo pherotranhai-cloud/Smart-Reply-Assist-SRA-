@@ -1,5 +1,4 @@
 import React, { useRef, useEffect } from 'react';
-import { motion } from 'motion/react';
 import Markdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -19,7 +18,6 @@ interface TranslateTabDesktopProps {
   interimTranscript: string;
   activeTab: string;
   setContext: (context: ConversationContext | null) => void;
-  checkRateLimit: () => boolean;
   stopSpeaking: () => void;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   isStreaming: boolean;

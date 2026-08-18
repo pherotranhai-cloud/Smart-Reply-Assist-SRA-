@@ -12,7 +12,6 @@ interface UseComposeTabParams {
   showToast: (message: string, type?: 'info' | 'error' | 'success') => void;
   activeTab: string;
   context: ConversationContext | null;
-  checkRateLimit: () => boolean;
   stopSpeaking: () => void;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   handleExtract: (text: string, sourceLang: string, contextSource: 'original' | 'translated') => Promise<any>;
@@ -26,7 +25,6 @@ export function useComposeTab({
   showToast,
   activeTab,
   context,
-  checkRateLimit,
   stopSpeaking,
   setLoading,
   handleExtract,
@@ -53,8 +51,6 @@ export function useComposeTab({
       showToast(t('provideRequirements'), 'error');
       return;
     }
-
-    if (!checkRateLimit()) return;
 
     const securityCheck = validateSecurity(composeReq);
     if (!securityCheck.isValid) {
@@ -189,7 +185,7 @@ export function useComposeTab({
     } finally {
       setLoading(false);
     }
-  }, [composeReq, composeParams, context, useContextInCompose, state.settings, state.lastOutputs, state.structuredSummary, vocab, handleExtract, t, showToast, activePresetId, checkRateLimit, setLoading, setState, stopSpeaking]);
+  }, [composeReq, composeParams, context, useContextInCompose, state.settings, state.lastOutputs, state.structuredSummary, vocab, handleExtract, t, showToast, activePresetId, setLoading, setState, stopSpeaking]);
 
   return {
     composeReq,

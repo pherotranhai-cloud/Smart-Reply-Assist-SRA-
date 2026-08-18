@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles, CheckCircle2 } from 'lucide-react';
 import { UPDATE_CHANGELOG } from '../config/version';

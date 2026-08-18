@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Languages, PenTool, BookOpen, Settings, CheckCircle2, AlertCircle, X, MessagesSquare, History, Mic } from 'lucide-react';
+import { Languages, PenTool, BookOpen, Settings, CheckCircle2, AlertCircle, X, History, Mic } from 'lucide-react';
 import { UserPreferences } from '../types';
 
 interface LayoutProps {

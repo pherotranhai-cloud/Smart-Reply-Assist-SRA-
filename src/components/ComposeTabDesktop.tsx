@@ -42,7 +42,6 @@ interface ComposeTabDesktopProps {
   showToast: (message: string, type?: 'info' | 'error' | 'success') => void;
   activeTab: string;
   context: ConversationContext | null;
-  checkRateLimit: () => boolean;
   stopSpeaking: () => void;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   handleExtract: (text: string, sourceLang: string, contextSource: 'original' | 'translated') => Promise<any>;
@@ -61,7 +60,7 @@ interface ComposeTabDesktopProps {
 export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
   const {
     composeReq, setComposeReq, activePresetId, setActivePresetId,
-    composeParams, setComposeParams, useContextInCompose, setUseContextInCompose,
+    composeParams, setComposeParams, 
     handleCompose
   } = useComposeTab(props);
 

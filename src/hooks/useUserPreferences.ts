@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { UserPreferences, BackgroundEffect } from '../types';
 import { INITIAL_WALLPAPER } from '../constants/wallpapers';
 

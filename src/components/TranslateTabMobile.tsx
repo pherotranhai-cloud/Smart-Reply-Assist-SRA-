@@ -19,7 +19,6 @@ interface TranslateTabProps {
   interimTranscript: string;
   activeTab: string;
   setContext: (context: ConversationContext | null) => void;
-  checkRateLimit: () => boolean;
   stopSpeaking: () => void;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   isStreaming: boolean;
@@ -44,7 +43,6 @@ export function TranslateTabMobile({
   interimTranscript,
   activeTab,
   setContext,
-  checkRateLimit,
   stopSpeaking,
   setLoading,
   isStreaming,
@@ -87,8 +85,7 @@ export function TranslateTabMobile({
     interimTranscript,
     activeTab,
     setContext,
-    checkRateLimit,
-    stopSpeaking,
+      stopSpeaking,
     setLoading,
     setIsStreaming,
   });

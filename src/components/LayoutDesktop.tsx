@@ -1,16 +1,15 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  MessageSquare, 
-  Settings, 
-  BookOpen, 
+import {
+  Settings,
+  BookOpen,
   History as HistoryIcon,
   Globe,
   PenTool,
   Mic,
   X
 } from 'lucide-react';
-import { AppState, UserPreferences } from '../types';
+import { UserPreferences } from '../types';
 import { APP_VERSION } from '../config/version';
 
 interface LayoutDesktopProps {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Copy, RefreshCw, Clock, Globe, PenTool, Mic, Search } from 'lucide-react';
+import { Copy, RefreshCw, Clock, Globe, PenTool, Mic } from 'lucide-react';
 import { HistoryItem } from '../types';
 import { useHistoryTab } from '../hooks/useHistoryTab';
 
