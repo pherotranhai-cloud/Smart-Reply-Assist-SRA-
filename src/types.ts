@@ -92,10 +92,19 @@ export interface StructuredSummary {
 
 export type BackgroundEffect = 'none' | 'particles' | 'liquid' | 'aurora' | 'waves';
 
+/** A wallpaper the user added themselves, with a label for the gallery. */
+export interface SavedWallpaper {
+  url: string;
+  name: string;
+}
+
+export type UiTheme = 'system' | 'light' | 'dark' | 'cyberpunk' | 'industrial';
+
 export interface UserPreferences {
-  theme?: 'light' | 'dark' | 'cyberpunk' | 'industrial';
+  /** The single theme control. 'system' follows the OS light/dark setting. */
+  theme?: UiTheme;
   backgroundImage?: string;
-  savedWallpapers: string[];
+  savedWallpapers: SavedWallpaper[];
   backgroundEffect: BackgroundEffect;
   fontSize?: 'sm' | 'base' | 'md' | 'lg' | 'xl';
   fontFamily?: string;

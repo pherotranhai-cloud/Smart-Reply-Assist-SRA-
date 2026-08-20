@@ -1,7 +1,6 @@
 {
   "name": "Smart Reply Assist",
   "short_name": "SRA",
-  "version": "1.0.0",
   "description": "AI assistant for translation and message composition.",
   "start_url": "/",
   "display": "standalone",

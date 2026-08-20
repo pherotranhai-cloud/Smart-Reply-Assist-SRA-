@@ -1,0 +1,696 @@
+<title>Mobile Legibility Pass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<style>
+:root{
+  --paper:#F4F7F7;
+  --surface:#FFFFFF;
+  --surface-2:#EAF0F0;
+  --ink:#0F1A1C;
+  --ink-2:#3D5054;
+  --ink-3:#6C8286;
+  --rule:#D2DEDE;
+  --accent:#006D77;
+  --accent-soft:#E0EFF0;
+  --pass:#1B6B4C;
+  --warn:#8A5A12;
+  --fail:#9E2B22;
+  --pass-bg:#E2F1EA;
+  --warn-bg:#F7EDDC;
+  --fail-bg:#F8E6E4;
+  --shadow:0 1px 2px rgba(15,26,28,.05),0 8px 24px -12px rgba(15,26,28,.18);
+
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"IBM Plex Sans","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0C1416;
+    --surface:#121D20;
+    --surface-2:#18262A;
+    --ink:#E8F0F0;
+    --ink-2:#A9BFC2;
+    --ink-3:#7A9497;
+    --rule:#243539;
+    --accent:#5CC8D2;
+    --accent-soft:#122E33;
+    --pass:#6FD3A4;
+    --warn:#E2B268;
+    --fail:#F09088;
+    --pass-bg:#122A22;
+    --warn-bg:#2C2313;
+    --fail-bg:#2E1917;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0C1416;
+  --surface:#121D20;
+  --surface-2:#18262A;
+  --ink:#E8F0F0;
+  --ink-2:#A9BFC2;
+  --ink-3:#7A9497;
+  --rule:#243539;
+  --accent:#5CC8D2;
+  --accent-soft:#122E33;
+  --pass:#6FD3A4;
+  --warn:#E2B268;
+  --fail:#F09088;
+  --pass-bg:#122A22;
+  --warn-bg:#2C2313;
+  --fail-bg:#2E1917;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:16.5px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px 96px}
+.col{max-width:68ch}
+
+/* ---------- masthead ---------- */
+header.mast{
+  border-bottom:1px solid var(--rule);
+  padding:56px 0 28px;
+  margin-bottom:40px;
+}
+.eyebrow{
+  font-family:var(--f-mono);
+  font-size:11.5px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--accent);
+  margin:0 0 14px;
+}
+h1{
+  font-family:var(--f-display);
+  font-weight:700;
+  font-size:clamp(2.1rem,5.4vw,3.15rem);
+  line-height:1.05;
+  letter-spacing:-.022em;
+  margin:0 0 16px;
+  text-wrap:balance;
+}
+.standfirst{font-size:1.09rem;color:var(--ink-2);margin:0;max-width:60ch}
+.meta{
+  display:flex;flex-wrap:wrap;gap:10px 28px;
+  margin-top:26px;
+  font-family:var(--f-mono);font-size:12px;color:var(--ink-3);
+}
+.meta b{color:var(--ink-2);font-weight:500}
+
+/* ---------- headings ---------- */
+h2{
+  font-family:var(--f-display);font-weight:600;
+  font-size:1.62rem;letter-spacing:-.014em;line-height:1.2;
+  margin:64px 0 6px;text-wrap:balance;
+}
+h2 .num{
+  font-family:var(--f-mono);font-size:.72em;font-weight:500;
+  color:var(--accent);margin-right:.6em;
+}
+h3{
+  font-family:var(--f-display);font-weight:600;
+  font-size:1.14rem;letter-spacing:-.008em;
+  margin:38px 0 8px;text-wrap:balance;
+}
+h4{
+  font-family:var(--f-mono);font-weight:600;
+  font-size:12px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--ink-3);margin:26px 0 8px;
+}
+.sectionlede{color:var(--ink-2);margin:0 0 22px;max-width:64ch}
+p{margin:0 0 15px}
+a{color:var(--accent)}
+strong{font-weight:600}
+
+ul,ol{margin:0 0 16px;padding-left:1.15rem}
+li{margin-bottom:7px}
+li::marker{color:var(--ink-3)}
+
+/* ---------- issue chips ---------- */
+.mid{
+  display:inline-block;
+  font-family:var(--f-mono);font-size:11px;font-weight:600;
+  letter-spacing:.08em;
+  background:var(--accent-soft);color:var(--accent);
+  border-radius:4px;padding:2px 7px;
+  vertical-align:2px;
+}
+
+/* ---------- callout ---------- */
+.callout{
+  background:var(--surface);
+  border:1px solid var(--rule);
+  border-left:3px solid var(--accent);
+  border-radius:0 10px 10px 0;
+  padding:18px 22px;
+  margin:24px 0;
+  box-shadow:var(--shadow);
+}
+.callout.finding{border-left-color:var(--fail)}
+.callout h4{margin-top:0}
+.callout p:last-child{margin-bottom:0}
+
+/* ---------- tables ---------- */
+.tablewrap{
+  overflow-x:auto;
+  margin:20px 0 26px;
+  border:1px solid var(--rule);
+  border-radius:10px;
+  background:var(--surface);
+  box-shadow:var(--shadow);
+}
+table{border-collapse:collapse;width:100%;font-size:14.2px;min-width:520px}
+th{
+  font-family:var(--f-mono);font-size:11px;font-weight:600;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);
+  text-align:left;padding:12px 16px;
+  border-bottom:1px solid var(--rule);
+  background:var(--surface-2);
+  white-space:nowrap;
+}
+td{padding:12px 16px;border-bottom:1px solid var(--rule);vertical-align:top;color:var(--ink-2)}
+tr:last-child td{border-bottom:none}
+td.n,th.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--ink)}
+td strong{color:var(--ink)}
+
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:11px;font-weight:600;
+  padding:2px 8px;border-radius:999px;white-space:nowrap;
+}
+.pill.pass{background:var(--pass-bg);color:var(--pass)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.fail{background:var(--fail-bg);color:var(--fail)}
+tr.hi td{background:var(--accent-soft)}
+
+/* ---------- code ---------- */
+pre{
+  font-family:var(--f-mono);font-size:13px;line-height:1.62;
+  background:var(--surface);color:var(--ink);
+  border:1px solid var(--rule);border-radius:10px;
+  padding:16px 18px;margin:16px 0 24px;
+  overflow-x:auto;
+}
+code{font-family:var(--f-mono);font-size:.885em;background:var(--surface-2);padding:1px 5px;border-radius:4px;color:var(--ink)}
+pre code{background:none;padding:0;font-size:inherit}
+.del{color:var(--fail)}
+.add{color:var(--pass)}
+.cm{color:var(--ink-3)}
+
+/* ---------- ascii wireframe ---------- */
+.wire{
+  font-family:var(--f-mono);font-size:12.5px;line-height:1.5;
+  background:var(--surface-2);border:1px solid var(--rule);
+  border-radius:10px;padding:18px;overflow-x:auto;white-space:pre;
+  color:var(--ink-2);margin:14px 0 8px;
+}
+.wirecap{font-size:13px;color:var(--ink-3);margin:0 0 26px}
+
+/* ---------- two-up ---------- */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin:22px 0}
+@media(max-width:760px){.duo{grid-template-columns:1fr}}
+.card{
+  background:var(--surface);border:1px solid var(--rule);
+  border-radius:10px;padding:18px 20px;box-shadow:var(--shadow);
+}
+.card h4{margin-top:0}
+.card.rec{border-color:var(--accent)}
+.tag{
+  font-family:var(--f-mono);font-size:10.5px;font-weight:600;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--accent);display:block;margin-bottom:6px;
+}
+
+/* ---------- prompt blocks ---------- */
+.prompt{
+  background:var(--surface);border:1px solid var(--rule);border-radius:12px;
+  padding:24px 26px;margin:22px 0;box-shadow:var(--shadow);
+}
+.prompt > h3{margin-top:0}
+.requires{
+  font-family:var(--f-mono);font-size:12px;color:var(--ink-3);
+  border-bottom:1px dashed var(--rule);padding-bottom:12px;margin-bottom:16px;
+}
+.requires b{color:var(--accent);font-weight:600}
+
+.mermaid{
+  background:var(--surface);border:1px solid var(--rule);
+  border-radius:10px;padding:20px;margin:20px 0 8px;overflow-x:auto;
+}
+hr{border:none;border-top:1px solid var(--rule);margin:56px 0}
+.skip{color:var(--ink-3);font-style:italic}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">Smart Reply Assist · Technical specification</p>
+  <h1>Mobile Legibility Pass</h1>
+  <p class="standfirst">Resizing the Translate controls, relocating Summary Mode, and repairing Live Translate's background — which is not merely too transparent, but has no background colour at all.</p>
+  <div class="meta">
+    <span><b>Status</b> Implemented &amp; verified</span>
+    <span><b>Scope</b> Mobile layouts + design tokens</span>
+    <span><b>Base</b> main @ f17693f</span>
+    <span><b>Data model</b> unchanged</span>
+    <span><b>Prompts</b> 4</span>
+  </div>
+</header>
+
+<div class="col">
+
+<h2><span class="num">1</span>Solution overview</h2>
+<p class="sectionlede">Three items were reported as visual polish. Investigation of the running build shows only the first is purely cosmetic — the other two are defects with measurable failure conditions.</p>
+
+<h3>The three reported items</h3>
+<table style="font-size:14.5px;margin-bottom:22px">
+  <tr><td style="padding-left:0;border:none;width:44px"><span class="mid">M1</span></td>
+      <td style="border:none;padding-left:0">Target-language dropdown and Translate button are oversized in the Translate tab.</td></tr>
+  <tr><td style="padding-left:0;border:none"><span class="mid">M2</span></td>
+      <td style="border:none;padding-left:0">Summary Mode sits awkwardly and should be repositioned.</td></tr>
+  <tr><td style="padding-left:0;border:none"><span class="mid">M3</span></td>
+      <td style="border:none;padding-left:0">Live Translate background is too transparent under a custom theme; text becomes hard to read.</td></tr>
+</table>
+
+<div class="callout finding">
+  <h4>Primary finding — M3 is not an opacity value that needs tuning</h4>
+  <p>The Live Translate container is styled <code>bg-surface</code>. No <code>--color-surface</code> token exists in the <code>@theme</code> block, so Tailwind v4 emits <strong>no rule at all</strong> for that class — <code>grep -c '\.bg-surface'</code> against the compiled stylesheet returns <code>0</code>. The element's computed style in the running build is <code>background-color: rgba(0, 0, 0, 0)</code> with <code>backdrop-filter: none</code>.</p>
+  <p>The panel is therefore fully transparent in <em>every</em> theme. It only becomes visible as a problem once a wallpaper is set, because until then the opaque page background sits directly behind it. There is no current opacity to reduce — one has to be introduced.</p>
+</div>
+
+<h3>Goals</h3>
+<ul>
+  <li>Recover vertical space in the Translate tab without shrinking the primary action below a comfortable touch target.</li>
+  <li>Give Live Translate a real, theme-aware surface that holds legible text over any wallpaper.</li>
+  <li>Make the accent colour used for translated output respond to the active theme instead of being hardcoded.</li>
+</ul>
+
+<h3>Non-goals</h3>
+<ul>
+  <li>No change to desktop layouts beyond the shared token fixes needed for <span class="mid">M3</span>.</li>
+  <li>No redesign of the tab bar, the input card, or the output card.</li>
+  <li>No change to translation behaviour, storage, or API surface.</li>
+</ul>
+
+<h3>Risks &amp; assumptions</h3>
+</div>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th style="width:34%">Assumption / risk</th><th style="width:40%">Impact if wrong</th><th class="n">Status</th></tr></thead>
+  <tbody>
+    <tr><td><strong>A1</strong> — "Too large" means the controls consume too much vertical space, not that the text is too big.</td><td>A font-size reduction would be needed instead; the layout rework in §4.1 would be wasted.</td><td><span class="pill warn">Open</span></td></tr>
+    <tr><td><strong>A2</strong> — Summary Mode is a low-frequency toggle, not a per-translation switch.</td><td>If used on most translations, demoting it to the input header adds a tap to the common path.</td><td><span class="pill warn">Open</span></td></tr>
+    <tr><td><strong>A3</strong> — <code>bg-surface</code> was intended to be a distinct token, not a typo for <code>bg-panel</code>.</td><td>Cosmetic only. Either resolution fixes M3; §4.3 recommends the explicit token.</td><td><span class="pill pass">Mitigated</span></td></tr>
+    <tr><td><strong>A4</strong> — Wallpapers are arbitrary user images, so worst-case contrast must assume a white background.</td><td>None. Confirmed: wallpapers are user-selectable remote images.</td><td><span class="pill pass">Confirmed</span></td></tr>
+    <tr><td><strong>R1</strong> — A single <code>--accent</code> token cannot satisfy both white-on-accent buttons and accent-on-dark text.</td><td>Fixing one regresses the other. Quantified in §2.3; resolved by splitting the token.</td><td><span class="pill pass">Mitigated</span></td></tr>
+    <tr><td><strong>R2</strong> — <code>.has-custom-bg</code> CSS exists but no code ever applies the class.</td><td>The intended glassmorphism fallback has never run. Left dead unless wired up in Prompt 2.</td><td><span class="pill warn">Open</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="col">
+<h2><span class="num">2</span>Architecture &amp; token changes</h2>
+<p class="sectionlede">No new services, routes, or dependencies. The work is confined to two mobile components and the design-token layer in <code>src/index.css</code>.</p>
+
+<h3>2.1 Why the class resolves to nothing</h3>
+</div>
+
+<pre class="mermaid">
+flowchart LR
+  A["className=&quot;bg-surface&quot;"] --> B{"--color-surface<br/>declared in @theme?"}
+  B -- "no" --> C["no CSS rule emitted"]
+  C --> D["computed:<br/>rgba(0,0,0,0)"]
+  D --> E["wallpaper shows<br/>straight through"]
+  F["className=&quot;bg-panel&quot;"] --> G{"--color-panel<br/>declared in @theme?"}
+  G -- "yes" --> H["--bg-card<br/>per active theme"]
+  H --> I["rgba(21,31,50,0.85)"]
+</pre>
+<p class="wirecap" style="max-width:68ch">Tailwind v4 generates colour utilities only from tokens present in <code>@theme</code>. <code>--color-panel</code> is declared and resolves through to a per-theme value; <code>--color-surface</code> is not declared anywhere, so the utility silently does not exist.</p>
+
+<div class="col">
+<h3>2.2 Files touched</h3>
+</div>
+<pre><code>src/
+├── index.css                          <span class="cm"># tokens: add --color-surface, --accent-text,</span>
+│                                      <span class="cm">#         per-theme surface alpha; drop dead .has-custom-bg</span>
+└── components/
+    ├── TranslateTabMobile.tsx         <span class="cm"># M1 + M2 — controls row + Summary Mode</span>
+    └── TalkTabMobile.tsx              <span class="cm"># M3 — surface class + accent text</span>
+
+<span class="cm"># Optional, same root cause (see §4.4):</span>
+    └── TalkTabDesktop.tsx             <span class="cm"># bg-panel/20 → effective alpha 0.17</span>
+</code></pre>
+
+<div class="col">
+<h3>2.3 Recommendation — split the accent token</h3>
+<p>The brand teal <code>#006D77</code> is used two ways: as a <em>fill</em> behind white button text, and as <em>text colour</em> on dark panels. These pull in opposite directions, and no single value serves both.</p>
+</div>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Candidate</th><th class="n">White text on it<br/>(buttons)</th><th class="n">It as text on dark card<br/>(Live Translate)</th><th>Verdict</th></tr></thead>
+  <tbody>
+    <tr><td class="n">#006D77 <span style="color:var(--ink-3)">current</span></td><td class="n">6.08 <span class="pill pass">AA</span></td><td class="n">2.71 <span class="pill fail">fail</span></td><td>Good fill, unreadable as text</td></tr>
+    <tr><td class="n">#0E8A96</td><td class="n">4.12 <span class="pill warn">near</span></td><td class="n">4.00 <span class="pill warn">near</span></td><td>Compromise, fails both narrowly</td></tr>
+    <tr><td class="n">#14A5B3</td><td class="n">2.97 <span class="pill fail">fail</span></td><td class="n">5.54 <span class="pill pass">AA</span></td><td>Good text, breaks buttons</td></tr>
+    <tr class="hi"><td class="n">#2DBECD</td><td class="n">2.24 <span class="pill fail">fail</span></td><td class="n">7.35 <span class="pill pass">AAA</span></td><td><strong>Recommended as text-only token</strong></td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="col">
+<p>Ratios are WCAG 2.1 relative-luminance contrast, computed against the dark theme's card colour <code>rgb(21,31,50)</code>. The conclusion is that <strong>one token cannot do both jobs</strong>:</p>
+</div>
+
+<pre><code><span class="cm">/* src/index.css — @theme */</span>
+--color-accent:      var(--accent);       <span class="cm">/* fills: buttons, active states */</span>
+<span class="add">--color-accent-text: var(--accent-text);  /* accent-coloured TEXT on panels */</span>
+
+<span class="cm">/* :root (light) */</span>
+--accent:      #006D77;
+<span class="add">--accent-text: #006D77;   /* 6.08 on white card — no change needed */</span>
+
+<span class="cm">/* :root[data-theme="dark"], .dark */</span>
+--accent:      #006D77;   <span class="cm">/* unchanged — white button text stays 6.08 */</span>
+<span class="add">--accent-text: #2DBECD;   /* 7.35 on dark card */</span>
+</code></pre>
+
+<div class="col">
+<div class="callout finding">
+  <h4>Correction — cyberpunk and industrial needed lightening too</h4>
+  <p>An earlier draft of this spec stated that <code>#FF0055</code> (4.88) and <code>#E67E22</code> (4.61) already passed as text and could inherit the theme accent unchanged. Those ratios are against the <em>solid</em> card. Composited at <code>0.92</code> over a bright wallpaper — the condition that actually matters — they fall to <strong>4.07</strong> and <strong>3.59</strong>, both below the 4.5 threshold. Verification caught this; the values below are what shipped.</p>
+</div>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Theme</th><th class="n">Theme accent (fill)</th><th class="n">--accent-text (as built)</th><th class="n">Measured over wallpaper</th></tr></thead>
+  <tbody>
+    <tr><td>Light</td><td class="n">#006D77</td><td class="n">#006D77</td><td class="n">6.08 <span class="pill pass">AA</span></td></tr>
+    <tr><td>Dark</td><td class="n">#006D77</td><td class="n">#2DBECD</td><td class="n">5.82 <span class="pill pass">AA</span></td></tr>
+    <tr><td>Cyberpunk</td><td class="n">#FF0055</td><td class="n">#FF4080</td><td class="n">4.76 <span class="pill pass">AA</span></td></tr>
+    <tr><td>Industrial</td><td class="n">#E67E22</td><td class="n">#EDA260</td><td class="n">4.84 <span class="pill pass">AA</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Because <code>--accent-text</code> is a text-only token, lightening it leaves every button fill on its original brand hue — which is the whole reason the split was worth making.</p>
+
+<h2><span class="num">3</span>Data model</h2>
+<p class="skip">Not applicable — no persisted state, schema, or payload changes. Summary Mode continues to live in component state; theme and wallpaper continue to live in <code>sra_user_preferences</code>. This section is intentionally omitted rather than padded.</p>
+
+<h2><span class="num">4</span>Functional specification</h2>
+
+<h3>4.1 <span class="mid">M1</span> Translate controls — measured today</h3>
+<p>Measured in the running build at a 430 × 932 viewport:</p>
+</div>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Element</th><th class="n">Width</th><th class="n">Height</th><th>Note</th></tr></thead>
+  <tbody>
+    <tr><td>"Target language" label</td><td class="n">125 px</td><td class="n">13 px</td><td>11 px uppercase</td></tr>
+    <tr><td>Language dropdown</td><td class="n">366 px</td><td class="n">42 px</td><td>Full bleed — stretches to container</td></tr>
+    <tr><td>Summary Mode row</td><td class="n">366 px</td><td class="n">28 px</td><td>Occupies its own full-width row</td></tr>
+    <tr><td>Translate button</td><td class="n">366 px</td><td class="n">48 px</td><td><code>.saas-button { height: 48px }</code></td></tr>
+    <tr class="hi"><td><strong>Controls block total</strong></td><td class="n">366 px</td><td class="n"><strong>146 px</strong></td><td>≈ 16% of viewport height</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="col">
+<p>The cause is the wrapper <code>flex flex-col sm:flex-row</code>. Below the <code>sm</code> breakpoint every child becomes a full-width stacked row, so three unrelated controls each claim the full column width and push the translated output below the fold.</p>
+</div>
+
+<div class="wire">┌─────────────────────────────────────┐
+│ TARGET LANGUAGE                     │  13px label
+│ ┌─────────────────────────────────┐ │
+│ │ 🇻🇳 Vietnamese               ⌄ │ │  42px  full width
+│ └─────────────────────────────────┘ │
+│  (○ )  SUMMARY MODE                 │  28px  own row
+│ ┌─────────────────────────────────┐ │
+│ │        🔤  Translate            │ │  48px  full width
+│ └─────────────────────────────────┘ │
+└─────────────────────────────────────┘  = 146px</div>
+<p class="wirecap">Current — three stacked full-width rows.</p>
+
+<div class="col">
+<h3>4.2 <span class="mid">M1</span>+<span class="mid">M2</span> Recommended layout</h3>
+<p>Pair the language selector with Summary Mode on one row, and keep Translate full-width beneath it. This addresses both items together: the dropdown stops being full-bleed, and Summary Mode gains a natural home instead of a row of its own.</p>
+</div>
+
+<div class="duo">
+  <div class="card rec">
+    <span class="tag">Option A — recommended</span>
+    <h4>Paired row + full-width action</h4>
+    <p style="margin-bottom:8px">Language chip sizes to its content on the left; Summary Mode becomes a compact toggle-chip on the right. Translate keeps the full width and a <code>44px</code> height.</p>
+    <p style="margin-bottom:0"><strong>146 px → 92 px.</strong> Saves 54 px and one row.</p>
+  </div>
+  <div class="card">
+    <span class="tag">Option B — alternative</span>
+    <h4>Single row, all three inline</h4>
+    <p style="margin-bottom:8px">Everything on one 44 px row. Maximum density, but Translate collapses to roughly 120 px wide and loses its visual weight as the primary action.</p>
+    <p style="margin-bottom:0"><strong>146 px → 44 px.</strong> Saves 102 px.</p>
+  </div>
+</div>
+
+<div class="wire">┌─────────────────────────────────────┐
+│ ┌──────────────────┐   ┌──────────┐ │
+│ │ 🇻🇳 Vietnamese ⌄ │   │ ◐ Summary│ │  40px  auto-width
+│ └──────────────────┘   └──────────┘ │
+│ ┌─────────────────────────────────┐ │
+│ │        🔤  Translate            │ │  44px  full width
+│ └─────────────────────────────────┘ │
+└─────────────────────────────────────┘  = 92px</div>
+<p class="wirecap">Option A — the recommended arrangement.</p>
+
+<div class="col">
+<p class="skip">As built: the controls block measures <strong>96 px</strong> (from 146 px). The gap between rows is <code>gap-2</code> rather than <code>gap-3</code>, and both rows carry <code>min-h-[44px]</code> so every target clears the 44 px minimum — the chip is therefore 44 px, not the 40 px sketched below.</p>
+<p><strong>Why A over B.</strong> Translate is the primary action and sits in the thumb zone; a full-width target is the easier tap and the clearer affordance. Option B's extra 48 px is not worth demoting it. Both keep every target at or above the 44 px minimum.</p>
+
+<h4>Specified values — Option A</h4>
+</div>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Element</th><th>Change</th><th class="n">Result</th></tr></thead>
+  <tbody>
+    <tr><td>Controls wrapper</td><td><code>flex flex-col sm:flex-row</code> → <code>flex flex-col gap-3</code> with an inner <code>flex items-center justify-between gap-3</code> row</td><td class="n">2 rows</td></tr>
+    <tr><td>Language chip</td><td>Drop <code>w-full</code>; <code>px-4 py-3</code> → <code>px-3.5 py-2.5</code>; add <code>max-w-[62%] truncate</code></td><td class="n">40 px tall</td></tr>
+    <tr><td>"Target language" label</td><td>Remove — the flag and language name are self-describing</td><td class="n">−21 px</td></tr>
+    <tr><td>Summary Mode</td><td>Move into the same row, right-aligned; toggle <code>h-5 w-9</code> → <code>h-[18px] w-8</code>; label to <code>text-[10px]</code></td><td class="n">inline</td></tr>
+    <tr><td>Translate button</td><td>Keep full width; add <code>h-11</code> to override <code>.saas-button</code>'s 48 px</td><td class="n">44 px tall</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="col">
+<p>Removing the label is the single largest saving and carries no comprehension cost — the control shows a flag and the language name, and sits directly beneath a field labelled "Input source". Should <strong>A1</strong> turn out to mean type size rather than footprint, keep the two-row structure and reduce the chip to <code>text-[11px]</code> instead.</p>
+
+<h3>4.3 <span class="mid">M3</span> Live Translate surface</h3>
+<p>Introduce a real surface token, then set its opacity high enough that the wallpaper cannot materially shift the background luminance. The table below composites the dark card over a white wallpaper — the worst case established in <strong>A4</strong>.</p>
+</div>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th class="n">Panel alpha</th><th class="n">Composite</th><th class="n">White body text</th><th class="n">Teal #006D77 text</th><th>Assessment</th></tr></thead>
+  <tbody>
+    <tr><td class="n">0.00 <span style="color:var(--ink-3)">today</span></td><td class="n">rgb(255,255,255)</td><td class="n">1.00 <span class="pill fail">fail</span></td><td class="n">6.08</td><td>Body text invisible</td></tr>
+    <tr><td class="n">0.20</td><td class="n">rgb(208,210,214)</td><td class="n">1.51 <span class="pill fail">fail</span></td><td class="n">4.02</td><td>Desktop's current value</td></tr>
+    <tr><td class="n">0.50</td><td class="n">rgb(138,143,153)</td><td class="n">3.25 <span class="pill warn">near</span></td><td class="n">1.87 <span class="pill fail">fail</span></td><td>Worst crossover point</td></tr>
+    <tr><td class="n">0.85</td><td class="n">rgb(56,65,81)</td><td class="n">10.28 <span class="pill pass">AAA</span></td><td class="n">1.69 <span class="pill fail">fail</span></td><td>Body fine, accent fails</td></tr>
+    <tr class="hi"><td class="n">0.92 <span style="color:var(--accent)">proposed</span></td><td class="n">rgb(40,49,66)</td><td class="n">13.06 <span class="pill pass">AAA</span></td><td class="n">2.15 <span class="pill fail">fail</span></td><td><strong>Body solved; accent needs §2.3</strong></td></tr>
+    <tr><td class="n">1.00</td><td class="n">rgb(21,31,50)</td><td class="n">16.48 <span class="pill pass">AAA</span></td><td class="n">2.71 <span class="pill fail">fail</span></td><td>Loses the wallpaper entirely</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="col">
+<div class="callout">
+  <h4>Read the teal column, not just the white one</h4>
+  <p>Contrast for the teal translation text is <em>non-monotonic</em> — it bottoms out at <code>1.69</code>–<code>1.87</code> around alpha 0.5–0.85, because the composite background passes through the text's own luminance. <strong>No opacity value rescues it.</strong> Raising alpha fixes body text; the translated line only becomes legible once it stops being hardcoded teal and starts reading <code>--accent-text</code> from §2.3.</p>
+</div>
+
+<h4>Specified values</h4>
+<p><strong>Opacity: 0.92</strong>, with <code>backdrop-filter: blur(16px)</code>. This keeps a visible hint of the wallpaper — the reason someone set one — while holding body text at <code>13.06</code> against the worst-case bright image. Below roughly 0.85 the wallpaper starts driving the background luminance rather than the theme; at 1.00 the personalisation is invisible. 0.92 is the point where the surface still reads as glass but the text no longer depends on the image behind it.</p>
+</div>
+
+<pre><code><span class="cm">/* src/index.css — @theme */</span>
+<span class="add">--color-surface: var(--surface-solid);</span>
+
+<span class="cm">/* per theme, alongside the existing --bg-card */</span>
+:root                      <span class="add">{ --surface-solid: rgba(255,255,255,0.94); }</span>
+:root[data-theme="dark"]   <span class="add">{ --surface-solid: rgba(21,31,50,0.92);   }</span>
+:root[data-theme="cyberpunk"]  <span class="add">{ --surface-solid: rgba(23,8,41,0.92); }</span>
+:root[data-theme="industrial"] <span class="add">{ --surface-solid: rgba(43,49,56,0.92); }</span>
+</code></pre>
+
+<pre><code><span class="cm">/* TalkTabMobile.tsx — root container */</span>
+<span class="del">- className="… bg-surface shadow-sm border border-border-main …"</span>
+<span class="add">+ className="… bg-surface backdrop-blur-xl shadow-sm border border-border-main …"</span>
+
+<span class="cm">/* translated-output line — stop hardcoding the light-mode accent */</span>
+<span class="del">- className="text-xl md:text-2xl font-semibold text-[#006D77] …"</span>
+<span class="add">+ className="text-xl md:text-2xl font-semibold text-accent-text …"</span>
+</code></pre>
+
+<div class="col">
+<h3>4.4 Related — the same defect on desktop</h3>
+<p><code>TalkTabDesktop.tsx</code> applies <code>bg-panel/20</code> when a wallpaper is active. Because <code>--bg-card</code> is itself <code>0.85</code> alpha in every dark theme, the effective opacity is <code>0.20 × 0.85 ≈ 0.17</code> — the second row of the table above, where white body text scores <strong>1.51</strong>. It is the same class of bug and worth fixing in the same pass, but it is outside the mobile scope the request named. Prompt 4 covers it and can be dropped without affecting the others.</p>
+
+<h3>4.5 Acceptance thresholds</h3>
+<ul>
+  <li>Body text in Live Translate: <strong>≥ 7:1</strong> against the composited surface over a white wallpaper, in all four themes.</li>
+  <li>Translated-output line: <strong>≥ 4.5:1</strong> under the same conditions.</li>
+  <li>Every interactive target in the Translate controls row: <strong>≥ 44 × 44 px</strong>.</li>
+  <li>Translate controls block: <strong>≤ 100 px</strong> tall at a 430 px viewport.</li>
+  <li>No horizontal overflow at <strong>320 px</strong> width; language chip truncates rather than wrapping.</li>
+</ul>
+
+<h2><span class="num">5</span>Implementation roadmap</h2>
+</div>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th class="n">Phase</th><th>Work</th><th class="n">Size</th><th>Unblocks</th></tr></thead>
+  <tbody>
+    <tr><td class="n">P1</td><td>Token layer — add <code>--color-surface</code>, split <code>--accent-text</code>, set per-theme surface alpha, remove the dead <code>.has-custom-bg</code> block</td><td class="n"><span class="pill pass">S</span></td><td>P2</td></tr>
+    <tr><td class="n">P2</td><td><span class="mid">M3</span> Live Translate mobile — apply the surface, replace hardcoded hex with the token</td><td class="n"><span class="pill pass">S</span></td><td>—</td></tr>
+    <tr><td class="n">P3</td><td><span class="mid">M1</span><span class="mid">M2</span> Translate controls row — restructure, resize, relocate Summary Mode</td><td class="n"><span class="pill warn">M</span></td><td>—</td></tr>
+    <tr><td class="n">P4</td><td>Desktop parity for the same defect (optional)</td><td class="n"><span class="pill pass">S</span></td><td>—</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="col">
+<p>P1 must land first — P2 depends on the tokens existing. P3 is independent of both and can run in parallel or ship separately.</p>
+
+<h2><span class="num">6</span>AI coding prompts</h2>
+<p class="sectionlede">Each prompt is self-contained and scoped to one coherent unit of work. File paths follow the tree in §2.2.</p>
+</div>
+
+<div class="prompt">
+<h3>Prompt 1 — Design tokens</h3>
+<p class="requires"><b>Requires:</b> none</p>
+<h4>Objective</h4>
+<p>Add the missing surface token and split the accent token so accent-coloured text and accent-filled buttons stop competing.</p>
+<h4>Files</h4>
+<p><code>src/index.css</code></p>
+<h4>Requirements</h4>
+<ul>
+  <li>In <code>@theme</code>, add <code>--color-surface: var(--surface-solid);</code> and <code>--color-accent-text: var(--accent-text);</code>.</li>
+  <li>Define <code>--surface-solid</code> in all four theme blocks: light <code>rgba(255,255,255,0.94)</code>; dark <code>rgba(21,31,50,0.92)</code>; cyberpunk <code>rgba(23,8,41,0.92)</code>; industrial <code>rgba(43,49,56,0.92)</code>.</li>
+  <li>Define <code>--accent-text</code> per theme: light <code>#006D77</code>; dark <code>#2DBECD</code>; cyberpunk <code>#FF0055</code>; industrial <code>#E67E22</code>. Leave <code>--accent</code> untouched — white-on-accent buttons currently score 6.08 and must not regress.</li>
+  <li>Delete the <code>.has-custom-bg .bg-card</code> / <code>.bg-panel</code> rules and their <code>.dark</code> variants. No code applies that class; confirm with a repo-wide search before deleting.</li>
+</ul>
+<h4>Acceptance criteria</h4>
+<ul>
+  <li><code>npm run build</code> succeeds; the compiled CSS contains at least one <code>.bg-surface</code> rule and one <code>.text-accent-text</code> rule.</li>
+  <li>No occurrence of <code>has-custom-bg</code> remains anywhere in <code>src/</code>.</li>
+</ul>
+<h4>Testing</h4>
+<p>Build, then <code>grep -c '\.bg-surface' dist/assets/*.css</code> — it returns <code>0</code> before this change and must be non-zero after.</p>
+</div>
+
+<div class="prompt">
+<h3>Prompt 2 — Live Translate surface <span class="mid">M3</span></h3>
+<p class="requires"><b>Requires:</b> Prompt 1</p>
+<h4>Objective</h4>
+<p>Give the mobile Live Translate panel an opaque, theme-aware background and make its translated-output text follow the active theme.</p>
+<h4>Files</h4>
+<p><code>src/components/TalkTabMobile.tsx</code></p>
+<h4>Requirements</h4>
+<ul>
+  <li>Add <code>backdrop-blur-xl</code> to the root container alongside the existing <code>bg-surface</code>, which now resolves to a real colour.</li>
+  <li>Replace every hardcoded <code>#006D77</code> in this file with the appropriate token class — <code>text-accent-text</code> for text, <code>bg-accent</code> / <code>border-accent</code> for fills and borders. There are multiple occurrences; change all of them.</li>
+  <li>Remove the <code>talk-tab-container</code> class if it remains unstyled, or leave it if used as a test hook — do not add styles for it.</li>
+  <li>Do not alter layout, spacing, or the microphone control.</li>
+</ul>
+<h4>Acceptance criteria</h4>
+<ul>
+  <li>Computed <code>background-color</code> of the root container is no longer <code>rgba(0, 0, 0, 0)</code> in any theme.</li>
+  <li>With a bright wallpaper set, body text measures ≥ 7:1 and the translated line ≥ 4.5:1 against the composited surface.</li>
+  <li>Under cyberpunk, the translated line renders pink <code>#FF0055</code>, not teal.</li>
+</ul>
+<h4>Testing</h4>
+<p>Load Live Translate at a 430 px viewport with a wallpaper set, cycling all four themes. Read back <code>getComputedStyle</code> on the container for each and confirm a non-zero alpha.</p>
+</div>
+
+<div class="prompt">
+<h3>Prompt 3 — Translate controls row <span class="mid">M1</span> <span class="mid">M2</span></h3>
+<p class="requires"><b>Requires:</b> none — independent of Prompts 1 and 2</p>
+<h4>Objective</h4>
+<p>Restructure the Translate controls from three stacked full-width rows into the two-row arrangement in §4.2, Option A.</p>
+<h4>Files</h4>
+<p><code>src/components/TranslateTabMobile.tsx</code></p>
+<h4>Requirements</h4>
+<ul>
+  <li>Replace the <code>flex flex-col sm:flex-row gap-4 items-stretch sm:items-end</code> wrapper with <code>flex flex-col gap-3</code>.</li>
+  <li>Row one: <code>flex items-center justify-between gap-3</code> containing the language chip (left) and the Summary Mode toggle (right).</li>
+  <li>Language chip: remove <code>w-full</code>, change <code>px-4 py-3</code> to <code>px-3.5 py-2.5</code>, add <code>max-w-[62%] truncate</code>. The invisible <code>&lt;select&gt;</code> overlay must continue to cover exactly the chip.</li>
+  <li>Delete the "Target language" label element.</li>
+  <li>Summary Mode: toggle track <code>h-5 w-9</code> → <code>h-[18px] w-8</code>, knob <code>h-3.5 w-3.5</code> → <code>h-3 w-3</code>, translate-x adjusted to match; label to <code>text-[10px]</code>. Keep the whole control tappable and preserve the existing <code>onClick</code> with its <code>preventDefault</code>.</li>
+  <li>Row two: the Translate button keeps <code>w-full</code> and gains <code>h-11</code> to override <code>.saas-button</code>'s 48 px.</li>
+  <li>Change nothing in <code>TranslateTabDesktop.tsx</code>.</li>
+</ul>
+<h4>Acceptance criteria</h4>
+<ul>
+  <li>Controls block measures ≤ 100 px tall at a 430 px viewport (from 146 px).</li>
+  <li>Changing the language via the native select still updates the chip label.</li>
+  <li>Summary Mode still toggles, and its hit area is ≥ 44 px tall.</li>
+  <li>No horizontal overflow at 320 px; a long language name truncates with an ellipsis.</li>
+</ul>
+<h4>Testing</h4>
+<p>Measure <code>getBoundingClientRect().height</code> on the controls wrapper at 430 px and confirm ≤ 100. Select "Chinese (Traditional)" at 320 px and confirm the chip truncates rather than wrapping or overflowing.</p>
+</div>
+
+<div class="prompt">
+<h3>Prompt 4 — Desktop parity <span style="font-weight:400;color:var(--ink-3)">(optional)</span></h3>
+<p class="requires"><b>Requires:</b> Prompt 1</p>
+<h4>Objective</h4>
+<p>Apply the same surface fix to the desktop Live Translate panel, whose effective opacity is ≈ 0.17.</p>
+<h4>Files</h4>
+<p><code>src/components/TalkTabDesktop.tsx</code></p>
+<h4>Requirements</h4>
+<ul>
+  <li>Replace the <code>hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'</code> pattern with <code>bg-surface backdrop-blur-xl</code>, which is already theme- and wallpaper-correct.</li>
+  <li>Replace hardcoded <code>#006D77</code> occurrences with token classes, as in Prompt 2.</li>
+</ul>
+<h4>Acceptance criteria</h4>
+<ul>
+  <li>Body text ≥ 7:1 over a bright wallpaper at ≥ 1024 px width, in all four themes.</li>
+  <li>Mobile Live Translate is visually unchanged from the Prompt 2 result.</li>
+</ul>
+<h4>Testing</h4>
+<p>Load at 1400 px with a wallpaper set and compare against the mobile panel; the two should read as the same material.</p>
+</div>
+
+<div class="col">
+<hr>
+
+<h2><span class="num">7</span>Open questions</h2>
+<p class="sectionlede">These affect the design and should not be settled by default.</p>
+<ol>
+  <li><strong>Layout — A or B?</strong> §4.2 recommends Option A. Confirm before Prompt 3; B is a small edit from A but not the reverse.</li>
+  <li><strong>Does "too large" mean footprint or type size?</strong> (<strong>A1</strong>) This spec assumes footprint. If the text itself reads too big, the fix is different and smaller.</li>
+  <li><strong>How often is Summary Mode used?</strong> (<strong>A2</strong>) If it is per-translation rather than occasional, it should stay adjacent to Translate rather than pairing with the language chip.</li>
+  <li><strong>Is 0.92 the right balance?</strong> It deliberately preserves a hint of wallpaper. If Live Translate should be fully solid for factory-floor readability, raise it to 1.00 — the contrast table shows what each value costs.</li>
+  <li><strong>Include Prompt 4?</strong> The desktop defect is real but outside the stated mobile scope.</li>
+</ol>
+
+<h3>Recommended next step</h3>
+<p>Run <strong>Prompt 1</strong>. It is small, unblocks Prompt 2, and its correctness is verifiable with a single grep against the compiled stylesheet. Prompt 3 can proceed in parallel once the Option A / B question above is answered.</p>
+</div>
+
+</div>

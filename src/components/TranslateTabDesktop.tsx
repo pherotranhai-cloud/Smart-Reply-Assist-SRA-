@@ -90,7 +90,7 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
             <button
               onClick={() => setIsSummaryMode(!isSummaryMode)}
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                isSummaryMode ? 'bg-accent text-white' : 'bg-bg-input text-text-muted hover:bg-border-main/50'
+                isSummaryMode ? 'bg-accent text-accent-on' : 'bg-bg-input text-text-muted hover:bg-border-main/50'
               }`}
             >
               {props.t('summaryMode')}
@@ -178,7 +178,7 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
               <button
                 onClick={() => handleTranslate(false)}
                 disabled={props.loading || isTranslating || props.isStreaming || (!translateInput.trim() && !translateImage)}
-                className="px-5 py-2.5 bg-accent hover:bg-accent/90 text-white rounded-xl font-semibold transition-all shadow-md shadow-accent/20 disabled:opacity-50 flex items-center gap-2 text-sm"
+                className="px-5 py-2.5 bg-accent hover:bg-accent/90 text-accent-on rounded-xl font-semibold transition-all shadow-md shadow-accent/20 disabled:opacity-50 flex items-center gap-2 text-sm"
               >
                 {props.loading || isTranslating ? <Loader2 className="animate-spin" size={16} /> : <Languages size={16} />}
                 <span>{props.t('translate') || 'Dịch'}</span>
@@ -284,7 +284,7 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
             </button>
             <button
               onClick={() => props.handleCopy(props.state.lastOutputs.translatedText!)}
-              className="p-3 text-white bg-accent hover:bg-accent/90 rounded-xl shadow-sm transition-colors flex items-center gap-2"
+              className="p-3 text-accent-on bg-accent hover:bg-accent/90 rounded-xl shadow-sm transition-colors flex items-center gap-2"
             >
               {props.isCopied ? <Check size={20} /> : <Copy size={20} />}
               <span className="font-medium">{props.isCopied ? 'Đã chép' : 'Sao chép'}</span>

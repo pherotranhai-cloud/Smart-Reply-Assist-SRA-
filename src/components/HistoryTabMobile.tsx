@@ -81,7 +81,7 @@ export const HistoryTabMobile: React.FC<HistoryTabProps> = ({ t, showToast, onRe
               onClick={() => setFilter(f)}
               className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors border ${
                 filter === f 
-                  ? 'bg-accent text-white border-accent' 
+                  ? 'bg-accent text-accent-on border-accent' 
                   : 'bg-panel border-border-main text-text-muted hover:text-text-main'
               }`}
             >
@@ -148,7 +148,7 @@ export const HistoryTabMobile: React.FC<HistoryTabProps> = ({ t, showToast, onRe
                   </button>
                   <button
                     onClick={() => onReuse(item)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent/90 text-white rounded-lg text-sm font-medium transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent/90 text-accent-on rounded-lg text-sm font-medium transition-colors"
                   >
                     <RefreshCw size={16} />
                     {t('reuse') || 'Reuse'}

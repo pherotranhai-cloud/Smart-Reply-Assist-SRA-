@@ -60,7 +60,7 @@ export const HistoryTabDesktop: React.FC<HistoryTabDesktopProps> = ({ t, showToa
               onClick={() => setFilter(f)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 filter === f 
-                  ? 'bg-accent text-white shadow-sm' 
+                  ? 'bg-accent text-accent-on shadow-sm' 
                   : 'text-text-muted hover:text-text-main hover:bg-panel'
               }`}
             >

@@ -1,0 +1,361 @@
+<title>Appearance System Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<style>
+:root{
+  --paper:#F4F7F7; --surface:#FFFFFF; --surface-2:#EAF0F0;
+  --ink:#0F1A1C; --ink-2:#3D5054; --ink-3:#6C8286; --rule:#D2DEDE;
+  --accent:#006D77; --accent-soft:#E0EFF0;
+  --pass:#1B6B4C; --warn:#8A5A12; --fail:#9E2B22;
+  --pass-bg:#E2F1EA; --warn-bg:#F7EDDC; --fail-bg:#F8E6E4;
+  --shadow:0 1px 2px rgba(15,26,28,.05),0 8px 24px -12px rgba(15,26,28,.18);
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"IBM Plex Sans","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0C1416; --surface:#121D20; --surface-2:#18262A;
+    --ink:#E8F0F0; --ink-2:#A9BFC2; --ink-3:#7A9497; --rule:#243539;
+    --accent:#5CC8D2; --accent-soft:#122E33;
+    --pass:#6FD3A4; --warn:#E2B268; --fail:#F09088;
+    --pass-bg:#122A22; --warn-bg:#2C2313; --fail-bg:#2E1917;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0C1416; --surface:#121D20; --surface-2:#18262A;
+  --ink:#E8F0F0; --ink-2:#A9BFC2; --ink-3:#7A9497; --rule:#243539;
+  --accent:#5CC8D2; --accent-soft:#122E33;
+  --pass:#6FD3A4; --warn:#E2B268; --fail:#F09088;
+  --pass-bg:#122A22; --warn-bg:#2C2313; --fail-bg:#2E1917;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16.5px;line-height:1.65;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px 96px}
+.col{max-width:68ch}
+header.mast{border-bottom:1px solid var(--rule);padding:56px 0 28px;margin-bottom:40px}
+.eyebrow{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 14px}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(2.1rem,5.4vw,3.15rem);line-height:1.05;letter-spacing:-.022em;margin:0 0 16px;text-wrap:balance}
+.standfirst{font-size:1.09rem;color:var(--ink-2);margin:0;max-width:60ch}
+.meta{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:26px;font-family:var(--f-mono);font-size:12px;color:var(--ink-3)}
+.meta b{color:var(--ink-2);font-weight:500}
+h2{font-family:var(--f-display);font-weight:600;font-size:1.62rem;letter-spacing:-.014em;line-height:1.2;margin:64px 0 6px;text-wrap:balance}
+h2 .num{font-family:var(--f-mono);font-size:.72em;font-weight:500;color:var(--accent);margin-right:.6em}
+h3{font-family:var(--f-display);font-weight:600;font-size:1.14rem;letter-spacing:-.008em;margin:36px 0 8px;text-wrap:balance}
+h4{font-family:var(--f-mono);font-weight:600;font-size:12px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);margin:26px 0 8px}
+.sectionlede{color:var(--ink-2);margin:0 0 22px;max-width:64ch}
+p{margin:0 0 15px} a{color:var(--accent)} strong{font-weight:600}
+ul,ol{margin:0 0 16px;padding-left:1.15rem} li{margin-bottom:7px} li::marker{color:var(--ink-3)}
+.rid{display:inline-block;font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.08em;background:var(--accent-soft);color:var(--accent);border-radius:4px;padding:2px 7px;vertical-align:2px}
+.callout{background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--accent);border-radius:0 10px 10px 0;padding:18px 22px;margin:24px 0;box-shadow:var(--shadow)}
+.callout.finding{border-left-color:var(--fail)}
+.callout h4{margin-top:0} .callout p:last-child{margin-bottom:0}
+.tablewrap{overflow-x:auto;margin:20px 0 26px;border:1px solid var(--rule);border-radius:10px;background:var(--surface);box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:14.2px;min-width:560px}
+th{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:12px 16px;border-bottom:1px solid var(--rule);background:var(--surface-2);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--rule);vertical-align:top;color:var(--ink-2)}
+tr:last-child td{border-bottom:none}
+td.n,th.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--ink)}
+td strong{color:var(--ink)}
+.pill{display:inline-block;font-family:var(--f-mono);font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pill.pass{background:var(--pass-bg);color:var(--pass)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.fail{background:var(--fail-bg);color:var(--fail)}
+tr.hi td{background:var(--accent-soft)}
+pre{font-family:var(--f-mono);font-size:12.5px;line-height:1.6;background:var(--surface);color:var(--ink);border:1px solid var(--rule);border-radius:10px;padding:16px 18px;margin:16px 0 24px;overflow-x:auto}
+code{font-family:var(--f-mono);font-size:.885em;background:var(--surface-2);padding:1px 5px;border-radius:4px;color:var(--ink)}
+pre code{background:none;padding:0;font-size:inherit}
+.del{color:var(--fail)} .add{color:var(--pass)} .cm{color:var(--ink-3)}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin:22px 0}
+@media(max-width:760px){.duo{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:18px 20px;box-shadow:var(--shadow)}
+.card h4{margin-top:0} .card.rec{border-color:var(--accent)}
+.tag{font-family:var(--f-mono);font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:6px}
+.sw{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:6px;border:1px solid rgba(128,128,128,.35)}
+.trace{font-family:var(--f-mono);font-size:12.5px;line-height:1.75;background:var(--surface-2);border:1px solid var(--rule);border-radius:10px;padding:16px 18px;overflow-x:auto;white-space:pre;color:var(--ink-2);margin:16px 0 8px}
+.cap{font-size:13px;color:var(--ink-3);margin:0 0 26px}
+hr{border:none;border-top:1px solid var(--rule);margin:56px 0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">Smart Reply Assist · Review &amp; proposal</p>
+  <h1>Appearance System Review</h1>
+  <p class="standfirst">Four requests against the Settings and theming layer. Two are genuine defects — one silently discards a user's choice, the other makes primary buttons unreadable in two themes. Two are enhancements worth doing alongside them.</p>
+  <div class="meta">
+    <span><b>Status</b> Reviewed, not implemented</span>
+    <span><b>Base</b> claude/codebase-scan-6a83du @ 6176ddb</span>
+    <span><b>Decisions needed</b> 4</span>
+  </div>
+</header>
+
+<div class="col">
+<h2><span class="num">1</span>Findings at a glance</h2>
+<p class="sectionlede">Severity is about user impact, not effort. Two of the four turned out to be defects rather than preferences.</p>
+</div>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>#</th><th>Request</th><th>What it actually is</th><th class="n">Severity</th><th class="n">Effort</th></tr></thead>
+  <tbody>
+    <tr><td class="n">R1</td><td>Theme Mode vs Personalization overlap</td><td>Defect — two controls write the same attribute; one choice is discarded on reload</td><td><span class="pill fail">High</span></td><td class="n">M</td></tr>
+    <tr><td class="n">R2</td><td>Wrong wallpaper names</td><td>Defect — the fallback that would show the model names is unreachable</td><td><span class="pill warn">Medium</span></td><td class="n">S</td></tr>
+    <tr><td class="n">R3</td><td>More effects</td><td>Enhancement, plus an unflagged battery/accessibility issue</td><td><span class="pill warn">Medium</span></td><td class="n">M</td></tr>
+    <tr class="hi"><td class="n">R4</td><td>Cyberpunk &amp; Light contrast</td><td>Defect — button labels fail AA in two themes; input fields are near-invisible in all</td><td><span class="pill fail">High</span></td><td class="n">M</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="col">
+<h2><span class="num">2</span><span class="rid">R1</span> Theme Mode and Personalization</h2>
+<p class="sectionlede">You are right that they overlap — but it is worse than duplication. They both write <code>document.documentElement[data-theme]</code>, and only one of them survives a reload.</p>
+
+<h3>What each control does today</h3>
+</div>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Control</th><th>Options</th><th class="n">Stored as</th><th>Writes</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Settings → Theme Mode</strong></td><td>Light · Dark · System</td><td class="n">sra_theme</td><td><code>data-theme</code> + <code>.dark</code></td></tr>
+    <tr><td><strong>Personalization → UI Theme</strong></td><td>Light · Dark · Cyberpunk · Industrial</td><td class="n">app_user_preferences.theme</td><td><code>data-theme</code> + <code>.dark</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="col">
+<p>Light and Dark are offered twice. Cyberpunk and Industrial only exist in one of them, and System only in the other — so neither control is complete on its own.</p>
+
+<h3>Observed behaviour</h3>
+<p>Traced in the running build, starting from Personalization = Cyberpunk:</p>
+</div>
+
+<div class="trace">start: Personalization = cyberpunk   data-theme=cyberpunk   accent=#f05     prefs=cyberpunk   themeMode=system
+press Theme Mode = Light             data-theme=light       accent=#006d77  prefs=cyberpunk   themeMode=light
+reload                               data-theme=cyberpunk   accent=#f05     prefs=cyberpunk   themeMode=light</div>
+<p class="cap">Theme Mode repaints the app and persists <code>themeMode=light</code> — but it never touches <code>prefs.theme</code>. On the next load Personalization re-applies Cyberpunk and the user's Theme Mode choice is silently discarded, while the Theme Mode control still shows "Light" as selected.</p>
+
+<div class="col">
+<div class="callout finding">
+  <h4>The failure a user actually hits</h4>
+  <p>Pick Cyberpunk. Later, switch Theme Mode to Light because the room is bright. The app turns light — it looks like it worked. Reopen the app the next morning and it is Cyberpunk again, with Settings still claiming Light is selected. Nothing tells them why.</p>
+</div>
+
+<h3>Options</h3>
+</div>
+
+<div class="duo">
+  <div class="card rec">
+    <span class="tag">Option A — recommended</span>
+    <h4>One control: UI Theme, with System added</h4>
+    <p style="margin-bottom:8px">Delete the Theme Mode section. Add <strong>System</strong> as a fifth option under Personalization → UI Theme, so it becomes Light · Dark · System · Cyberpunk · Industrial.</p>
+    <p style="margin-bottom:0">Nothing is lost, the ambiguity is gone, and Settings gets shorter. Needs a one-time migration for users whose only stored preference is <code>sra_theme</code>.</p>
+  </div>
+  <div class="card">
+    <span class="tag">Option B</span>
+    <h4>Two controls with a real hierarchy</h4>
+    <p style="margin-bottom:8px">Theme Mode picks light/dark/system; Personalization picks a <em>skin</em> within that. Requires light and dark variants of Cyberpunk and Industrial — four new palettes.</p>
+    <p style="margin-bottom:0">More expressive, considerably more work, and the four palettes would each need their own contrast pass.</p>
+  </div>
+</div>
+
+<div class="col">
+<p><strong>Why A.</strong> Cyberpunk and Industrial are complete palettes, not tints — a "light Cyberpunk" is a new design, not a toggle. Option B multiplies the surface that R4 is already trying to fix. Option A can ship this week; B is a project.</p>
+
+<h2><span class="num">3</span><span class="rid">R2</span> Wallpaper names</h2>
+<p class="sectionlede">The shoe model names are already in the code. The UI cannot reach them.</p>
+</div>
+
+<pre><code><span class="cm">// src/constants/wallpapers.ts — name and key disagree</span>
+{ id: '...', name: <span class="add">'Believe That 1'</span>,      key: <span class="del">'personalization.bg.sunset'</span>  }
+{ id: '...', name: <span class="add">'Samba OG'</span>,            key: <span class="del">'personalization.bg.nebula'</span>  }
+{ id: '...', name: <span class="add">'Adistar Control 5'</span>,   key: <span class="del">'personalization.bg.emerald'</span> }
+
+<span class="cm">// src/i18n/index.ts — the keys still hold the pre-rebrand labels</span>
+"personalization.bg.sunset":  "Sunset"  / "Hoàng hôn"
+"personalization.bg.nebula":  "Nebula"  / "Tinh vân"
+"personalization.bg.emerald": "Emerald" / "Lục bảo"
+
+<span class="cm">// src/components/SettingsPanel*.tsx — the render site</span>
+{t(opt.key) || opt.name}</code></pre>
+
+<div class="col">
+<div class="callout finding">
+  <h4>Why the fallback never fires</h4>
+  <p><code>t()</code> ends in <code>dict[key] || fallback[key] || key</code> — when a key is missing it returns <em>the key string itself</em>, which is truthy. So <code>t(opt.key) || opt.name</code> can never fall through to <code>opt.name</code>, even if the translation were deleted. The model names are unreachable code, and the UI shows "Sunset / Nebula / Emerald" instead.</p>
+</div>
+
+<h3>Proposal</h3>
+<p>Shoe model names are proper nouns — "Samba OG" is "Samba OG" in every language, so i18n is the wrong home for them. Drop <code>key</code> from the model wallpapers and render <code>name</code> directly, keeping a translated label only for the built-in "Default" swatch:</p>
+</div>
+
+<pre><code><span class="cm">// wallpapers.ts — model entries carry a name, no i18n key</span>
+{ id: '...', name: 'Samba OG' }
+
+<span class="cm">// render site — translate only when there is a key to translate</span>
+<span class="del">- {t(opt.key) || opt.name}</span>
+<span class="add">+ {opt.key ? t(opt.key) : opt.name}</span></code></pre>
+
+<div class="col">
+<p>Two smaller things in the same area, worth folding in:</p>
+<ul>
+  <li>The four stale <code>personalization.bg.*</code> entries can then be removed from all four locales.</li>
+  <li>User-added wallpapers (the "saved" gallery) have no label at all — just a thumbnail and a delete button. A simple <em>"Ảnh 1, Ảnh 2…"</em> index, or letting the user name them on save, would make the gallery navigable. Flagging rather than assuming — say if you want it.</li>
+</ul>
+
+<h2><span class="num">4</span><span class="rid">R3</span> More effects</h2>
+<p class="sectionlede">Four effects exist today. Before adding more, there is a cost issue worth deciding on.</p>
+
+<h3>What exists</h3>
+<p><code>none</code> · <code>particles</code> · <code>liquid</code> · <code>aurora</code> · <code>waves</code> — all canvas-drawn in <code>BackgroundCanvas.tsx</code>.</p>
+
+<div class="callout finding">
+  <h4>The animation loop never stops</h4>
+  <p><code>BackgroundCanvas</code> has no <code>prefers-reduced-motion</code> check and no <code>visibilitychange</code> handler. Once an effect is on, its <code>requestAnimationFrame</code> loop runs for the entire session — including while the tab is in the background. On a phone carried around a factory floor that is continuous GPU work and measurable battery drain, and it ignores users who have asked their device for reduced motion.</p>
+  <p>I would fix this <em>before</em> adding effects, otherwise each new option multiplies an existing cost.</p>
+</div>
+
+<h3>Proposed additions</h3>
+<p>Three that earn their place by matching a theme rather than just adding variety:</p>
+</div>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Effect</th><th>Reads as</th><th>Pairs with</th><th class="n">Cost</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Lưới kỹ thuật</strong> (blueprint grid)</td><td>Slow-drifting technical grid, faint rules</td><td>Industrial</td><td class="n">Low — static + slow offset</td></tr>
+    <tr><td><strong>Quét màn hình</strong> (scanline)</td><td>Single soft horizontal sweep, CRT bloom</td><td>Cyberpunk</td><td class="n">Low — one gradient band</td></tr>
+    <tr><td><strong>Khối mờ</strong> (mesh gradient)</td><td>Two or three large blurred colour blobs drifting</td><td>Light / Dark</td><td class="n">Low — 3 arcs, heavy blur</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="col">
+<p>All three are cheaper per frame than the existing <code>particles</code> effect, which animates 40+ objects with per-frame collision checks. Each pulls its colours from the active theme's tokens rather than hardcoding, so they inherit whatever R4 settles on.</p>
+
+<h2><span class="num">5</span><span class="rid">R4</span> Cyberpunk and Light contrast</h2>
+<p class="sectionlede">Measured against WCAG 2.1 — 4.5:1 for text, 3:1 for the boundary of an interactive component. Both themes have real failures, and a third theme you did not ask about is worse than either.</p>
+</div>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Pair</th><th class="n">Light</th><th class="n">Cyberpunk</th><th class="n">Needs</th></tr></thead>
+  <tbody>
+    <tr><td>Body text on card</td><td class="n">10.35 <span class="pill pass">ok</span></td><td class="n">13.66 <span class="pill pass">ok</span></td><td class="n">4.5</td></tr>
+    <tr><td>Muted text on card</td><td class="n">5.09 <span class="pill pass">ok</span></td><td class="n">6.26 <span class="pill pass">ok</span></td><td class="n">4.5</td></tr>
+    <tr><td>Accent text on card</td><td class="n">6.08 <span class="pill pass">ok</span></td><td class="n">5.77 <span class="pill pass">ok</span></td><td class="n">4.5</td></tr>
+    <tr class="hi"><td><strong>White label on primary button</strong></td><td class="n">6.08 <span class="pill pass">ok</span></td><td class="n">3.90 <span class="pill fail">fail</span></td><td class="n">4.5</td></tr>
+    <tr class="hi"><td><strong>Input field vs card</strong></td><td class="n">1.07 <span class="pill fail">fail</span></td><td class="n">1.07 <span class="pill fail">fail</span></td><td class="n">3.0</td></tr>
+    <tr><td>Border vs card</td><td class="n">1.23 <span class="pill fail">fail</span></td><td class="n">4.93 <span class="pill pass">ok</span></td><td class="n">3.0</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="col">
+<div class="callout finding">
+  <h4>Industrial is worse than either theme you named</h4>
+  <p>Checking all four themes for the same pair: white on the Industrial accent <code>#E67E22</code> measures <strong>2.85:1</strong> — below even Cyberpunk's 3.90. Every primary button label in that theme is harder to read than the two you flagged. Worth folding into the same pass.</p>
+</div>
+
+<h3>5.1 Primary button labels</h3>
+<p>The button component hardcodes <code>text-white</code> on the accent fill. That works for the teal accent and fails for the pink and orange ones:</p>
+</div>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Theme</th><th class="n">Accent fill</th><th class="n">White label</th><th class="n">Near-black label</th></tr></thead>
+  <tbody>
+    <tr><td>Light / Dark</td><td class="n"><span class="sw" style="background:#006D77"></span>#006D77</td><td class="n">6.08 <span class="pill pass">keep</span></td><td class="n">—</td></tr>
+    <tr><td>Cyberpunk</td><td class="n"><span class="sw" style="background:#FF0055"></span>#FF0055</td><td class="n">3.90 <span class="pill fail">fail</span></td><td class="n">5.08 <span class="pill pass">use</span></td></tr>
+    <tr><td>Industrial</td><td class="n"><span class="sw" style="background:#E67E22"></span>#E67E22</td><td class="n">2.85 <span class="pill fail">fail</span></td><td class="n">5.69 <span class="pill pass">use</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="col">
+<p><strong>Proposal:</strong> add an <code>--accent-on</code> token — the foreground colour for anything sitting on an accent fill — and let each theme set it. White for the teal themes, near-black for the vivid ones. This keeps Cyberpunk's hot pink and Industrial's orange exactly as designed; only the label colour changes. Darkening the fills instead would work numerically (<code>#E30050</code> reaches 4.81) but would mute the two themes whose whole point is being vivid.</p>
+
+<h3>5.2 Input fields</h3>
+<p>Both themes fill inputs with a ~3% overlay on the card — <strong>1.07:1</strong>, effectively invisible. No fill alpha reaches 3:1 without looking like a grey block, so the boundary has to carry it. Proposal: keep the soft fill and add <code>--border-strong</code>, used on inputs, selects and other interactive edges:</p>
+</div>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Token</th><th>Used for</th><th class="n">Light</th><th class="n">Ratio vs card</th></tr></thead>
+  <tbody>
+    <tr><td><code>--border-main</code></td><td>Decorative dividers, card hairlines</td><td class="n"><span class="sw" style="background:#E2E8F0"></span>#E2E8F0 <span style="color:var(--ink-3)">unchanged</span></td><td class="n">1.23 <span class="pill pass">fine</span></td></tr>
+    <tr class="hi"><td><code>--border-strong</code> <span style="color:var(--ink-3)">new</span></td><td>Input, select, and other interactive edges</td><td class="n"><span class="sw" style="background:#7E8C9E"></span>#7E8C9E</td><td class="n">3.42 <span class="pill pass">clears 3</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="col">
+<p>Splitting the token matters: WCAG's 3:1 rule applies to boundaries a user needs in order to <em>identify a control</em>, not to every hairline. Darkening <code>--border-main</code> globally to satisfy it would make every card edge heavy for no accessibility gain. Note that nothing between <code>#E2E8F0</code> and <code>#8A98A8</code> reaches 3:1 — <code>#8A98A8</code> is still only 2.94 — so an interactive border has to be decisively darker; there is no subtle value that qualifies.</p>
+
+<h3>5.3 Colour coordination</h3>
+<p>This is where the two themes differ most, and it is not a contrast problem:</p>
+</div>
+
+<div class="duo">
+  <div class="card">
+    <span class="tag">Light — coherent</span>
+    <h4>One hue family</h4>
+    <p style="margin-bottom:8px">Body <span class="sw" style="background:#334155"></span>215°, muted <span class="sw" style="background:#656F7D"></span>215°, border <span class="sw" style="background:#E2E8F0"></span>214°, accent <span class="sw" style="background:#006D77"></span>185°.</p>
+    <p style="margin-bottom:0">A 30° spread across the whole palette. Nothing to fix here beyond 5.2 — the coordination is already good.</p>
+  </div>
+  <div class="card">
+    <span class="tag">Cyberpunk — competing</span>
+    <h4>Two saturated hues, no neutral</h4>
+    <p style="margin-bottom:8px">Body <span class="sw" style="background:#00F0FF"></span>184°, everything else <span class="sw" style="background:#FF0055"></span>340° — a 156° split, both at 100% saturation.</p>
+    <p style="margin-bottom:0">Worse, <code>--border-main</code> and <code>--accent</code> are the same value, so every hairline shouts as loudly as the primary action.</p>
+  </div>
+</div>
+
+<div class="col">
+<p><strong>Proposal for Cyberpunk:</strong> give it the neutral it currently lacks, so pink can mean "this is the action" again.</p>
+<ul>
+  <li><code>--border-main</code> <span class="sw" style="background:#FF0055"></span><code>#FF0055</code> → <span class="sw" style="background:#4A3760"></span><code>#4A3760</code> — a desaturated violet that sits in the same family without competing. Dividers recede; pink is reserved for accents.</li>
+  <li><code>--border-strong</code> <span class="sw" style="background:#6B4A8A"></span><code>#6B4A8A</code> for input edges — visible without being another pink.</li>
+  <li><em>Optional, subjective:</em> soften body text from <span class="sw" style="background:#00F0FF"></span><code>#00F0FF</code> toward <span class="sw" style="background:#8FE3EC"></span><code>#8FE3EC</code>. Contrast barely moves (13.51 → 13.02) but 100%-saturation cyan on near-black halates, which is tiring over a long shift. This changes the theme's character, so it is your call rather than mine.</li>
+</ul>
+
+<h2><span class="num">6</span>Sequencing</h2>
+<p class="sectionlede">Sizes are relative, not calendar commitments — say the word if you want dates against them. I would ship this as three PRs rather than one, so the risky change travels alone.</p>
+</div>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th class="n">Batch</th><th>Contents</th><th class="n">Size</th><th>Why grouped</th></tr></thead>
+  <tbody>
+    <tr class="hi"><td class="n">1</td><td><span class="rid">R4</span> contrast tokens + <span class="rid">R2</span> wallpaper names</td><td class="n">M</td><td>Both are token- and string-level, low risk, independently verifiable. Fixes the two AA failures first.</td></tr>
+    <tr><td class="n">2</td><td><span class="rid">R1</span> theme consolidation</td><td class="n">M</td><td>Removes a Settings section and needs a storage migration. Deserves its own PR so it can be reverted alone.</td></tr>
+    <tr><td class="n">3</td><td><span class="rid">R3</span> loop fix, then three new effects</td><td class="n">M–L</td><td>Purely additive. The reduced-motion and visibility fix lands first within the batch.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="col">
+<p>Batch 1 is the one I would start today: it clears the accessibility failures and R2 is an hour's work riding along. Batch 2 changes what users see in Settings, so it is worth a look at the migration before it ships. Batch 3 is comfortable to defer.</p>
+
+<hr>
+
+<h2><span class="num">7</span>Decisions needed</h2>
+<ol>
+  <li><strong>R1 — Option A or B?</strong> A folds everything into one control and can ship in batch 2. B needs four new palettes and is a project in its own right.</li>
+  <li><strong>R4 — keep the vivid accents?</strong> The proposal changes label colour rather than muting Cyberpunk's pink and Industrial's orange. Confirm that is the right trade.</li>
+  <li><strong>R4 — soften the Cyberpunk cyan?</strong> Purely a character decision; contrast is fine either way.</li>
+  <li><strong>R2 — label saved wallpapers?</strong> User-added images currently have no name at all. In scope or leave it?</li>
+</ol>
+
+<h3>Also worth knowing</h3>
+<p>Industrial's button labels (2.85:1) fail harder than either theme you asked about. I have included it in the R4 proposal rather than leaving a known-worse theme untouched — tell me if you would rather keep the scope to the two you named.</p>
+</div>
+
+</div>

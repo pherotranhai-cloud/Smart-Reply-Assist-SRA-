@@ -1,4 +1,6 @@
 
+import { UiTheme } from '../types';
+
 export type ThemeMode = 'dark' | 'light' | 'system';
 export type Theme = 'dark' | 'light';
 
@@ -12,6 +14,19 @@ export const resolveTheme = (mode: ThemeMode): Theme => {
   }
   return mode;
 };
+
+/**
+ * Turns the stored UI theme into the value written to data-theme.
+ * 'system' follows the OS; the named palettes pass through unchanged.
+ */
+export const resolveUiTheme = (theme: UiTheme | undefined): string => {
+  if (!theme || theme === 'system') return getSystemTheme();
+  return theme;
+};
+
+/** True for palettes that need Tailwind's `dark` class alongside data-theme. */
+export const isDarkPalette = (resolved: string): boolean =>
+  resolved === 'dark' || resolved === 'cyberpunk' || resolved === 'industrial';
 
 export const applyTheme = (theme: Theme) => {
   document.documentElement.setAttribute('data-theme', theme);

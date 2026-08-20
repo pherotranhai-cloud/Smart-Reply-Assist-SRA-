@@ -2,6 +2,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles, CheckCircle2 } from 'lucide-react';
 import { UPDATE_CHANGELOG } from '../config/version';
 
+/**
+ * Renders the **bold** markers used in UPDATE_CHANGELOG.features. The list was
+ * previously printed as raw text, so readers saw literal asterisks.
+ */
+const renderEmphasis = (text: string) =>
+  text.split(/\*\*(.+?)\*\*/g).map((part, i) =>
+    i % 2 === 1 ? <strong key={i} className="font-semibold">{part}</strong> : part
+  );
+
 export const ChangelogModal = ({
   isOpen,
   onClose,
@@ -46,7 +55,7 @@ export const ChangelogModal = ({
                 {UPDATE_CHANGELOG.features.map((feature, idx) => (
                   <li key={idx} className="flex items-start gap-3">
                     <CheckCircle2 size={18} className="text-emerald-500 shrink-0 mt-0.5" />
-                    <span className="text-[15px] text-text-main leading-snug">{feature}</span>
+                    <span className="text-[15px] text-text-main leading-snug">{renderEmphasis(feature)}</span>
                   </li>
                 ))}
               </ul>

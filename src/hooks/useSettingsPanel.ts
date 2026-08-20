@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { ThemeMode, GlobalLanguage, AISettings, UserPreferences } from '../types';
+import { GlobalLanguage, AISettings, UserPreferences, UiTheme, SavedWallpaper } from '../types';
+import { filesToScaledImages, MAX_SAVED_WALLPAPERS } from '../utils/imageResize';
 
 /**
  * Props shared by SettingsPanelMobile and SettingsPanelDesktop. The two differ
  * only in layout, so they share this contract and the logic in useSettingsPanel.
  */
 export interface SettingsPanelProps {
-  themeMode: ThemeMode;
-  onThemeChange: (mode: ThemeMode) => void;
   globalLanguage: GlobalLanguage;
   onLanguageChange: (lang: GlobalLanguage) => void;
   handleResetApp: () => void;
@@ -98,10 +97,15 @@ export function useSettingsPanel({
     onSaveSettings(newSettings); // Auto-save on change for iOS feel
   };
 
-  const themeOptions: { mode: ThemeMode; label: string }[] = [
-    { mode: 'light', label: t('light') },
-    { mode: 'dark', label: t('dark') },
-    { mode: 'system', label: t('systemTheme') },
+  // The single theme control. 'system' follows the OS; the rest are palettes.
+  // Settings previously had a separate Theme Mode row offering light/dark/
+  // system, which wrote the same attribute and lost to this one on reload.
+  const uiThemeOptions: { mode: UiTheme; key: string; label: string; emoji: string }[] = [
+    { mode: 'system', key: 'personalization.theme.system', label: 'System', emoji: '🖥️' },
+    { mode: 'light', key: 'personalization.theme.light', label: 'Light', emoji: '☀️' },
+    { mode: 'dark', key: 'personalization.theme.dark', label: 'Dark', emoji: '🌙' },
+    { mode: 'cyberpunk', key: 'personalization.theme.cyberpunk', label: 'Cyberpunk', emoji: '👾' },
+    { mode: 'industrial', key: 'personalization.theme.industrial', label: 'Industrial', emoji: '⚙️' },
   ];
 
   const languageOptions: { lang: GlobalLanguage; label: string }[] = [
@@ -111,8 +115,46 @@ export function useSettingsPanel({
     { lang: 'zh-TW', label: '繁體中文' },
   ];
 
+  /**
+   * Adds picked image files to the saved gallery, downscaled so they fit in
+   * localStorage. Returns a message when something could not be added.
+   */
+  const addWallpaperFiles = async (
+    files: FileList | File[],
+    prefs: UserPreferences,
+    onChange: (p: UserPreferences) => void
+  ): Promise<string | null> => {
+    const existing = prefs.savedWallpapers || [];
+    const room = MAX_SAVED_WALLPAPERS - existing.length;
+    if (room <= 0) return `Đã đạt giới hạn ${MAX_SAVED_WALLPAPERS} ảnh. Hãy xoá bớt trước khi thêm.`;
+
+    const { images, failed } = await filesToScaledImages(files);
+    if (!images.length) return failed.length ? `Không đọc được: ${failed.join(', ')}` : null;
+
+    const fresh = images.filter(img => !existing.some(w => w.url === img.dataUrl));
+    const accepted = fresh.slice(0, room);
+    const additions: SavedWallpaper[] = accepted.map(img => ({ url: img.dataUrl, name: img.name }));
+
+    try {
+      onChange({
+        ...prefs,
+        savedWallpapers: [...existing, ...additions],
+        backgroundImage: additions.length ? additions[additions.length - 1].url : prefs.backgroundImage,
+      });
+    } catch {
+      return 'Bộ nhớ trình duyệt đã đầy. Hãy xoá bớt ảnh đã lưu.';
+    }
+
+    const skipped = fresh.length - accepted.length;
+    if (skipped > 0) return `Đã thêm ${accepted.length} ảnh; bỏ qua ${skipped} vì vượt giới hạn ${MAX_SAVED_WALLPAPERS}.`;
+    if (failed.length) return `Đã thêm ${accepted.length} ảnh; không đọc được: ${failed.join(', ')}`;
+    return null;
+  };
+
   return {
     localSettings,
+    uiThemeOptions,
+    addWallpaperFiles,
     isFeedbackOpen,
     setIsFeedbackOpen,
     feedbackText,
@@ -121,7 +163,6 @@ export function useSettingsPanel({
     handleFeedbackSubmit,
     current,
     updateCurrent,
-    themeOptions,
     languageOptions
   };
 }

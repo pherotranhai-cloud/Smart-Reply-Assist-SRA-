@@ -1,0 +1,21 @@
+#!/bin/sh
+# Bumps the patch version on every commit, then stages package.json so the
+# change lands in the commit that triggered it.
+#
+# Enabled by `git config core.hooksPath .githooks`, which the package.json
+# "prepare" script runs after npm install. Skip with `git commit --no-verify`.
+
+# Don't bump while replaying existing commits — a rebase or a merge would
+# otherwise inflate the version once per replayed commit.
+[ -d "$(git rev-parse --git-path rebase-merge)" ] && exit 0
+[ -d "$(git rev-parse --git-path rebase-apply)" ] && exit 0
+[ -f "$(git rev-parse --git-path MERGE_HEAD)" ] && exit 0
+[ -f "$(git rev-parse --git-path CHERRY_PICK_HEAD)" ] && exit 0
+
+command -v node >/dev/null 2>&1 || {
+  echo "[pre-commit] node not found; skipping version bump." >&2
+  exit 0
+}
+
+node scripts/bump-version.mjs || exit 1
+git add package.json
