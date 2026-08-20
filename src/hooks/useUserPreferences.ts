@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { UserPreferences, BackgroundEffect } from '../types';
 import { INITIAL_WALLPAPER } from '../constants/wallpapers';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
-const STORAGE_KEY = 'app_user_preferences';
+const STORAGE_KEY = STORAGE_KEYS.USER_PREFERENCES;
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   theme: 'dark',

@@ -37,7 +37,7 @@
   --bg-app: #F4F6F9;
   --bg-card: rgba(255, 255, 255, 1);
   --text-primary: #334155;
-  --text-muted: #94A3B8;
+  --text-muted: #656F7D;   /* was #94A3B8 - 2.56:1, below AA */
   --bg-input: rgba(0, 0, 0, 0.03);
   --border-main: #e2e8f0;
   --accent: #006D77;
@@ -55,7 +55,7 @@
   --bg-app: #0B111E;
   --bg-card: rgba(21, 31, 50, 0.85);
   --text-primary: #F1F5F9;
-  --text-muted: #64748B;
+  --text-muted: #96A0B0;   /* was #64748B - 2.75:1 on the new surface */
   --bg-input: rgba(255, 255, 255, 0.06);
   --border-main: #1e293b;
   --accent: #006D77;
@@ -73,7 +73,7 @@
   --bg-app: #0A0216;
   --bg-card: rgba(23, 8, 41, 0.85);
   --text-primary: #00F0FF;
-  --text-muted: #FF0055;
+  --text-muted: #FF528B;   /* was #FF0055 - 4.07:1, and identical to --accent */
   --bg-input: rgba(255, 0, 85, 0.1);
   --border-main: #FF0055;
   --accent: #FF0055;
@@ -91,7 +91,7 @@
   --bg-app: #1D2125;
   --bg-card: rgba(43, 49, 56, 0.85);
   --text-primary: #F4F5F7;
-  --text-muted: #8993A4;
+  --text-muted: #AFB6C1;   /* was #8993A4 - 3.30:1 on the new surface */
   --bg-input: rgba(9, 30, 66, 0.2);
   --border-main: #454F59;
   --accent: #E67E22;

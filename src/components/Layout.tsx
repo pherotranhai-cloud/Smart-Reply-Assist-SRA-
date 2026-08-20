@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useDeviceDetect } from '../hooks/useDeviceDetect';
 import { LayoutMobile } from './LayoutMobile';
 import { LayoutDesktop } from './LayoutDesktop';
 import { UserPreferences } from '../types';
-import { storage } from '../services/storage';
 
 interface LayoutDispatcherProps {
   children: React.ReactNode;
@@ -17,27 +16,12 @@ interface LayoutDispatcherProps {
 
 export const Layout: React.FC<LayoutDispatcherProps> = (props) => {
   const { isDesktop } = useDeviceDetect();
-  const [localPrefs, setLocalPrefs] = useState<UserPreferences | null>(props.userPreferences || null);
 
-  useEffect(() => {
-    if (props.userPreferences) {
-      setLocalPrefs(props.userPreferences);
-    } else {
-      const loadPrefs = async () => {
-        try {
-          const loaded = await storage.getUserPreferences();
-          if (loaded) {
-            setLocalPrefs(loaded);
-          }
-        } catch (err) {
-          console.error("Layout failed to load preferences:", err);
-        }
-      };
-      loadPrefs();
-    }
-  }, [props.userPreferences]);
-
-  const activePrefs = localPrefs || props.userPreferences;
+  // App owns preferences via useUserPreferences and always passes them down.
+  // Layout previously mirrored them into local state and, if the prop were
+  // missing, loaded them from storage under a different key than the hook
+  // writes - so that path could only ever have returned defaults.
+  const activePrefs = props.userPreferences;
 
   // Determine custom font family class
   const fontClass = activePrefs?.fontFamily === 'mono' ? 'font-custom-mono'

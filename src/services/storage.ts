@@ -1,6 +1,5 @@
-import { VocabItem, AISettings, AppState, HistoryItem, ConversationContext, GlobalLanguage, UserPreferences } from '../types';
+import { VocabItem, AISettings, AppState, HistoryItem, ConversationContext, GlobalLanguage } from '../types';
 import { DEFAULT_STATE } from '../constants';
-import { INITIAL_WALLPAPER } from '../constants/wallpapers';
 import { STORAGE_KEYS, DATA_KEYS } from '../constants/storageKeys';
 
 import { safeLocalStorage } from '../utils/safeStorage';
@@ -202,28 +201,5 @@ export const storage = {
 
   async setTranslationCache(cache: Record<string, { translatedText: string, timestamp: number }>): Promise<void> {
     await adapter.set(STORAGE_KEYS.TRANSLATION_CACHE, cache);
-  },
-
-  async getUserPreferences(): Promise<UserPreferences> {
-    const prefs = await adapter.get<UserPreferences>(STORAGE_KEYS.USER_PREFERENCES);
-    if (!prefs) {
-      return {
-        theme: 'dark',
-        backgroundImage: INITIAL_WALLPAPER,
-        savedWallpapers: [],
-        backgroundEffect: 'none',
-        fontFamily: 'sans',
-        fontSize: 'base'
-      };
-    }
-    // Handle case where user has old empty backgroundImage
-    if (!prefs.backgroundImage && prefs.backgroundImage !== '') {
-      prefs.backgroundImage = INITIAL_WALLPAPER;
-    }
-    return prefs;
-  },
-
-  async saveUserPreferences(prefs: UserPreferences): Promise<void> {
-    await adapter.set(STORAGE_KEYS.USER_PREFERENCES, prefs);
   }
 };
