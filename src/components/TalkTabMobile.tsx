@@ -148,7 +148,7 @@ export const TalkTabMobile: React.FC<TalkTabProps> = ({ settings, vocab, t, show
             disabled={isLimitReached}
             className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${
               isListening 
-                ? 'bg-accent text-white border-2 border-accent animate-pulse shadow-accent/30 scale-110' 
+                ? 'bg-accent text-accent-on border-2 border-accent animate-pulse shadow-accent/30 scale-110' 
                 : isLimitReached
                   ? 'bg-panel text-text-muted border-2 border-border-main opacity-50 cursor-not-allowed'
                   : 'bg-panel text-accent border-2 border-accent/40 shadow-accent/10 hover:bg-bg-input'

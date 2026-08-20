@@ -66,7 +66,7 @@ export const LayoutDesktop: React.FC<LayoutDesktopProps> = ({
                   title={tab.label}
                   className={`flex items-center justify-center w-12 h-12 rounded-2xl transition-all ${
                     isSelected
-                      ? 'bg-accent text-white shadow-md shadow-accent/20'
+                      ? 'bg-accent text-accent-on shadow-md shadow-accent/20'
                       : 'text-text-muted hover:bg-app/50 hover:text-text-main'
                   }`}
                 >
@@ -83,7 +83,7 @@ export const LayoutDesktop: React.FC<LayoutDesktopProps> = ({
             title={t('settings') || 'Cài đặt'}
             className={`flex items-center justify-center w-12 h-12 rounded-2xl transition-all ${
               activeTab === 'settings'
-                ? 'bg-accent text-white shadow-md shadow-accent/20'
+                ? 'bg-accent text-accent-on shadow-md shadow-accent/20'
                 : 'text-text-muted hover:bg-app/50 hover:text-text-main'
             }`}
           >

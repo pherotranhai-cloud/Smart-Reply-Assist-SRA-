@@ -176,7 +176,7 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
                   <button
                     onClick={handleSearch}
                     disabled={!input.trim() || loading}
-                    className="shrink-0 p-2.5 rounded-full bg-accent text-white hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                    className="shrink-0 p-2.5 rounded-full bg-accent text-accent-on hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
                   >
                     {loading ? <Loader2 size={18} className="animate-spin" /> : <ChevronRight size={18} />}
                   </button>

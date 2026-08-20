@@ -167,7 +167,7 @@ export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab,
               isLimitReached 
                 ? 'bg-app border-4 border-border-main text-text-muted opacity-50 cursor-not-allowed'
                 : isListening
-                  ? 'bg-accent text-white border-4 border-accent shadow-lg shadow-accent/50'
+                  ? 'bg-accent text-accent-on border-4 border-accent shadow-lg shadow-accent/50'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-white border-4 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 shadow-sm'
             }`}
           >

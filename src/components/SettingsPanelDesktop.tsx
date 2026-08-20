@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   RotateCcw,
@@ -14,13 +14,12 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { SettingsPanelProps, useSettingsPanel } from '../hooks/useSettingsPanel';
+import { MAX_SAVED_WALLPAPERS } from '../utils/imageResize';
 import { APP_VERSION } from '../config/version';
 import { SUPPORTED_MODELS } from '../constants';
-import { DEFAULT_WALLPAPERS } from '../constants/wallpapers';
+import { DEFAULT_WALLPAPERS, WallpaperOption } from '../constants/wallpapers';
 
 export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
-  themeMode,
-  onThemeChange,
   globalLanguage,
   onLanguageChange,
   handleResetApp,
@@ -41,9 +40,14 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
     isSubmittingFeedback,
     handleFeedbackSubmit,
     updateCurrent,
-    themeOptions,
+    uiThemeOptions,
+    addWallpaperFiles,
     languageOptions
   } = useSettingsPanel({ settings, onSaveSettings, globalLanguage, t, onOpenAdmin });
+
+  const wallpaperFileRef = useRef<HTMLInputElement>(null);
+  const [wallpaperDraft, setWallpaperDraft] = useState('');
+  const [wallpaperNotice, setWallpaperNotice] = useState<string | null>(null);
 
   const hasBgImage = !!userPreferences?.backgroundImage || (userPreferences?.backgroundEffect && userPreferences.backgroundEffect !== 'none');
 
@@ -52,34 +56,6 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
       hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'
     }`}>
       <div className="flex-1 w-full overflow-y-auto pr-2 custom-scrollbar space-y-6">
-        {/* Appearance */}
-        <section>
-          <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
-            {t('themeMode')}
-          </h3>
-          <div className={`rounded-xl overflow-hidden shadow-sm border border-border-main transition-all duration-300 ${
-            hasBgImage ? 'bg-panel/30' : 'bg-panel'
-          }`}>
-            <div className="p-3">
-              <div className="flex bg-text-muted/10 rounded-lg p-1">
-                {themeOptions.map((opt) => (
-                  <button
-                    key={opt.mode}
-                    onClick={() => onThemeChange(opt.mode)}
-                    className={`flex-1 py-1.5 text-[13px] font-medium rounded-md transition-all ${
-                      themeMode === opt.mode
-                        ? 'bg-panel text-text-main shadow-sm'
-                        : 'text-text-muted hover:text-text-main'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* Personalization Section */}
         <section className="space-y-4">
           <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-1 flex items-center gap-2">
@@ -95,13 +71,8 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
               <span className="text-[13px] font-medium text-text-muted mb-2 block">
                 {t('personalization.theme') || 'Chủ đề giao diện'}
               </span>
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { mode: 'light', key: 'personalization.theme.light', label: 'Light', emoji: '☀️' },
-                  { mode: 'dark', key: 'personalization.theme.dark', label: 'Dark', emoji: '🌙' },
-                  { mode: 'cyberpunk', key: 'personalization.theme.cyberpunk', label: 'Cyberpunk', emoji: '👾' },
-                  { mode: 'industrial', key: 'personalization.theme.industrial', label: 'Industrial', emoji: '⚙️' }
-                ].map((opt) => (
+              <div className="grid grid-cols-3 gap-2">
+                {uiThemeOptions.map((opt) => (
                   <button
                     key={opt.mode}
                     onClick={() => {
@@ -199,7 +170,7 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
               </span>
               <div className="grid grid-cols-4 gap-2">
                 {[
-                  { id: '', name: 'Mặc định', key: 'personalization.bg.default', style: 'bg-app border-border-main' },
+                  { id: '', name: 'Mặc định', key: 'personalization.bg.default', style: 'bg-app border-border-main' } as WallpaperOption,
                   ...DEFAULT_WALLPAPERS
                 ].map((opt) => (
                   <button
@@ -219,7 +190,7 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
                     {opt.id ? (
                       <img 
                         src={opt.id} 
-                        alt={t(opt.key) || opt.name} 
+                        alt={opt.key ? t(opt.key) : opt.name} 
                         referrerPolicy="no-referrer"
                         className="absolute inset-0 w-full h-full object-cover opacity-70"
                       />
@@ -227,89 +198,127 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
                       <div className="absolute inset-0 w-full h-full bg-panel" />
                     )}
                     <span className="text-[11px] font-medium text-white bg-black/40 px-1.5 py-0.5 rounded backdrop-blur-sm z-10 w-fit">
-                      {t(opt.key) || opt.name}
+                      {opt.key ? t(opt.key) : opt.name}
                     </span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Custom Background URL input and Gallery */}
+            {/* Custom wallpapers: paste a link, or pick images from the device */}
             <div className="pt-1">
               <div className="flex gap-2 mb-3">
                 <input
                   type="text"
                   placeholder={t('personalization.custom_bg_placeholder') || 'Dán link ảnh nền tùy chọn của bạn...'}
-                  value={userPreferences.backgroundImage && !DEFAULT_WALLPAPERS.find(w => w.id === userPreferences.backgroundImage) && !userPreferences.savedWallpapers?.includes(userPreferences.backgroundImage) ? userPreferences.backgroundImage : ''}
-                  onChange={(e) => {
-                    onUserPreferencesChange({
-                      ...userPreferences,
-                      backgroundImage: e.target.value
-                    });
-                  }}
-                  className="flex-1 text-[13px] px-3.5 py-2 rounded-xl bg-app text-text-main border border-border-main focus:outline-none focus:ring-1 focus:ring-accent"
+                  value={wallpaperDraft}
+                  onChange={(e) => setWallpaperDraft(e.target.value)}
+                  className="flex-1 text-[13px] px-3.5 py-2 rounded-xl bg-app text-text-main border border-border-strong focus:outline-none focus:ring-1 focus:ring-accent"
                 />
                 <button
                   onClick={() => {
-                    if (userPreferences.backgroundImage && userPreferences.backgroundImage.trim() !== '') {
-                      const url = userPreferences.backgroundImage.trim();
-                      const currentSaved = userPreferences.savedWallpapers || [];
-                      if (!currentSaved.includes(url)) {
-                        onUserPreferencesChange({
-                          ...userPreferences,
-                          savedWallpapers: [...currentSaved, url]
-                        });
-                      }
+                    const url = wallpaperDraft.trim();
+                    if (!url) return;
+                    const saved = userPreferences.savedWallpapers || [];
+                    if (saved.length >= MAX_SAVED_WALLPAPERS) {
+                      setWallpaperNotice(`Đã đạt giới hạn ${MAX_SAVED_WALLPAPERS} ảnh.`);
+                      return;
                     }
+                    if (saved.some(w => w.url === url)) {
+                      setWallpaperNotice('Ảnh này đã có trong bộ sưu tập.');
+                      return;
+                    }
+                    onUserPreferencesChange({
+                      ...userPreferences,
+                      savedWallpapers: [...saved, { url, name: `Ảnh ${saved.length + 1}` }],
+                      backgroundImage: url,
+                    });
+                    setWallpaperDraft('');
+                    setWallpaperNotice(null);
                   }}
-                  className="px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-xl hover:bg-accent/90 transition-colors"
+                  className="px-4 py-2 bg-accent text-accent-on text-[13px] font-medium rounded-xl hover:bg-accent/90 transition-colors"
                 >
                   {t('personalization.save_wallpaper') || 'Lưu'}
                 </button>
               </div>
 
+              <div className="flex items-center gap-2 mb-3">
+                <input
+                  ref={wallpaperFileRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={async (e) => {
+                    const files = e.target.files;
+                    if (!files?.length) return;
+                    setWallpaperNotice(t('personalization.processing') || 'Đang xử lý ảnh...');
+                    const msg = await addWallpaperFiles(files, userPreferences, onUserPreferencesChange);
+                    setWallpaperNotice(msg);
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  onClick={() => wallpaperFileRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border-strong text-[13px] font-medium text-text-main hover:bg-bg-input transition-colors"
+                >
+                  <ImageIcon size={14} />
+                  {t('personalization.upload_wallpapers') || 'Tải ảnh từ thiết bị'}
+                </button>
+                <span className="text-[11px] text-text-muted tabular-nums">
+                  {(userPreferences.savedWallpapers?.length || 0)}/{MAX_SAVED_WALLPAPERS}
+                </span>
+              </div>
+
+              {wallpaperNotice && (
+                <p className="text-[12px] text-text-muted mb-3">{wallpaperNotice}</p>
+              )}
+
               {userPreferences.savedWallpapers && userPreferences.savedWallpapers.length > 0 && (
                 <div className="mt-4">
                   <span className="text-[12px] font-medium text-text-muted mb-2 block">{t('personalization.saved_wallpapers') || 'Hình nền đã lưu'}</span>
-                  <div className="grid grid-cols-4 gap-2">
-                    {userPreferences.savedWallpapers.map((url, idx) => (
-                      <div key={idx} className="relative group">
+                  <div className="grid grid-cols-3 gap-2">
+                    {userPreferences.savedWallpapers.map((wp) => (
+                      <div key={wp.url} className="relative group">
                         <button
-                          onClick={() => {
-                            onUserPreferencesChange({
-                              ...userPreferences,
-                              backgroundImage: url
-                            });
-                          }}
+                          onClick={() => onUserPreferencesChange({ ...userPreferences, backgroundImage: wp.url })}
                           className={`w-full h-16 rounded-xl border overflow-hidden relative transition-all ${
-                            userPreferences.backgroundImage === url
+                            userPreferences.backgroundImage === wp.url
                               ? 'border-accent ring-2 ring-accent/20'
                               : 'border-border-main hover:border-text-muted/30'
                           }`}
                         >
-                          <img 
-                            src={url} 
-                            alt="Saved wallpaper" 
-                            referrerPolicy="no-referrer"
-                            className="absolute inset-0 w-full h-full object-cover"
-                          />
-                          {userPreferences.backgroundImage === url && (
-                            <span className="absolute inset-x-0 bottom-0 text-[10px] text-center font-medium text-white bg-accent/80 py-0.5 z-10 backdrop-blur-sm">
-                              {t('personalization.active_badge') || 'Đang dùng'}
-                            </span>
-                          )}
+                          <img src={wp.url} alt={wp.name} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover" />
+                          <span className="absolute inset-x-0 bottom-0 text-[10px] text-center font-medium text-white bg-black/55 py-0.5 z-10 backdrop-blur-sm truncate px-1">
+                            {userPreferences.backgroundImage === wp.url ? (t('personalization.active_badge') || 'Đang dùng') : wp.name}
+                          </span>
                         </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            const newSaved = userPreferences.savedWallpapers.filter(w => w !== url);
+                            const name = window.prompt(t('personalization.rename_wallpaper') || 'Đặt tên cho ảnh này', wp.name);
+                            if (name && name.trim()) {
+                              onUserPreferencesChange({
+                                ...userPreferences,
+                                savedWallpapers: userPreferences.savedWallpapers.map(w => w.url === wp.url ? { ...w, name: name.trim().slice(0, 40) } : w),
+                              });
+                            }
+                          }}
+                          title={t('personalization.rename_wallpaper') || 'Đổi tên'}
+                          className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-panel border border-border-strong text-text-main flex items-center justify-center text-[10px] shadow-sm z-20"
+                        >
+                          ✎
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
                             onUserPreferencesChange({
                               ...userPreferences,
-                              savedWallpapers: newSaved,
-                              backgroundImage: userPreferences.backgroundImage === url ? '' : userPreferences.backgroundImage
+                              savedWallpapers: userPreferences.savedWallpapers.filter(w => w.url !== wp.url),
+                              backgroundImage: userPreferences.backgroundImage === wp.url ? '' : userPreferences.backgroundImage,
                             });
                           }}
-                          className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px] shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                          className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px] shadow-sm z-20"
                         >
                           ✕
                         </button>
@@ -319,7 +328,6 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
                 </div>
               )}
             </div>
-
             {/* Background Effects */}
             <div>
               <span className="text-[13px] font-medium text-text-muted mb-2 block flex items-center gap-1.5">

@@ -124,7 +124,7 @@ export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
                 }}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all ${
                   isActive
-                    ? 'bg-accent text-white shadow-sm shadow-accent/25'
+                    ? 'bg-accent text-accent-on shadow-sm shadow-accent/25'
                     : 'bg-panel text-text-muted hover:text-text-main hover:bg-border-main/50'
                 }`}
               >
@@ -276,7 +276,7 @@ export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
               </button>
               <button
                 onClick={() => handleCopy(props.state.lastOutputs.generatedReply!)}
-                className="p-3 text-white bg-accent hover:bg-accent/90 rounded-xl shadow-sm transition-colors flex items-center gap-2"
+                className="p-3 text-accent-on bg-accent hover:bg-accent/90 rounded-xl shadow-sm transition-colors flex items-center gap-2"
               >
                 {isCopied ? <Check size={20} /> : <Copy size={20} />}
                 <span className="font-medium">{isCopied ? 'Đã chép' : 'Sao chép'}</span>
@@ -387,7 +387,7 @@ export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
                   setActivePresetId('custom');
                   setIsCustomModalOpen(false);
                 }}
-                className="px-5 py-2 bg-accent text-white rounded-xl hover:bg-accent/90 transition-colors font-semibold shadow-md shadow-accent/20 text-sm"
+                className="px-5 py-2 bg-accent text-accent-on rounded-xl hover:bg-accent/90 transition-colors font-semibold shadow-md shadow-accent/20 text-sm"
               >
                 Áp dụng
               </button>

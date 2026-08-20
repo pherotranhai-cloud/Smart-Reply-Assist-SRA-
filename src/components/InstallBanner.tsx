@@ -40,7 +40,7 @@ export const InstallBanner = ({
               </p>
               <button 
                 onClick={onInstall}
-                className="px-4 py-2 bg-accent text-white rounded-xl text-[13px] font-medium hover:bg-accent/90 transition-colors shadow-sm"
+                className="px-4 py-2 bg-accent text-accent-on rounded-xl text-[13px] font-medium hover:bg-accent/90 transition-colors shadow-sm"
               >
                 Cài đặt ngay
               </button>

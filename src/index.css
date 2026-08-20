@@ -28,6 +28,14 @@
      white text): no single value serves both. On the dark card, #006D77 as
      text scores 2.71:1, while white on #006D77 as a fill scores 6.08:1. */
   --color-accent-text: var(--accent-text);
+
+  /* Foreground for anything sitting ON an accent fill. White works on the
+     teal accent (6.08:1) but fails on the vivid ones, so each theme picks. */
+  --color-accent-on: var(--accent-on);
+
+  /* Boundary of an interactive control (input, select). WCAG 1.4.11 wants
+     3:1 here; --border-main stays soft for decorative hairlines. */
+  --color-border-strong: var(--border-strong);
   
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
@@ -39,8 +47,10 @@
   --text-primary: #334155;
   --text-muted: #656F7D;   /* was #94A3B8 - 2.56:1, below AA */
   --bg-input: rgba(0, 0, 0, 0.03);
-  --border-main: #e2e8f0;
+  --border-main: #e2e8f0;          /* decorative hairlines only */
+  --border-strong: #7E8C9E;        /* 3.42:1 on white — input + select edges */
   --accent: #006D77;
+  --accent-on: #FFFFFF;            /* 6.08:1 on the teal fill */
   --surface-solid: rgba(255, 255, 255, 0.94);
   --accent-text: #006D77;   /* 6.08:1 over a bright wallpaper at 0.94 */
 
@@ -58,7 +68,9 @@
   --text-muted: #96A0B0;   /* was #64748B - 2.75:1 on the new surface */
   --bg-input: rgba(255, 255, 255, 0.06);
   --border-main: #1e293b;
+  --border-strong: #64748B;        /* 3.46:1 on the dark card */
   --accent: #006D77;
+  --accent-on: #FFFFFF;
   --surface-solid: rgba(21, 31, 50, 0.92);
   --accent-text: #2DBECD;   /* 5.82:1 over a bright wallpaper at 0.92 */
 
@@ -72,16 +84,18 @@
 :root[data-theme="cyberpunk"] {
   --bg-app: #0A0216;
   --bg-card: rgba(23, 8, 41, 0.85);
-  --text-primary: #00F0FF;
-  --text-muted: #FF528B;   /* was #FF0055 - 4.07:1, and identical to --accent */
-  --bg-input: rgba(255, 0, 85, 0.1);
-  --border-main: #FF0055;
-  --accent: #FF0055;
+  --text-primary: #8FE3EC;         /* was #00F0FF - 100% saturation halates */
+  --text-muted: #9B8BB4;           /* 5.10:1, 2.13x separated from body text */
+  --bg-input: rgba(168, 85, 247, 0.10);
+  --border-main: #584371;          /* was #FF0055 - identical to the accent */
+  --border-strong: #7A619A;        /* 3.63:1 on the card */
+  --accent: #A855F7;               /* electric violet, replacing the pink */
+  --accent-on: #12002B;            /* 5.00:1 on the violet fill */
   --surface-solid: rgba(23, 8, 41, 0.92);
-  --accent-text: #FF4080;   /* 4.76:1 over a bright wallpaper at 0.92 */
+  --accent-text: #C084FC;   /* 6.01:1 over a bright wallpaper at 0.92 */
 
   --ios-glass-bg: rgba(23, 8, 41, 0.7);
-  --ios-glass-border: rgba(255, 0, 85, 0.3);
+  --ios-glass-border: rgba(168, 85, 247, 0.30);
 
   --app-bg-opacity: 1;
   --app-blur-intensity: 0px;
@@ -94,7 +108,9 @@
   --text-muted: #AFB6C1;   /* was #8993A4 - 3.30:1 on the new surface */
   --bg-input: rgba(9, 30, 66, 0.2);
   --border-main: #454F59;
+  --border-strong: #8993A4;        /* 4.24:1 on the card */
   --accent: #E67E22;
+  --accent-on: #1D2125;            /* 5.69:1 — white was 2.85:1 */
   --surface-solid: rgba(43, 49, 56, 0.92);
   --accent-text: #EDA260;   /* 4.85:1 over a bright wallpaper at 0.92 */
 
@@ -146,7 +162,8 @@
   }
 
   .primary-button {
-    @apply bg-accent hover:bg-accent/90 text-white shadow-sm hover:shadow active:shadow-inner;
+    /* text-accent-on, not text-white: the vivid accents fail AA under white. */
+    @apply bg-accent hover:bg-accent/90 text-accent-on shadow-sm hover:shadow active:shadow-inner;
   }
 
   .secondary-button {
@@ -158,12 +175,13 @@
 
   .saas-input {
     @apply w-full bg-bg-input rounded-xl px-4 py-3 text-[15px] outline-none transition-all text-text-main placeholder:text-text-muted;
-    border: none;
+    /* The fill alone is ~1.07:1 against the card; the edge carries the 3:1. */
+    border: 1px solid var(--border-strong);
   }
 
   .ios-select {
     @apply w-full bg-bg-input text-text-main rounded-xl px-4 py-2.5 text-[15px] outline-none transition-colors duration-300 appearance-none cursor-pointer hover:opacity-80;
-    border: none;
+    border: 1px solid var(--border-strong);
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
     background-position: right 0.5rem center;
     background-repeat: no-repeat;
@@ -180,7 +198,7 @@
   }
 
   .segmented-control-item.active {
-    @apply bg-accent text-white shadow-lg shadow-accent/20;
+    @apply bg-accent text-accent-on shadow-lg shadow-accent/20;
   }
 
   .bottom-nav-item {

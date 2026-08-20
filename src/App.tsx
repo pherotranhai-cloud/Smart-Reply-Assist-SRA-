@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import 'katex/dist/katex.min.css';
 import { storage } from './services/storage';
 import { AIService } from './services/ai';
-import { applyTheme, resolveTheme, watchSystemThemeChanges } from './utils/theme';
+import { resolveUiTheme, isDarkPalette, watchSystemThemeChanges } from './utils/theme';
 import { copyTextToClipboard } from './utils/clipboard';
 import { safeLocalStorage } from './utils/safeStorage';
 import { translations } from './i18n';
@@ -183,13 +183,6 @@ export default function App() {
         setVocab(v);
         setContext(ctx);
 
-        if (!userPreferences.theme) {
-          const resolved = resolveTheme(themeMode);
-          setUserPreferences({
-            ...userPreferences,
-            theme: resolved as any
-          });
-        }
       } catch (err) {
         console.error('Hydration failed:', err);
       } finally {
@@ -202,10 +195,11 @@ export default function App() {
   // Apply Personalization variables dynamically
   useEffect(() => {
     if (userPreferences) {
-      document.documentElement.setAttribute('data-theme', userPreferences.theme);
-      
-      const isDarkTheme = userPreferences.theme === 'dark' || userPreferences.theme === 'cyberpunk' || userPreferences.theme === 'industrial';
-      document.documentElement.classList.toggle('dark', isDarkTheme);
+      // Single owner of data-theme. 'system' resolves to the OS light/dark
+      // preference; the named palettes pass through as themselves.
+      const resolved = resolveUiTheme(userPreferences.theme);
+      document.documentElement.setAttribute('data-theme', resolved);
+      document.documentElement.classList.toggle('dark', isDarkPalette(resolved));
 
       // Handle custom fonts
       document.documentElement.classList.remove('font-custom-sans', 'font-custom-mono', 'font-custom-serif', 'font-custom-fancy');
@@ -234,14 +228,14 @@ export default function App() {
     }
   }, [userPreferences]);
 
-  // System theme watcher
+  // Repaint when the OS flips light/dark, but only while following it.
   useEffect(() => {
-    if (state.themeMode === 'system') {
-      return watchSystemThemeChanges((theme) => {
-        applyTheme(theme);
-      });
-    }
-  }, [state.themeMode]);
+    if (userPreferences.theme && userPreferences.theme !== 'system') return;
+    return watchSystemThemeChanges((theme) => {
+      document.documentElement.setAttribute('data-theme', theme);
+      document.documentElement.classList.toggle('dark', isDarkPalette(theme));
+    });
+  }, [userPreferences.theme]);
 
   useEffect(() => {
     const isIos = () => {
@@ -566,13 +560,6 @@ export default function App() {
           >
             <Suspense fallback={<FallbackSpinner />}>
               <SettingsPanel 
-                themeMode={state.themeMode}
-                onThemeChange={(mode) => {
-                  storage.setTheme(mode);
-                  setState(prev => ({ ...prev, themeMode: mode }));
-                  applyTheme(resolveTheme(mode));
-                  showToast(t('themeChanged'), 'info');
-                }}
                 globalLanguage={state.globalLanguage}
                 onLanguageChange={async (lang) => {
                   await storage.setGlobalLanguage(lang);

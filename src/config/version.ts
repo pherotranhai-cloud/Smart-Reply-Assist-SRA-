@@ -33,13 +33,12 @@ export const APP_VERSION = `v${__APP_VERSION__}`;
  * Skip both steps for internal-only work; the popup then correctly stays shut.
  */
 export const UPDATE_CHANGELOG = {
-  version: 'v2.13.0',
-  title: 'Có gì mới trong phiên bản v2.13.0?',
+  version: 'v2.14.0',
+  title: 'Có gì mới trong phiên bản v2.14.0?',
   features: [
-    "Tab **Dịch** gọn hơn: chọn ngôn ngữ và **Chế độ tóm tắt** nằm chung một hàng, nút Dịch vừa tầm tay",
-    "**Dịch trực tiếp** dễ đọc hẳn: nền không còn bị trong suốt, chữ rõ trên mọi hình nền và mọi chủ đề",
-    "Nút **Tái sử dụng** trong Lịch sử đã hoạt động: mở lại đúng tab Dịch hoặc Soạn thảo kèm nội dung cũ",
-    "Không còn mất nội dung đang nhập khi chuyển tab hoặc đổi giữa điện thoại và máy tính",
-    "Nhãn và chữ gợi ý đậm hơn, dễ đọc hơn trong mọi chủ đề"
+    "**Cài đặt gọn hơn**: chỉ còn **một** mục chọn giao diện, có thêm tuỳ chọn **Theo hệ thống**",
+    "Giao diện **Cyberpunk** đổi sang tông **tím điện**, chữ dịu mắt hơn khi nhìn lâu",
+    "Chữ trên các nút bấm và viền ô nhập liệu đã rõ ràng ở mọi chủ đề",
+    "Hình nền **hiển thị đúng tên mẫu giày**, và bạn có thể **tải nhiều ảnh từ máy** rồi tự đặt tên",
   ]
 };

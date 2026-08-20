@@ -190,7 +190,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
               </button>
               <button 
                 onClick={handleSaveCustom}
-                className="px-4 py-2 bg-accent text-white rounded-xl hover:bg-accent/90 transition-colors font-medium shadow-md shadow-accent/20"
+                className="px-4 py-2 bg-accent text-accent-on rounded-xl hover:bg-accent/90 transition-colors font-medium shadow-md shadow-accent/20"
               >
                 Lưu & Áp dụng
               </button>
