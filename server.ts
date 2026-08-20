@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import pkg from './package.json';
 import {
   createSupabaseClient,
   fetchAdminData,
@@ -96,7 +97,7 @@ async function startServer() {
   apiRouter.get('/health', (req, res) => res.json({ status: 'ok' }));
 
   apiRouter.get('/', (req, res) => {
-    res.status(200).json({ status: "AIMA Engine Operational", version: "2.0.6-hotfix" });
+    res.status(200).json({ status: "AIMA Engine Operational", version: pkg.version });
   });
 
   // POST /api/public/log

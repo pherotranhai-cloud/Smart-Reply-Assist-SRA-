@@ -90,7 +90,7 @@ export const LayoutDesktop: React.FC<LayoutDesktopProps> = ({
             <Settings size={22} className={activeTab === 'settings' ? 'text-white' : ''} />
           </button>
           <div className="text-[10px] text-text-muted opacity-60 font-medium">
-            v{APP_VERSION}
+            {APP_VERSION}
           </div>
         </div>
       </div>

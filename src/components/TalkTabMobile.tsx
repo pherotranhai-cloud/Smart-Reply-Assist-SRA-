@@ -69,7 +69,7 @@ export const TalkTabMobile: React.FC<TalkTabProps> = ({ settings, vocab, t, show
         </div>
       </div>
 
-      <div className="flex-1 p-6 flex flex-col pt-6 pb-24 relative">
+      <div className="flex-1 min-h-0 p-6 flex flex-col pt-6 pb-4 relative">
         
         {/* Progress & Trivia (when initializing) */}
         {isInitializing && (
@@ -117,7 +117,7 @@ export const TalkTabMobile: React.FC<TalkTabProps> = ({ settings, vocab, t, show
       </div>
 
       {/* Mic Controls */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-panel via-panel/90 to-transparent border-t border-border-main/50 z-50 pb-8 grid grid-cols-3 items-center px-6">
+      <div className="shrink-0 p-4 bg-gradient-to-t from-panel via-panel/90 to-transparent border-t border-border-main/50 pb-8 grid grid-cols-3 items-center px-6">
         
         {/* Left: Save History */}
         <div className="flex justify-start gap-2">
