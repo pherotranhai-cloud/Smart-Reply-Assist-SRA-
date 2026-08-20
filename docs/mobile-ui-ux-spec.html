@@ -260,6 +260,7 @@ hr{border:none;border-top:1px solid var(--rule);margin:56px 0}
   <h1>Mobile Legibility Pass</h1>
   <p class="standfirst">Resizing the Translate controls, relocating Summary Mode, and repairing Live Translate's background — which is not merely too transparent, but has no background colour at all.</p>
   <div class="meta">
+    <span><b>Status</b> Implemented &amp; verified</span>
     <span><b>Scope</b> Mobile layouts + design tokens</span>
     <span><b>Base</b> main @ f17693f</span>
     <span><b>Data model</b> unchanged</span>
@@ -387,7 +388,24 @@ flowchart LR
 </code></pre>
 
 <div class="col">
-<p>Cyberpunk and industrial themes already define their own accents that pass as text — <code>#FF0055</code> scores <strong>4.88</strong> on the cyberpunk card and <code>#E67E22</code> scores <strong>4.61</strong> on the industrial card. For those two themes, <code>--accent-text</code> can simply inherit the theme accent. They fail today only because Live Translate hardcodes the teal rather than reading the token at all.</p>
+<div class="callout finding">
+  <h4>Correction — cyberpunk and industrial needed lightening too</h4>
+  <p>An earlier draft of this spec stated that <code>#FF0055</code> (4.88) and <code>#E67E22</code> (4.61) already passed as text and could inherit the theme accent unchanged. Those ratios are against the <em>solid</em> card. Composited at <code>0.92</code> over a bright wallpaper — the condition that actually matters — they fall to <strong>4.07</strong> and <strong>3.59</strong>, both below the 4.5 threshold. Verification caught this; the values below are what shipped.</p>
+</div>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Theme</th><th class="n">Theme accent (fill)</th><th class="n">--accent-text (as built)</th><th class="n">Measured over wallpaper</th></tr></thead>
+  <tbody>
+    <tr><td>Light</td><td class="n">#006D77</td><td class="n">#006D77</td><td class="n">6.08 <span class="pill pass">AA</span></td></tr>
+    <tr><td>Dark</td><td class="n">#006D77</td><td class="n">#2DBECD</td><td class="n">5.82 <span class="pill pass">AA</span></td></tr>
+    <tr><td>Cyberpunk</td><td class="n">#FF0055</td><td class="n">#FF4080</td><td class="n">4.76 <span class="pill pass">AA</span></td></tr>
+    <tr><td>Industrial</td><td class="n">#E67E22</td><td class="n">#EDA260</td><td class="n">4.84 <span class="pill pass">AA</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Because <code>--accent-text</code> is a text-only token, lightening it leaves every button fill on its original brand hue — which is the whole reason the split was worth making.</p>
 
 <h2><span class="num">3</span>Data model</h2>
 <p class="skip">Not applicable — no persisted state, schema, or payload changes. Summary Mode continues to live in component state; theme and wallpaper continue to live in <code>sra_user_preferences</code>. This section is intentionally omitted rather than padded.</p>
@@ -458,6 +476,7 @@ flowchart LR
 <p class="wirecap">Option A — the recommended arrangement.</p>
 
 <div class="col">
+<p class="skip">As built: the controls block measures <strong>96 px</strong> (from 146 px). The gap between rows is <code>gap-2</code> rather than <code>gap-3</code>, and both rows carry <code>min-h-[44px]</code> so every target clears the 44 px minimum — the chip is therefore 44 px, not the 40 px sketched below.</p>
 <p><strong>Why A over B.</strong> Translate is the primary action and sits in the thumb zone; a full-width target is the easier tap and the clearer affordance. Option B's extra 48 px is not worth demoting it. Both keep every target at or above the 44 px minimum.</p>
 
 <h4>Specified values — Option A</h4>

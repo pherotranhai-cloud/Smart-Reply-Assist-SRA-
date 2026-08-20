@@ -19,6 +19,15 @@
   --color-text-main: var(--text-primary);
   --color-border-main: var(--border-main);
   --color-accent: var(--accent);
+
+  /* Opaque-enough surface for panels that sit over a user wallpaper.
+     Distinct from --color-panel, which stays translucent by design. */
+  --color-surface: var(--surface-solid);
+
+  /* Accent as TEXT. Kept separate from --color-accent (used as a fill behind
+     white text): no single value serves both. On the dark card, #006D77 as
+     text scores 2.71:1, while white on #006D77 as a fill scores 6.08:1. */
+  --color-accent-text: var(--accent-text);
   
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
@@ -32,6 +41,8 @@
   --bg-input: rgba(0, 0, 0, 0.03);
   --border-main: #e2e8f0;
   --accent: #006D77;
+  --surface-solid: rgba(255, 255, 255, 0.94);
+  --accent-text: #006D77;   /* 6.08:1 over a bright wallpaper at 0.94 */
 
   --ios-glass-bg: rgba(255, 255, 255, 0.8);
   --ios-glass-border: rgba(255, 255, 255, 0.3);
@@ -48,6 +59,8 @@
   --bg-input: rgba(255, 255, 255, 0.06);
   --border-main: #1e293b;
   --accent: #006D77;
+  --surface-solid: rgba(21, 31, 50, 0.92);
+  --accent-text: #2DBECD;   /* 5.82:1 over a bright wallpaper at 0.92 */
 
   --ios-glass-bg: rgba(21, 31, 50, 0.7);
   --ios-glass-border: rgba(255, 255, 255, 0.1);
@@ -64,6 +77,8 @@
   --bg-input: rgba(255, 0, 85, 0.1);
   --border-main: #FF0055;
   --accent: #FF0055;
+  --surface-solid: rgba(23, 8, 41, 0.92);
+  --accent-text: #FF4080;   /* 4.76:1 over a bright wallpaper at 0.92 */
 
   --ios-glass-bg: rgba(23, 8, 41, 0.7);
   --ios-glass-border: rgba(255, 0, 85, 0.3);
@@ -80,6 +95,8 @@
   --bg-input: rgba(9, 30, 66, 0.2);
   --border-main: #454F59;
   --accent: #E67E22;
+  --surface-solid: rgba(43, 49, 56, 0.92);
+  --accent-text: #EDA260;   /* 4.85:1 over a bright wallpaper at 0.92 */
 
   --ios-glass-bg: rgba(43, 49, 56, 0.7);
   --ios-glass-border: rgba(69, 79, 89, 0.3);
@@ -295,21 +312,5 @@
 }
 .font-custom-fancy {
   font-family: 'Playfair Display', Didot, "Bodoni MT", serif;
-}
-
-/* Dynamic Glassmorphism for Mobile Cards when Custom Background is active */
-.has-custom-bg .bg-card,
-.has-custom-bg .bg-panel {
-  background-color: rgba(255, 255, 255, 0.82) !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
-}
-
-.dark .has-custom-bg .bg-card,
-.dark .has-custom-bg .bg-panel {
-  background-color: rgba(15, 23, 42, 0.78) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 

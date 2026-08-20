@@ -33,11 +33,11 @@ export const TalkTabMobile: React.FC<TalkTabProps> = ({ settings, vocab, t, show
   } = useTalkTab({ t, showToast });
 
   return (
-    <div className="flex flex-col h-full bg-surface shadow-sm border border-border-main rounded-3xl overflow-hidden relative pb-4 talk-tab-container">
+    <div className="flex flex-col h-full bg-surface backdrop-blur-xl shadow-sm border border-border-main rounded-3xl overflow-hidden relative pb-4">
       
       <div className="flex items-center justify-between p-4 border-b border-border-main bg-panel z-10">
         <div className="flex items-center gap-2">
-           <Mic size={18} className="text-[#006D77]" />
+           <Mic size={18} className="text-accent-text" />
            <span className="text-sm font-semibold text-text-main opacity-80">
              {t('live_translator') || 'Live Translator'}
            </span>
@@ -46,7 +46,7 @@ export const TalkTabMobile: React.FC<TalkTabProps> = ({ settings, vocab, t, show
         {/* Dropdown Ngôn ngữ chuyển lên đây */}
         <div className="relative">
           {/* Nút hiển thị giao diện giả lập sang trọng, tinh tế giống hệt cũ */}
-          <div className="flex items-center gap-1 text-xs font-semibold text-[#006D77] bg-[#006D77]/10 px-3 py-1.5 rounded-full pointer-events-none">
+          <div className="flex items-center gap-1 text-xs font-semibold text-accent-text bg-accent/10 px-3 py-1.5 rounded-full pointer-events-none">
             <span>{LANGUAGE_FLAGS[myLang as keyof typeof LANGUAGE_FLAGS]} {myLang.split(' ')[0]}</span>
             <ChevronDown size={14} />
           </div>
@@ -76,7 +76,7 @@ export const TalkTabMobile: React.FC<TalkTabProps> = ({ settings, vocab, t, show
           <div className="absolute top-4 left-0 right-0 z-10 px-6 flex flex-col items-center">
             <div className="w-full max-w-sm h-1 bg-border-main rounded-full overflow-hidden mb-2">
               <div 
-                className="h-full bg-[#006D77] transition-all duration-100 ease-linear"
+                className="h-full bg-accent transition-all duration-100 ease-linear"
                 style={{ width: `${connectionProgress}%` }}
               />
             </div>
@@ -98,8 +98,8 @@ export const TalkTabMobile: React.FC<TalkTabProps> = ({ settings, vocab, t, show
             <div className="w-12 h-[1px] bg-border-main shrink-0 mx-auto" />
             
             <div className="w-full text-center space-y-1">
-               <p className="text-[10px] text-[#006D77] uppercase tracking-widest font-semibold">{t('talk_translated_audio') || 'Translation'}</p>
-               <p className="text-xl md:text-2xl font-semibold text-[#006D77] min-h-[2.5rem] transition-all px-2 break-words">
+               <p className="text-[10px] text-accent-text uppercase tracking-widest font-semibold">{t('talk_translated_audio') || 'Translation'}</p>
+               <p className="text-xl md:text-2xl font-semibold text-accent-text min-h-[2.5rem] transition-all px-2 break-words">
                  {targetSubtitle || (isInitializing ? (t('connecting') || "Connecting...") : "")}
                </p>
             </div>
@@ -107,8 +107,8 @@ export const TalkTabMobile: React.FC<TalkTabProps> = ({ settings, vocab, t, show
         ) : (
           <div className="text-center opacity-40 m-auto flex flex-col items-center justify-center">
             <div className="relative mb-4 flex items-center justify-center">
-              <div className="absolute inset-0 bg-[#006D77]/10 rounded-full scale-150 animate-ping duration-1000" />
-              <Mic size={48} className="text-[#006D77] relative z-10" />
+              <div className="absolute inset-0 bg-accent/10 rounded-full scale-150 animate-ping duration-1000" />
+              <Mic size={48} className="text-accent-text relative z-10" />
             </div>
             <p className="max-w-[280px] text-sm leading-relaxed">{t('talk_tap_mic_hint') || 'Tap the microphone to start real-time translation'}</p>
           </div>
@@ -148,7 +148,7 @@ export const TalkTabMobile: React.FC<TalkTabProps> = ({ settings, vocab, t, show
             disabled={isLimitReached}
             className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${
               isListening 
-                ? 'bg-[#006D77] text-white border-2 border-[#006D77] animate-pulse shadow-[#006D77]/30 scale-110' 
+                ? 'bg-accent text-white border-2 border-accent animate-pulse shadow-accent/30 scale-110' 
                 : isLimitReached
                   ? 'bg-panel text-text-muted border-2 border-border-main opacity-50 cursor-not-allowed'
                   : 'bg-panel text-accent border-2 border-accent/40 shadow-accent/10 hover:bg-bg-input'

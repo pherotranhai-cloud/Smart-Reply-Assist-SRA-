@@ -222,37 +222,42 @@ export function TranslateTabMobile({
           </div>
         )}
 
-        <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
-          <div className="flex-1 space-y-2">
-            <label className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('targetLanguage')}</label>
-            <div className="relative inline-block w-full">
-              <div className="flex items-center gap-1 text-xs font-semibold text-accent bg-accent/10 px-4 py-3 rounded-xl pointer-events-none w-full justify-between border border-border-main">
-                <span className="text-text-main">{LANGUAGE_FLAGS[targetLang]} {targetLang}</span>
-                <ChevronDown size={16} className="text-muted"/>
+        <div className="flex flex-col gap-2">
+          {/* Row 1: language selector paired with Summary Mode. The
+              "Target language" label is dropped — the flag and language name
+              already identify the control. */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="relative min-w-0 max-w-[62%]">
+              <div className="flex min-h-[44px] items-center justify-between gap-1.5 text-xs font-semibold bg-accent/10 px-3.5 rounded-xl pointer-events-none border border-border-main">
+                <span className="text-text-main truncate">{LANGUAGE_FLAGS[targetLang]} {targetLang}</span>
+                <ChevronDown size={16} className="text-muted shrink-0"/>
               </div>
-              <select 
+              <select
                 className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-20"
                 value={targetLang}
                 onChange={e => setTargetLang(e.target.value as Language)}
+                aria-label={t('targetLanguage')}
               >
                 {LANGUAGES.map(l => <option key={l} value={l} className="bg-panel text-text-main">{LANGUAGE_FLAGS[l]} {l}</option>)}
               </select>
             </div>
-          </div>
-          
-          <div className="flex-1 flex flex-col justify-end space-y-2 pb-2">
-            <label className="flex items-center gap-3 cursor-pointer" onClick={(e) => { e.preventDefault(); setIsSummaryMode(!isSummaryMode); }}>
-              <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shadow-inner ${isSummaryMode ? 'bg-accent' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-panel transition-transform shadow ${isSummaryMode ? 'translate-x-5' : 'translate-x-0.5'}`} />
+
+            <label
+              className="flex min-h-[44px] shrink-0 items-center gap-2 cursor-pointer select-none"
+              onClick={(e) => { e.preventDefault(); setIsSummaryMode(!isSummaryMode); }}
+            >
+              <div className={`relative inline-flex h-[18px] w-8 shrink-0 items-center rounded-full transition-colors shadow-inner ${isSummaryMode ? 'bg-accent' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                <span className={`inline-block h-3 w-3 transform rounded-full bg-panel transition-transform shadow ${isSummaryMode ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
               </div>
-              <span className="text-[11px] font-medium tracking-widest text-slate-400 uppercase select-none">{t('summaryMode')}</span>
+              <span className="text-[10px] font-medium tracking-widest text-slate-400 uppercase">{t('summaryMode')}</span>
             </label>
           </div>
-          
-          <button 
+
+          {/* Row 2: primary action keeps the full width and the thumb zone. */}
+          <button
             onClick={() => handleTranslate(false)}
             disabled={loading || isTranslating || isStreaming || (!translateInput.trim() && !translateImage)}
-            className="saas-button primary-button flex-1 sm:flex-none flex items-center justify-center gap-2"
+            className="saas-button primary-button h-11 w-full flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 className="animate-spin" size={20} /> : <Languages size={20} />}
             <span>{t('translate')}</span>
