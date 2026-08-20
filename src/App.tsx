@@ -30,7 +30,7 @@ import { FallbackSpinner } from './components/FallbackSpinner';
 import { InstallBanner } from './components/InstallBanner';
 import { ChangelogModal } from './components/ChangelogModal';
 import { FloatingAssistant } from './components/FloatingAssistant';
-import { APP_VERSION } from './config/version';
+import { UPDATE_CHANGELOG } from './config/version';
 import { TranslateTab } from './components/TranslateTab';
 import { ComposeTab } from './components/ComposeTab';
 import { useTabNavigation } from './hooks/useTabNavigation';
@@ -64,11 +64,14 @@ export default function App() {
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const { preferences: userPreferences, setPreferences: setUserPreferences } = useUserPreferences();
   
+  // Keyed to the release-notes version, not APP_VERSION: the latter is bumped
+  // by the pre-commit hook on every commit, which would show this modal to
+  // every user on every deploy.
   useEffect(() => {
-    const lastSeenVersion = safeLocalStorage.getItem('app_last_seen_version');
-    if (lastSeenVersion !== APP_VERSION) {
+    const lastSeen = safeLocalStorage.getItem('app_last_seen_version');
+    if (lastSeen !== UPDATE_CHANGELOG.version) {
       setIsChangelogOpen(true);
-      safeLocalStorage.setItem('app_last_seen_version', APP_VERSION);
+      safeLocalStorage.setItem('app_last_seen_version', UPDATE_CHANGELOG.version);
     }
   }, []);
 
