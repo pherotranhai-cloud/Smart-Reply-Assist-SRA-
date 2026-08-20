@@ -30,9 +30,10 @@ export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab,
       hasBgImage ? 'bg-transparent' : 'bg-app'
     }`}>
       {/* Left Column (7/12): Dual Subtitle Panel */}
-      <div className={`col-span-7 flex flex-col h-full min-h-0 border border-border-main rounded-3xl p-6 justify-between transition-all duration-300 ${
-        hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'
-      }`}>
+      {/* bg-surface is already theme- and wallpaper-correct, so no hasBgImage
+          branch is needed. The previous bg-panel/20 gave an effective alpha of
+          0.20 x 0.85 ~= 0.17, where body text measured 1.51:1. */}
+      <div className="col-span-7 flex flex-col h-full min-h-0 border border-border-main rounded-3xl p-6 justify-between transition-all duration-300 bg-surface backdrop-blur-xl">
         <div className="flex items-center justify-between pb-4 border-b border-border-main flex-shrink-0">
           <h2 className="text-xl font-semibold text-text-main">
             {t('live_translate')}
@@ -74,8 +75,8 @@ export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab,
                 </span>
               </div>
               <div className="bg-accent/10 rounded-2xl rounded-tr-none p-5 max-w-[85%] self-end shadow-sm">
-                <p className="text-2xl font-medium text-accent leading-relaxed">{log.translated}</p>
-                <span className="text-xs text-accent/70 mt-2 block text-right">
+                <p className="text-2xl font-medium text-accent-text leading-relaxed">{log.translated}</p>
+                <span className="text-xs text-accent-text/70 mt-2 block text-right">
                   {log.timestamp.toLocaleTimeString()}
                 </span>
               </div>
@@ -94,7 +95,7 @@ export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab,
               )}
               {targetSubtitle && (
                 <div className="bg-accent/10 rounded-2xl rounded-tr-none p-5 max-w-[85%] self-end shadow-sm">
-                  <p className="text-2xl font-medium text-accent leading-relaxed">{targetSubtitle}</p>
+                  <p className="text-2xl font-medium text-accent-text leading-relaxed">{targetSubtitle}</p>
                 </div>
               )}
             </div>
@@ -121,7 +122,7 @@ export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab,
           <button 
             onClick={handleSaveHistory}
             disabled={conversationLog.length === 0 && !sourceSubtitle && !targetSubtitle}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-accent bg-accent/10 hover:bg-accent/20 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-accent-text bg-accent/10 hover:bg-accent/20 transition-colors disabled:opacity-50"
           >
             <Save size={18} />
             <span className="font-medium text-sm">{t('saveHistory')}</span>
@@ -130,9 +131,7 @@ export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab,
       </div>
 
       {/* Right Column (5/12): Control Panel */}
-      <div className={`col-span-5 h-full min-h-0 border border-border-main rounded-3xl p-6 flex flex-col items-center justify-center relative shadow-sm transition-all duration-300 ${
-        hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'
-      }`}>
+      <div className="col-span-5 h-full min-h-0 border border-border-main rounded-3xl p-6 flex flex-col items-center justify-center relative shadow-sm transition-all duration-300 bg-surface backdrop-blur-xl">
         
         {/* Trivia Area */}
         <div className={`w-full rounded-2xl p-6 border border-border-main min-h-[120px] flex items-center justify-center text-center shadow-inner flex-shrink-0 transition-all duration-300 ${
@@ -140,7 +139,7 @@ export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab,
         }`}>
           {isInitializing ? (
             <div className="flex flex-col items-center gap-3">
-              <div className="text-accent font-medium animate-pulse">{t('connecting')}... {connectionProgress}%</div>
+              <div className="text-accent-text font-medium animate-pulse">{t('connecting')}... {connectionProgress}%</div>
               <div className="w-48 h-1.5 bg-border-main rounded-full overflow-hidden">
                 <div className="h-full bg-accent transition-all duration-300" style={{ width: `${connectionProgress}%` }} />
               </div>
@@ -156,8 +155,8 @@ export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab,
         <div className="relative my-auto flex items-center justify-center">
           {isListening && (
             <>
-              <div className="absolute inset-0 bg-[#006D77] rounded-full animate-ping opacity-20" style={{ transform: 'scale(1.8)' }}></div>
-              <div className="absolute inset-0 bg-[#006D77] rounded-full animate-pulse opacity-30" style={{ transform: 'scale(1.4)' }}></div>
+              <div className="absolute inset-0 bg-accent rounded-full animate-ping opacity-20" style={{ transform: 'scale(1.8)' }}></div>
+              <div className="absolute inset-0 bg-accent rounded-full animate-pulse opacity-30" style={{ transform: 'scale(1.4)' }}></div>
             </>
           )}
           
@@ -168,7 +167,7 @@ export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab,
               isLimitReached 
                 ? 'bg-app border-4 border-border-main text-text-muted opacity-50 cursor-not-allowed'
                 : isListening
-                  ? 'bg-[#006D77] text-white border-4 border-[#005B63] shadow-lg shadow-[#006D77]/50'
+                  ? 'bg-accent text-white border-4 border-accent shadow-lg shadow-accent/50'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-white border-4 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 shadow-sm'
             }`}
           >
@@ -180,7 +179,7 @@ export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab,
         <div className="w-full flex flex-col gap-3 mt-auto flex-shrink-0">
           <div className="flex items-center justify-between text-sm font-medium">
             <span className="text-text-main flex items-center gap-2">
-              <AlertCircle size={16} className={isLimitReached ? "text-red-500" : "text-accent"} />
+              <AlertCircle size={16} className={isLimitReached ? "text-red-500" : "text-accent-text"} />
               {t('time_left')}
             </span>
             <span className={isLimitReached ? "text-red-500 font-bold" : "text-text-muted"}>
