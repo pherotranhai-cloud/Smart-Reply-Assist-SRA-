@@ -10,9 +10,10 @@ import Papa from 'papaparse';
 import OpenAI from 'openai';
 import {
   createSupabaseClient,
-  fetchAdminData,
-  setDeviceStatus
+  countTotalRequests,
+  fetchRecentResponses
 } from '../../shared/adminService';
+import { countOnline, recordHeartbeat } from '../../shared/presence';
 
 dotenv.config();
 
@@ -645,39 +646,40 @@ router.get('/vocab', (req, res) => {
   res.status(410).json({ error: 'Database removed. Please use client-side localStorage and /api/import-vocab to sync.' });
 });
 
-router.get('/admin/data', async (req, res) => {
-  if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
+// LƯU Ý: presence được giữ trong RAM của tiến trình. Netlify Functions là
+// stateless (mỗi cold start bắt đầu lại từ 0, nhiều instance không chia sẻ
+// Map), nên số người online chỉ chính xác trên Render server chạy liên tục.
+// Các route dưới đây tồn tại để dashboard vẫn hoạt động khi
+// VITE_RENDER_SERVER_URL trống và app chạy thuần trên Netlify.
+
+router.post('/presence/ping', (req, res) => {
+  const { sessionId } = req.body || {};
+  if (typeof sessionId !== 'string' || sessionId.trim() === '') {
+    return res.status(400).json({ error: 'Missing or invalid sessionId' });
+  }
+  res.json({ online: recordHeartbeat(sessionId.trim()) });
+});
+
+router.get('/admin/metrics', async (req, res) => {
+  const online = countOnline();
+  if (!supabase) {
+    return res.json({ online, totalRequests: 0, supabaseConfigured: false });
+  }
   try {
-    res.json(await fetchAdminData(supabase));
+    res.json({ online, totalRequests: await countTotalRequests(supabase), supabaseConfigured: true });
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to fetch admin data' });
+    console.error('Failed to fetch admin metrics:', error);
+    res.json({ online, totalRequests: 0, supabaseConfigured: true });
   }
 });
 
-router.post('/admin/ip-tracker/status', async (req, res) => {
+router.get('/admin/responses', async (req, res) => {
   if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
-  const { ip_address, status } = req.body;
-  if (!ip_address || !status) return res.status(400).json({ error: 'Missing ip_address or status' });
-
   try {
-    await setDeviceStatus(supabase, ip_address, status);
-    res.json({ success: true });
+    res.json({ responses: await fetchRecentResponses(supabase, req.query.limit) });
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to update IP tracker status' });
-  }
-});
-
-router.post('/admin/blacklist', async (req, res) => {
-  if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
-  const { ip } = req.body;
-  if (!ip) return res.status(400).json({ error: 'Missing ip' });
-
-  try {
-    await supabase.from('ip_blacklist').insert([{ ip, created_at: new Date().toISOString() }] as any);
-    
-    res.json({ success: true });
-  } catch (error: any) {
-    res.status(500).json({ error: 'Failed to blacklist IP' });
+    console.error('Failed to fetch recent responses:', error);
+    res.status(500).json({ error: 'Failed to fetch recent responses' });
   }
 });
 

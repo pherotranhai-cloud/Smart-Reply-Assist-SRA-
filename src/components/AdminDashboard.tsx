@@ -1,158 +1,195 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ShieldAlert, BarChart3, MessageSquare, Ban, Search } from 'lucide-react';
+import { X, ShieldAlert, Users, Activity, MessageSquareText, RefreshCw } from 'lucide-react';
 
 const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || '';
+
+/** Chu kỳ tự làm mới số người đang online. */
+const ONLINE_REFRESH_MS = 15000;
+/** Số phản hồi gần nhất được tải về. */
+const RESPONSE_LIMIT = 50;
+/** Độ dài tối đa của đoạn xem trước trước khi bấm để mở rộng. */
+const PREVIEW_LENGTH = 140;
 
 interface AdminDashboardProps {
   onClose: () => void;
 }
 
-const DeviceCard = ({ ip, onStatusUpdate }: { ip: any, onStatusUpdate: (id: string, status: 'good' | 'warning' | 'block') => void }) => {
+interface AdminMetrics {
+  online: number;
+  totalRequests: number;
+  supabaseConfigured: boolean;
+}
+
+interface RecentResponse {
+  task_type: string | null;
+  input_text: string | null;
+  output_text: string | null;
+  from_lang: string | null;
+  to_lang: string | null;
+  created_at: string | null;
+}
+
+const EMPTY_METRICS: AdminMetrics = { online: 0, totalRequests: 0, supabaseConfigured: true };
+
+/** Ép mọi giá trị lạ về một số nguyên không âm để UI không bao giờ hiển thị NaN. */
+const toCount = (value: unknown): number => {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? Math.floor(num) : 0;
+};
+
+/** Mọi trường đều có thể null, nên luôn trả về chuỗi an toàn. */
+const formatDateTime = (value: string | null): string => {
+  if (!value) return 'Không rõ thời gian';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Không rõ thời gian';
+  return date.toLocaleString('vi-VN');
+};
+
+const truncate = (value: string | null, max: number): string => {
+  if (!value) return '';
+  return value.length > max ? `${value.slice(0, max)}…` : value;
+};
+
+const ResponseCard: React.FC<{ item: RecentResponse }> = ({ item }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  const input = item.input_text || '';
+  const output = item.output_text || '';
+  const canExpand = input.length > PREVIEW_LENGTH || output.length > PREVIEW_LENGTH;
+  const fromLang = item.from_lang || '—';
+  const toLang = item.to_lang || '—';
+
   return (
-    <div className="bg-panel border border-border-main rounded-2xl p-4 flex flex-col gap-4 shadow-sm relative overflow-hidden">
-      <div className="flex justify-between items-start gap-4">
-        <div className="flex flex-col flex-1 min-w-0">
-          <span className="text-sm font-bold text-text-main font-mono truncate" title={ip.device_uuid || ip.ip_address}>
-            {ip.device_uuid ? `UUID: ${ip.device_uuid.substring(0, 8)}...` : ip.ip_address}
-          </span>
-          <span className="text-xs text-text-muted mt-1">{ip.last_request_at ? new Date(ip.last_request_at).toLocaleString() : 'N/A'}</span>
-        </div>
-        <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider shrink-0 ${ip.status === 'block' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : ip.status === 'warning' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-green-500/20 text-green-400 border border-green-500/30'}`}>
-          {ip.status}
+    <div className="bg-panel border border-border-main rounded-2xl p-4 flex flex-col gap-3 shadow-sm overflow-hidden">
+      <div className="flex justify-between items-center gap-3">
+        <span className="px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-blue-500/10 text-blue-500 shrink-0 max-w-[60%] truncate">
+          {item.task_type || 'không rõ'}
         </span>
+        <span className="text-xs text-text-muted text-right truncate">{formatDateTime(item.created_at)}</span>
       </div>
 
-      {ip.spam_logs && (
-        <div className="flex flex-col gap-2">
-          <button 
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center justify-center gap-2 text-xs text-blue-400 font-medium bg-blue-500/10 px-4 py-2 rounded-xl hover:bg-blue-500/20 transition-colors w-full"
-          >
-            <Search size={14} /> {isExpanded ? 'Ẩn nhật ký spam' : '🔍 Xem nhật ký spam'}
-          </button>
-          <AnimatePresence>
-            {isExpanded && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="text-xs text-text-muted bg-bg-main p-3 rounded-xl border border-border-main whitespace-pre-wrap font-mono mt-2 max-h-64 overflow-y-auto">
-                  {ip.spam_logs}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+      <div className="text-xs font-mono text-text-muted">
+        {fromLang} <span className="text-accent">→</span> {toLang}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setIsExpanded(!isExpanded)}
+        aria-expanded={isExpanded}
+        className="flex flex-col gap-2 text-left w-full"
+      >
+        <div className="text-sm text-text-main whitespace-pre-wrap break-words">
+          <span className="text-xs font-bold text-text-muted uppercase tracking-wider block mb-0.5">Đầu vào</span>
+          {input ? (isExpanded ? input : truncate(input, PREVIEW_LENGTH)) : <span className="text-text-muted">(trống)</span>}
         </div>
-      )}
 
-      <div className="flex gap-3 mt-2">
-        {ip.status !== 'block' && (
-          <button 
-            onClick={() => onStatusUpdate(ip.ip_address, 'block')}
-            className="flex-1 h-11 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl text-sm font-bold transition-colors flex items-center justify-center"
-          >
-            Khóa vĩnh viễn
-          </button>
+        <AnimatePresence initial={false}>
+          {isExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden w-full"
+            >
+              <div className="text-sm text-text-main bg-bg-main p-3 rounded-xl border border-border-main whitespace-pre-wrap break-words max-h-64 overflow-y-auto mt-1">
+                <span className="text-xs font-bold text-text-muted uppercase tracking-wider block mb-1">Đầu ra</span>
+                {output || <span className="text-text-muted">(trống)</span>}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {!isExpanded && (
+          <div className="text-sm text-text-muted whitespace-pre-wrap break-words">
+            <span className="text-xs font-bold text-text-muted uppercase tracking-wider block mb-0.5">Đầu ra</span>
+            {output ? truncate(output, PREVIEW_LENGTH) : '(trống)'}
+          </div>
         )}
-        <button 
-          onClick={() => onStatusUpdate(ip.ip_address, 'good')}
-          className="flex-1 h-11 bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white rounded-xl text-sm font-bold transition-colors flex items-center justify-center"
-        >
-          Mở khóa / Hợp lệ
-        </button>
-      </div>
+
+        <span className="text-xs font-medium text-accent">
+          {isExpanded ? 'Thu gọn' : canExpand ? 'Bấm để xem đầy đủ' : 'Bấm để xem chi tiết'}
+        </span>
+      </button>
     </div>
   );
 };
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
-  const [stats, setStats] = useState({ day: 0, week: 0, month: 0, totalRequests: 0 });
-  const [feedbacks, setFeedbacks] = useState<any[]>([]);
-  const [ipTrackers, setIpTrackers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState<AdminMetrics>(EMPTY_METRICS);
+  const [metricsError, setMetricsError] = useState(false);
+  const [metricsLoading, setMetricsLoading] = useState(true);
 
-  useEffect(() => {
-    const loadAllData = async () => {
-      setLoading(true);
-      await Promise.all([
-        fetchKPIData(),
-        fetchFeedbacks(),
-        fetchIPTrackerData()
-      ]);
-      setLoading(false);
-    };
-    loadAllData();
+  const [responses, setResponses] = useState<RecentResponse[]>([]);
+  const [responsesError, setResponsesError] = useState(false);
+  const [responsesLoading, setResponsesLoading] = useState(true);
+
+  // Chặn setState sau khi modal đã đóng (interval có thể còn một lượt fetch dở).
+  const isMountedRef = useRef(true);
+
+  const fetchMetrics = useCallback(async () => {
+    try {
+      const res = await fetch(`${SERVER_BASE_URL}/api/admin/metrics`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!isMountedRef.current) return;
+      setMetrics({
+        online: toCount(data?.online),
+        totalRequests: toCount(data?.totalRequests),
+        supabaseConfigured: data?.supabaseConfigured !== false
+      });
+      setMetricsError(false);
+    } catch (e) {
+      console.error('[AdminDashboard] Không tải được chỉ số:', e);
+      if (!isMountedRef.current) return;
+      setMetrics(EMPTY_METRICS);
+      setMetricsError(true);
+    } finally {
+      if (isMountedRef.current) setMetricsLoading(false);
+    }
   }, []);
 
-  const fetchKPIData = async () => {
+  const fetchResponses = useCallback(async () => {
     try {
-      const res = await fetch(`${SERVER_BASE_URL}/api/admin/kpis`);
-      if (res.ok) {
-        const data = await res.json();
-        setStats({
-          day: data.stats?.day || 0,
-          week: data.stats?.week || 0,
-          month: data.stats?.month || 0,
-          totalRequests: data.stats?.totalRequests || 0
-        });
-      }
+      const res = await fetch(`${SERVER_BASE_URL}/api/admin/responses?limit=${RESPONSE_LIMIT}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!isMountedRef.current) return;
+      setResponses(Array.isArray(data?.responses) ? data.responses.slice(0, RESPONSE_LIMIT) : []);
+      setResponsesError(false);
     } catch (e) {
-      console.error(e);
+      console.error('[AdminDashboard] Không tải được danh sách phản hồi:', e);
+      if (!isMountedRef.current) return;
+      setResponses([]);
+      setResponsesError(true);
+    } finally {
+      if (isMountedRef.current) setResponsesLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    void fetchMetrics();
+    void fetchResponses();
+
+    const timer = setInterval(() => {
+      void fetchMetrics();
+    }, ONLINE_REFRESH_MS);
+
+    return () => {
+      isMountedRef.current = false;
+      clearInterval(timer);
+    };
+  }, [fetchMetrics, fetchResponses]);
+
+  const handleRefreshMetrics = () => {
+    setMetricsLoading(true);
+    void fetchMetrics();
   };
 
-  const fetchFeedbacks = async () => {
-    try {
-      const res = await fetch(`${SERVER_BASE_URL}/api/admin/feedbacks`);
-      if (res.ok) {
-        const result = await res.json();
-        if (result && Array.isArray(result.feedbacks)) {
-          setFeedbacks(result.feedbacks);
-        } else if (Array.isArray(result)) {
-          setFeedbacks(result);
-        } else {
-          setFeedbacks([]);
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const fetchIPTrackerData = async () => {
-    try {
-      const res = await fetch(`${SERVER_BASE_URL}/api/admin/devices`);
-      if (res.ok) {
-        const data = await res.json();
-        setIpTrackers(data.ipTrackers || []);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleUpdateIPStatus = async (ipAddress: string, status: 'good' | 'warning' | 'block') => {
-    try {
-      const res = await fetch(`${SERVER_BASE_URL}/api/admin/device-status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ip_address: ipAddress, status })
-      });
-      if (res.ok) {
-        alert(`Đã chuyển trạng thái thiết bị ${ipAddress} sang ${status.toUpperCase()}.`);
-        fetchIPTrackerData();
-      } else {
-        alert('Cập nhật trạng thái thất bại.');
-      }
-    } catch (e) {
-      console.error(e);
-      alert('Đã xảy ra lỗi.');
-    }
+  const handleRefreshResponses = () => {
+    setResponsesLoading(true);
+    void fetchResponses();
   };
 
   return (
@@ -169,8 +206,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
             <ShieldAlert className="text-red-500" />
             Admin Dashboard
           </h2>
-          <button 
+          <button
             onClick={onClose}
+            aria-label="Đóng bảng điều khiển"
             className="p-2 bg-panel rounded-full hover:bg-border-main/50 text-text-muted transition-colors"
           >
             <X size={20} />
@@ -178,88 +216,92 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-10 pb-20">
-          {loading ? (
-            <div className="flex items-center justify-center h-40 text-text-muted">Đang tải dữ liệu...</div>
-          ) : (
-            <>
-              {/* Phân khu 1: KPIs */}
-              <section>
-                <h3 className="text-lg font-bold text-text-main mb-4 flex items-center gap-2">
-                  <BarChart3 size={20} className="text-blue-500" />
-                  Tổng quan lượt truy cập
-                </h3>
-                <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                  <div className="bg-panel border border-border-main p-4 rounded-2xl shadow-sm">
-                    <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Hôm nay</div>
-                    <div className="text-3xl font-bold text-text-main">{stats.day}</div>
-                  </div>
-                  <div className="bg-panel border border-border-main p-4 rounded-2xl shadow-sm">
-                    <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Tuần này</div>
-                    <div className="text-3xl font-bold text-text-main">{stats.week}</div>
-                  </div>
-                  <div className="bg-panel border border-border-main p-4 rounded-2xl shadow-sm">
-                    <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Tháng này</div>
-                    <div className="text-3xl font-bold text-accent">{stats.month}</div>
-                  </div>
-                  <div className="bg-panel border border-border-main p-4 rounded-2xl shadow-sm border-accent/30 bg-accent/5">
-                    <div className="text-xs font-medium text-accent uppercase tracking-wider mb-1">Tổng Requests</div>
-                    <div className="text-3xl font-bold text-accent">{stats.totalRequests}</div>
-                  </div>
+          {/* Phân khu 1: Chỉ số hệ thống */}
+          <section>
+            <div className="flex justify-between items-center gap-3 mb-4">
+              <h3 className="text-lg font-bold text-text-main flex items-center gap-2">
+                <Activity size={20} className="text-accent" />
+                Chỉ số hệ thống
+              </h3>
+              <button
+                onClick={handleRefreshMetrics}
+                aria-label="Làm mới chỉ số hệ thống"
+                className="p-2 bg-panel border border-border-main rounded-full text-text-muted hover:bg-border-main/50 transition-colors shrink-0"
+              >
+                <RefreshCw size={16} className={metricsLoading ? 'animate-spin' : ''} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <div className="bg-panel border border-border-main p-4 rounded-2xl shadow-sm">
+                <div className="text-xs font-medium text-text-muted uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <Users size={14} className="text-green-500 shrink-0" />
+                  Người đang online
                 </div>
-              </section>
-
-              {/* Phân khu 2: Feedbacks */}
-              <section>
-                <h3 className="text-lg font-bold text-text-main mb-4 flex items-center gap-2">
-                  <MessageSquare size={20} className="text-purple-500" />
-                  Ý kiến người dùng
-                </h3>
-                {feedbacks.length === 0 ? (
-                  <div className="text-center p-6 text-sm text-text-muted bg-panel rounded-2xl border border-border-main">
-                    Chưa có ý kiến phản hồi nào.
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-3">
-                    {feedbacks.map((fb, idx) => (
-                      <div key={idx} className="bg-panel border border-border-main p-4 rounded-2xl shadow-sm flex flex-col gap-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-text-muted">{fb.created_at ? new Date(fb.created_at).toLocaleString() : ''}</span>
-                          <span className="text-xs font-medium bg-border-main/50 px-2 py-0.5 rounded text-text-muted">{fb.interface_lang || 'unknown'}</span>
-                        </div>
-                        <p className="text-sm text-text-main">{fb.content}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              {/* Phân khu 3: Quản lý IP / Thiết bị */}
-              <section>
-                <div className="mb-4">
-                  <h3 className="text-lg font-bold text-text-main mb-1 flex items-center gap-2">
-                    <Ban size={20} className="text-red-500" />
-                    Quản Lý Thiết Bị Toàn Cục
-                  </h3>
-                  <p className="text-xs text-slate-500 opacity-80">
-                    Hệ thống quản lý trạng thái truy cập theo mã định danh thiết bị.
-                  </p>
+                <div className="text-3xl font-bold text-text-main">{metrics.online}</div>
+              </div>
+              <div className="border border-accent/30 bg-accent/5 p-4 rounded-2xl shadow-sm">
+                <div className="text-xs font-medium text-accent uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <Activity size={14} className="shrink-0" />
+                  Tổng Requests
                 </div>
-                
-                {ipTrackers.length === 0 ? (
-                  <div className="text-center p-6 text-sm text-text-muted bg-panel rounded-2xl border border-border-main">
-                    Không có thiết bị nào được ghi nhận.
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-4">
-                    {ipTrackers.map((ip, idx) => (
-                      <DeviceCard key={idx} ip={ip} onStatusUpdate={handleUpdateIPStatus} />
-                    ))}
-                  </div>
-                )}
-              </section>
+                <div className="text-3xl font-bold text-accent">{metrics.totalRequests}</div>
+              </div>
+            </div>
 
-            </>
-          )}
+            <p className="text-xs text-text-muted mt-3">
+              Số người online được cập nhật tự động mỗi 15 giây.
+            </p>
+
+            {metricsError && (
+              <div className="mt-3 flex items-start gap-2 text-xs text-text-muted bg-panel border border-border-main rounded-xl px-3 py-2">
+                <ShieldAlert size={14} className="text-red-500 shrink-0 mt-0.5" />
+                <span>Không kết nối được máy chủ chỉ số. Tạm hiển thị giá trị 0.</span>
+              </div>
+            )}
+
+            {!metricsError && !metrics.supabaseConfigured && (
+              <div className="mt-3 flex items-start gap-2 text-xs text-text-muted bg-blue-500/10 border border-border-main rounded-xl px-3 py-2">
+                <ShieldAlert size={14} className="text-blue-500 shrink-0 mt-0.5" />
+                <span>Máy chủ chưa cấu hình Supabase, vì vậy “Tổng Requests” luôn bằng 0.</span>
+              </div>
+            )}
+          </section>
+
+          {/* Phân khu 2: 50 phản hồi gần nhất */}
+          <section>
+            <div className="flex justify-between items-center gap-3 mb-4">
+              <h3 className="text-lg font-bold text-text-main flex items-center gap-2">
+                <MessageSquareText size={20} className="text-blue-500" />
+                50 phản hồi gần nhất
+              </h3>
+              <button
+                onClick={handleRefreshResponses}
+                aria-label="Làm mới danh sách phản hồi"
+                className="p-2 bg-panel border border-border-main rounded-full text-text-muted hover:bg-border-main/50 transition-colors shrink-0"
+              >
+                <RefreshCw size={16} className={responsesLoading ? 'animate-spin' : ''} />
+              </button>
+            </div>
+
+            {responsesLoading && responses.length === 0 ? (
+              <div className="text-center p-6 text-sm text-text-muted bg-panel rounded-2xl border border-border-main">
+                Đang tải dữ liệu...
+              </div>
+            ) : responses.length === 0 ? (
+              <div className="text-center p-6 text-sm text-text-muted bg-panel rounded-2xl border border-border-main">
+                {responsesError
+                  ? 'Không tải được danh sách phản hồi. Vui lòng thử làm mới.'
+                  : 'Chưa có phản hồi nào được ghi nhận.'}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {responses.map((item, idx) => (
+                  <ResponseCard key={`${item.created_at || 'na'}-${idx}`} item={item} />
+                ))}
+              </div>
+            )}
+          </section>
         </div>
       </motion.div>
     </div>

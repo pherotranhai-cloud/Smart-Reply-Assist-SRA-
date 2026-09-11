@@ -4,13 +4,10 @@ import cors from 'cors';
 import pkg from './package.json';
 import {
   createSupabaseClient,
-  fetchAdminData,
-  fetchFeedbacks,
-  fetchIpTrackers,
-  fetchRecentLogs,
-  fetchStats,
-  setDeviceStatus
+  countTotalRequests,
+  fetchRecentResponses
 } from './shared/adminService';
+import { countOnline, recordHeartbeat } from './shared/presence';
 
 dotenv.config();
 
@@ -103,14 +100,13 @@ async function startServer() {
   // POST /api/public/log
   apiRouter.post('/public/log', async (req, res) => {
     if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
-    const { task_type, input_text, output_text, device_uuid, from_lang, to_lang } = req.body;
+    const { task_type, input_text, output_text, from_lang, to_lang } = req.body;
     try {
       await supabase.from('app_logs').insert([
         {
           task_type,
           input_text,
           output_text,
-          device_uuid,
           from_lang,
           to_lang,
           created_at: new Date().toISOString()
@@ -123,79 +119,37 @@ async function startServer() {
     }
   });
 
-  // GET /api/admin/kpis
-  apiRouter.get('/admin/kpis', async (req, res) => {
-    if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
+  // POST /api/presence/ping — nhịp tim giữ phiên "đang online" (chỉ lưu trong RAM)
+  apiRouter.post('/presence/ping', (req, res) => {
+    const { sessionId } = req.body || {};
+    if (typeof sessionId !== 'string' || sessionId.trim() === '') {
+      return res.status(400).json({ error: 'Missing or invalid sessionId' });
+    }
+    res.json({ online: recordHeartbeat(sessionId.trim()) });
+  });
+
+  // GET /api/admin/metrics — số người online + tổng requests
+  apiRouter.get('/admin/metrics', async (req, res) => {
+    const online = countOnline();
+    if (!supabase) {
+      return res.json({ online, totalRequests: 0, supabaseConfigured: false });
+    }
     try {
-      res.json({ success: true, stats: await fetchStats(supabase) });
+      res.json({ online, totalRequests: await countTotalRequests(supabase), supabaseConfigured: true });
     } catch (error: any) {
-      console.error('Failed to fetch KPIs:', error);
-      res.status(500).json({ error: 'Failed to fetch KPIs' });
+      console.error('Failed to fetch admin metrics:', error);
+      res.json({ online, totalRequests: 0, supabaseConfigured: true });
     }
   });
 
-  // GET /api/admin/feedbacks
-  apiRouter.get('/admin/feedbacks', async (req, res) => {
+  // GET /api/admin/responses — 50 phản hồi gần nhất của app
+  apiRouter.get('/admin/responses', async (req, res) => {
     if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
     try {
-      res.json({ feedbacks: await fetchFeedbacks(supabase, 100) });
+      res.json({ responses: await fetchRecentResponses(supabase, req.query.limit) });
     } catch (error: any) {
-      console.error('Failed to fetch feedbacks:', error);
-      res.status(500).json({ error: 'Failed to fetch feedbacks' });
-    }
-  });
-
-  // GET /api/admin/devices
-  apiRouter.get('/admin/devices', async (req, res) => {
-    if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
-    try {
-      const [ipTrackers, logs] = await Promise.all([
-        fetchIpTrackers(supabase),
-        fetchRecentLogs(supabase)
-      ]);
-      res.json({ ipTrackers, logs });
-    } catch (error: any) {
-      console.error('Failed to fetch devices and logs:', error);
-      res.status(500).json({ error: 'Failed to fetch devices' });
-    }
-  });
-
-  // POST /api/admin/device-status
-  apiRouter.post('/admin/device-status', async (req, res) => {
-    if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
-    const { ip_address, device_uuid, status } = req.body;
-    const targetId = ip_address || device_uuid;
-    if (!targetId || !status) return res.status(400).json({ error: 'Missing device_uuid/ip_address or status' });
-
-    try {
-      await setDeviceStatus(supabase, targetId, status);
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error('Failed to update device status:', error);
-      res.status(500).json({ error: 'Failed to update device status' });
-    }
-  });
-
-  // Backward compatibility routes
-  apiRouter.get('/admin/data', async (req, res) => {
-    if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
-    try {
-      res.json({ success: true, ...(await fetchAdminData(supabase)) });
-    } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch admin data' });
-    }
-  });
-
-  apiRouter.post('/admin/ip-tracker/status', async (req, res) => {
-    if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
-    const { ip_address, status } = req.body;
-    if (!ip_address || !status) return res.status(400).json({ error: 'Missing ip_address or status' });
-
-    try {
-      await setDeviceStatus(supabase, ip_address, status);
-      res.json({ success: true });
-    } catch (error: any) {
-      res.status(500).json({ error: 'Failed to update IP tracker status' });
+      console.error('Failed to fetch recent responses:', error);
+      res.status(500).json({ error: 'Failed to fetch recent responses' });
     }
   });
 

@@ -1,6 +1,5 @@
 import { AISettings, VocabItem } from '../types';
 import axios from 'axios';
-import { safeLocalStorage } from '../utils/safeStorage';
 
 export class AIService {
   private settings: AISettings;
@@ -158,7 +157,6 @@ export class AIService {
         const { value, done } = await reader.read();
         if (done) {
           try {
-            const deviceUuid = safeLocalStorage.getItem('aima_device_uuid') || null;
             const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || '';
             fetch(`${SERVER_BASE_URL}/api/public/log`, {
               method: 'POST',
@@ -170,8 +168,7 @@ export class AIService {
                 input_text: text,
                 output_text: accumulatedText,
                 from_lang: 'auto',
-                to_lang: targetLang,
-                device_uuid: deviceUuid
+                to_lang: targetLang
               })
             }).catch(logErr => {
               console.error('[Log Forwarding Failed]:', logErr);
@@ -219,7 +216,6 @@ export class AIService {
       const generatedReply = response.data.generatedReply;
       
       try {
-        const deviceUuid = safeLocalStorage.getItem('aima_device_uuid') || null;
         const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || '';
         fetch(`${SERVER_BASE_URL}/api/public/log`, {
           method: 'POST',
@@ -231,8 +227,7 @@ export class AIService {
             input_text: contextText + '\n' + requirements,
             output_text: generatedReply,
             from_lang: 'auto',
-            to_lang: params.lang,
-            device_uuid: deviceUuid
+            to_lang: params.lang
           })
         }).catch(logErr => {
           console.error('[Log Forwarding Failed]:', logErr);
