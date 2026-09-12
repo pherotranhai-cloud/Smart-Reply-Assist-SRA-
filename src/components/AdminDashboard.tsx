@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { X, ShieldAlert, Users, Activity, MessageSquareText, RefreshCw } from 'lucide-react';
+import { motion } from 'motion/react';
+import { X, ShieldAlert, Users, Activity, MessageSquareText, RefreshCw, ChevronDown } from 'lucide-react';
 
 const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || '';
 
@@ -8,8 +8,6 @@ const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || '';
 const ONLINE_REFRESH_MS = 15000;
 /** Số phản hồi gần nhất được tải về. */
 const RESPONSE_LIMIT = 50;
-/** Độ dài tối đa của đoạn xem trước trước khi bấm để mở rộng. */
-const PREVIEW_LENGTH = 140;
 
 interface AdminDashboardProps {
   onClose: () => void;
@@ -38,80 +36,67 @@ const toCount = (value: unknown): number => {
   return Number.isFinite(num) && num > 0 ? Math.floor(num) : 0;
 };
 
-/** Mọi trường đều có thể null, nên luôn trả về chuỗi an toàn. */
-const formatDateTime = (value: string | null): string => {
-  if (!value) return 'Không rõ thời gian';
+/**
+ * Mốc thời gian đủ ngắn để nằm cùng dòng với badge: chỉ giờ cho hôm nay,
+ * thêm ngày/tháng cho các mốc cũ hơn. Mọi trường đều có thể null.
+ */
+const formatStamp = (value: string | null): string => {
+  if (!value) return '--';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Không rõ thời gian';
-  return date.toLocaleString('vi-VN');
+  if (Number.isNaN(date.getTime())) return '--';
+  const hhmmss = date.toLocaleTimeString('vi-VN', { hour12: false });
+  if (date.toDateString() === new Date().toDateString()) return hhmmss;
+  return `${date.getDate()}/${date.getMonth() + 1} ${hhmmss.slice(0, 5)}`;
 };
 
-const truncate = (value: string | null, max: number): string => {
-  if (!value) return '';
-  return value.length > max ? `${value.slice(0, max)}…` : value;
+/**
+ * from_lang luôn là 'auto' (ai.ts hardcode), nên hiện "auto →" chỉ tốn chỗ.
+ * Chỉ dựng mũi tên hai chiều khi nguồn thực sự mang thông tin.
+ */
+const langLabel = (from: string | null, to: string | null): string => {
+  const target = to || '—';
+  return from && from !== 'auto' ? `${from} → ${target}` : `→ ${target}`;
 };
 
+/**
+ * Một dòng phản hồi: header gọn trên một dòng, rồi đầu vào và đầu ra.
+ *
+ * Thu gọn thì cắt bằng line-clamp thay vì cắt theo số ký tự — chữ Hán rộng
+ * gấp đôi chữ Latin nên một ngưỡng ký tự cố định luôn sai cho ít nhất một bên.
+ * Nhãn "ĐẦU VÀO"/"ĐẦU RA" bị bỏ: thứ tự và tương phản màu đã nói đủ.
+ */
 const ResponseCard: React.FC<{ item: RecentResponse }> = ({ item }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const input = item.input_text || '';
   const output = item.output_text || '';
-  const canExpand = input.length > PREVIEW_LENGTH || output.length > PREVIEW_LENGTH;
-  const fromLang = item.from_lang || '—';
-  const toLang = item.to_lang || '—';
 
   return (
-    <div className="bg-panel border border-border-main rounded-2xl p-4 flex flex-col gap-3 shadow-sm overflow-hidden">
-      <div className="flex justify-between items-center gap-3">
-        <span className="px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-blue-500/10 text-blue-500 shrink-0 max-w-[60%] truncate">
-          {item.task_type || 'không rõ'}
+    <button
+      type="button"
+      onClick={() => setIsExpanded(!isExpanded)}
+      aria-expanded={isExpanded}
+      className="w-full text-left bg-panel border border-border-main rounded-xl px-3 py-2 flex flex-col gap-0.5 hover:bg-border-main/20 transition-colors"
+    >
+      <div className="flex items-center gap-2 text-[11px] leading-4 text-text-muted">
+        <span className="font-bold uppercase tracking-wider text-blue-500 shrink-0">
+          {item.task_type || 'n/a'}
         </span>
-        <span className="text-xs text-text-muted text-right truncate">{formatDateTime(item.created_at)}</span>
+        <span className="font-mono truncate">{langLabel(item.from_lang, item.to_lang)}</span>
+        <span className="ml-auto shrink-0 tabular-nums">{formatStamp(item.created_at)}</span>
+        <ChevronDown
+          size={12}
+          className={`shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+        />
       </div>
 
-      <div className="text-xs font-mono text-text-muted">
-        {fromLang} <span className="text-accent">→</span> {toLang}
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setIsExpanded(!isExpanded)}
-        aria-expanded={isExpanded}
-        className="flex flex-col gap-2 text-left w-full"
-      >
-        <div className="text-sm text-text-main whitespace-pre-wrap break-words">
-          <span className="text-xs font-bold text-text-muted uppercase tracking-wider block mb-0.5">Đầu vào</span>
-          {input ? (isExpanded ? input : truncate(input, PREVIEW_LENGTH)) : <span className="text-text-muted">(trống)</span>}
-        </div>
-
-        <AnimatePresence initial={false}>
-          {isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden w-full"
-            >
-              <div className="text-sm text-text-main bg-bg-main p-3 rounded-xl border border-border-main whitespace-pre-wrap break-words max-h-64 overflow-y-auto mt-1">
-                <span className="text-xs font-bold text-text-muted uppercase tracking-wider block mb-1">Đầu ra</span>
-                {output || <span className="text-text-muted">(trống)</span>}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {!isExpanded && (
-          <div className="text-sm text-text-muted whitespace-pre-wrap break-words">
-            <span className="text-xs font-bold text-text-muted uppercase tracking-wider block mb-0.5">Đầu ra</span>
-            {output ? truncate(output, PREVIEW_LENGTH) : '(trống)'}
-          </div>
-        )}
-
-        <span className="text-xs font-medium text-accent">
-          {isExpanded ? 'Thu gọn' : canExpand ? 'Bấm để xem đầy đủ' : 'Bấm để xem chi tiết'}
-        </span>
-      </button>
-    </div>
+      <p className={`text-[13px] text-text-muted break-words ${isExpanded ? 'whitespace-pre-wrap' : 'line-clamp-1'}`}>
+        {input || '(trống)'}
+      </p>
+      <p className={`text-sm text-text-main break-words ${isExpanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>
+        {output || '(trống)'}
+      </p>
+    </button>
   );
 };
 
@@ -215,7 +200,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-10 pb-20">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 pb-20">
           {/* Phân khu 1: Chỉ số hệ thống */}
           <section>
             <div className="flex justify-between items-center gap-3 mb-4">
@@ -295,7 +280,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                   : 'Chưa có phản hồi nào được ghi nhận.'}
               </div>
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
                 {responses.map((item, idx) => (
                   <ResponseCard key={`${item.created_at || 'na'}-${idx}`} item={item} />
                 ))}
