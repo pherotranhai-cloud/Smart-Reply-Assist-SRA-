@@ -36,6 +36,7 @@ import { ComposeTab } from './components/ComposeTab';
 import { useTabNavigation } from './hooks/useTabNavigation';
 import { useTranslateTab } from './hooks/useTranslateTab';
 import { useComposeTab } from './hooks/useComposeTab';
+import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat';
 
 const VocabManager = lazy(() => import('./components/VocabManager').then(module => ({ default: module.VocabManager })));
 const SettingsPanel = lazy(() => import('./components/SettingsPanel').then(module => ({ default: module.SettingsPanel })));
@@ -46,6 +47,9 @@ const HistoryTab = lazy(() => import('./components/HistoryTab').then(module => (
 // --- Main App ---
 
 export default function App() {
+  // Nhịp heartbeat cho chỉ số "số người online" của Admin Dashboard
+  usePresenceHeartbeat();
+
   const { activeTab, setActiveTab } = useTabNavigation();
   const [state, setState] = useState<AppState>(DEFAULT_STATE);
   const [vocab, setVocab] = useState<VocabItem[]>([]);
