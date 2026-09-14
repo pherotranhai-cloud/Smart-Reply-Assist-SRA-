@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Agent worktrees created by the Claude Code harness; machine-local scratch.
+.claude/worktrees/
