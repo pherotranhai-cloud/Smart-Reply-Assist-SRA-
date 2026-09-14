@@ -236,6 +236,7 @@ export const translations = {
     "personalization.default_background": "Default Background",
     "personalization.active_badge": "Active",
     "personalization.remove_wallpaper": "Remove",
+    "personalization.fontSize.preview": "Every conversation, in the size that reads best.",
   },
   vi: {
     translate: 'Dịch',
@@ -474,6 +475,7 @@ export const translations = {
     "personalization.default_background": "Nền mặc định",
     "personalization.active_badge": "Đang dùng",
     "personalization.remove_wallpaper": "Xóa hình nền",
+    "personalization.fontSize.preview": "Mỗi cuộc trò chuyện, ở cỡ chữ bạn đọc thoải mái nhất.",
   },
   'zh-CN': {
     translate: '翻译',
@@ -683,6 +685,7 @@ export const translations = {
     "personalization.default_background": "默认背景",
     "personalization.active_badge": "使用中",
     "personalization.remove_wallpaper": "删除",
+    "personalization.fontSize.preview": "每一次对话，都用最易读的字号呈现。",
   },
   'zh-TW': {
     translate: '翻譯',
@@ -892,5 +895,6 @@ export const translations = {
     "personalization.default_background": "預設背景",
     "personalization.active_badge": "使用中",
     "personalization.remove_wallpaper": "刪除",
+    "personalization.fontSize.preview": "每一次對話，都用最易讀的字級呈現。",
   }
 };

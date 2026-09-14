@@ -18,6 +18,7 @@ import { MAX_SAVED_WALLPAPERS } from '../utils/imageResize';
 import { APP_VERSION } from '../config/version';
 import { SUPPORTED_MODELS } from '../constants';
 import { DEFAULT_WALLPAPERS, WallpaperOption } from '../constants/wallpapers';
+import { TypographySection } from './settings/TypographySection';
 
 export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
   globalLanguage,
@@ -94,73 +95,12 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
               </div>
             </div>
 
-            {/* Font Selector */}
-            <div>
-              <span className="text-[13px] font-medium text-text-muted mb-2 block">
-                {t('personalization.font') || 'Phông chữ hệ thống'}
-              </span>
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { id: 'sans', key: 'personalization.font.sans', label: 'Sans (Standard)', style: 'font-sans' },
-                  { id: 'mono', key: 'personalization.font.mono', label: 'Mono (Technical)', style: 'font-mono' },
-                  { id: 'serif', key: 'personalization.font.serif', label: 'Serif (Classic)', style: 'font-serif' },
-                  { id: 'playfair', key: 'personalization.font.playfair', label: 'Fancy (Playfair)', style: 'font-custom-fancy' }
-                ].map((opt) => (
-                  <button
-                    key={opt.id}
-                    onClick={() => {
-                      onUserPreferencesChange({
-                        ...userPreferences,
-                        fontFamily: opt.id as any
-                      });
-                    }}
-                    className={`p-3 rounded-xl border text-left transition-all ${
-                      userPreferences.fontFamily === opt.id
-                        ? 'border-accent bg-accent/5 text-text-main font-semibold'
-                        : 'border-border-main text-text-muted hover:border-text-muted/30 hover:text-text-main'
-                    }`}
-                  >
-                    <div className="text-[11px] text-text-muted mb-1 font-sans">Abc</div>
-                    <div className={`text-[15px] truncate ${opt.style}`}>
-                      {t(opt.key) || opt.label}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Font Size Selector */}
-            <div>
-              <span className="text-[13px] font-medium text-text-muted mb-2 block">
-                {t('personalization.fontSize') || 'Kích thước chữ'}
-              </span>
-              <div className="flex bg-text-muted/10 rounded-lg p-1 max-w-sm">
-                {[
-                  { id: 'sm', key: 'personalization.fontSize.sm', label: 'A-' },
-                  { id: 'base', key: 'personalization.fontSize.base', label: 'A' },
-                  { id: 'lg', key: 'personalization.fontSize.lg', label: 'A+' },
-                  { id: 'xl', key: 'personalization.fontSize.xl', label: 'A++' }
-                ].map((opt) => (
-                  <button
-                    key={opt.id}
-                    title={t(opt.key)}
-                    onClick={() => {
-                      onUserPreferencesChange({
-                        ...userPreferences,
-                        fontSize: opt.id as any
-                      });
-                    }}
-                    className={`flex-1 py-1.5 text-[13px] font-medium rounded-md transition-all ${
-                      userPreferences.fontSize === opt.id
-                        ? 'bg-panel text-text-main shadow-sm font-semibold'
-                        : 'text-text-muted hover:text-text-main'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* Typography: font family + text size */}
+            <TypographySection
+              userPreferences={userPreferences}
+              onUserPreferencesChange={onUserPreferencesChange}
+              t={t}
+            />
 
             {/* Background Image / Glassmorphic Preset Selector */}
             <div>
