@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, Suspense, lazy } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useState, useEffect, useCallback, Suspense, lazy, type ReactNode } from 'react';
+import { motion, AnimatePresence, MotionConfig, useReducedMotion, type Variants } from 'motion/react';
 import 'katex/dist/katex.min.css';
 import { storage } from './services/storage';
 import { AIService } from './services/ai';
@@ -33,7 +33,7 @@ import { FloatingAssistant } from './components/FloatingAssistant';
 import { UPDATE_CHANGELOG } from './config/version';
 import { TranslateTab } from './components/TranslateTab';
 import { ComposeTab } from './components/ComposeTab';
-import { useTabNavigation } from './hooks/useTabNavigation';
+import { useTabNavigation, type TabType } from './hooks/useTabNavigation';
 import { useTranslateTab } from './hooks/useTranslateTab';
 import { useComposeTab } from './hooks/useComposeTab';
 import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat';
@@ -43,6 +43,70 @@ const SettingsPanel = lazy(() => import('./components/SettingsPanel').then(modul
 const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
 const TalkTab = lazy(() => import('./components/TalkTab').then(module => ({ default: module.TalkTab })));
 const HistoryTab = lazy(() => import('./components/HistoryTab').then(module => ({ default: module.HistoryTab })));
+
+// The order of the mobile bottom nav. The sign of the index delta between the
+// outgoing and the incoming tab decides which way the pages slide, so a forward
+// jump enters from the right and a back jump from the left (iOS push/pop).
+// (The desktop sidebar lists vocab and history the other way round, so that one
+// pair reads as a back gesture there.)
+const TAB_ORDER: TabType[] = ['translate', 'talk', 'compose', 'vocab', 'history', 'settings'];
+
+// `direction` arrives through AnimatePresence's `custom`: 1 = forward, -1 = back.
+const tabVariants: Variants = {
+  enter: (direction: number) => ({ opacity: 0, x: direction < 0 ? -28 : 28 }),
+  center: {
+    opacity: 1,
+    x: 0,
+    // restDelta stops the spring from trailing a fraction of a pixel for the
+    // best part of a second: while a page still holds a transform it is the
+    // containing block for any `position: fixed` child of the tab, such as
+    // Compose's action bar.
+    transition: {
+      x: { type: 'spring', stiffness: 400, damping: 34, mass: 0.7, restDelta: 0.5 },
+      opacity: { duration: 0.18 },
+    },
+  },
+  // mode="wait" plays exit and enter back to back, so the outgoing page leaves on
+  // a short tween instead of a spring - a settling spring here would add ~half a
+  // second before the new tab even starts.
+  exit: (direction: number) => ({
+    opacity: 0,
+    x: direction < 0 ? 28 : -28,
+    transition: { duration: 0.13, ease: 'easeIn' },
+  }),
+};
+
+const reducedTabVariants: Variants = {
+  enter: { opacity: 0 },
+  center: { opacity: 1, transition: { duration: 0.12 } },
+  exit: { opacity: 0, transition: { duration: 0.08 } },
+};
+
+// One page of the pager. The nested AnimatePresence is a shield, not a second
+// transition: several tabs still carry their own spring `exit` props, and
+// AnimatePresence waits for every motion component in the leaving subtree, so
+// those springs would hold the next tab back by the best part of a second.
+// Marking the page's own content as present leaves the exit to this wrapper
+// alone, while the content keeps the mount animations it has always had.
+function TabPage({ direction, reducedMotion, className, children }: {
+  direction: number;
+  reducedMotion: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <motion.div
+      custom={direction}
+      variants={reducedMotion ? reducedTabVariants : tabVariants}
+      initial="enter"
+      animate="center"
+      exit="exit"
+      className={className}
+    >
+      <AnimatePresence>{children}</AnimatePresence>
+    </motion.div>
+  );
+}
 
 // --- Main App ---
 
@@ -67,6 +131,25 @@ export default function App() {
   const [isCopied, setIsCopied] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const { preferences: userPreferences, setPreferences: setUserPreferences } = useUserPreferences();
+
+  const prefersReducedMotion = useReducedMotion();
+
+  // Slide direction is derived while rendering and then frozen until the next
+  // tab change. It cannot be computed in an effect: with mode="wait" the
+  // incoming page mounts after the outgoing one has left, and it reads `custom`
+  // at that moment - an effect would already have reset it to 0 by then.
+  const [tabTransition, setTabTransition] = useState({ tab: activeTab, direction: 1 });
+  if (tabTransition.tab !== activeTab) {
+    setTabTransition({
+      tab: activeTab,
+      direction: TAB_ORDER.indexOf(activeTab) < TAB_ORDER.indexOf(tabTransition.tab) ? -1 : 1,
+    });
+  }
+
+  const tabPageProps = {
+    direction: tabTransition.direction,
+    reducedMotion: !!prefersReducedMotion,
+  };
   
   // Keyed to the release-notes version, not APP_VERSION: the latter is bumped
   // by the pre-commit hook on every commit, which would show this modal to
@@ -421,6 +504,9 @@ export default function App() {
   }, [showToast, t]);
 
   return (
+    // reducedMotion="user" hands the OS setting to every motion component in the
+    // app: the CSS media query alone does not reach JS-driven springs.
+    <MotionConfig reducedMotion="user">
     <>
       <BackgroundCanvas preferences={userPreferences} />
 
@@ -460,108 +546,97 @@ export default function App() {
         t={t}
         userPreferences={userPreferences}
       >
-      <div className="flex-1 overflow-y-auto pb-24">
+      {/* The pages slide sideways, and overflow-y-auto on its own computes the
+          other axis to auto - which would let the slide scroll sideways. clip,
+          not hidden, so the container never gains a stray scroll position. */}
+      <div className="flex-1 overflow-y-auto overflow-x-clip pb-24">
+        <AnimatePresence mode="wait" initial={false} custom={tabTransition.direction}>
         {activeTab === 'translate' && (
-          <TranslateTab
-            translate={translateTab}
-            state={state}
-            setState={setState}
-            vocab={vocab}
-            t={t}
-            showToast={showToast}
-            isListening={isListening}
-            interimTranscript={interimTranscript}
-            activeTab={activeTab}
-            setContext={setContext}
-            stopSpeaking={stopSpeaking}
-            setLoading={setLoading}
-            isStreaming={isStreaming}
-            setIsStreaming={setIsStreaming}
-            handleToggleListening={handleToggleListening}
-            handleSpeak={handleSpeak}
-            handleCopy={handleCopy}
-            isSpeaking={isSpeaking}
-            isCopied={isCopied}
-            loading={loading}
-            transcript={transcript}
-            setTranscript={setTranscript}
-            userPreferences={userPreferences}
-          />
+          <TabPage key="translate" {...tabPageProps}>
+            <TranslateTab
+              translate={translateTab}
+              state={state}
+              setState={setState}
+              vocab={vocab}
+              t={t}
+              showToast={showToast}
+              isListening={isListening}
+              interimTranscript={interimTranscript}
+              activeTab={activeTab}
+              setContext={setContext}
+              stopSpeaking={stopSpeaking}
+              setLoading={setLoading}
+              isStreaming={isStreaming}
+              setIsStreaming={setIsStreaming}
+              handleToggleListening={handleToggleListening}
+              handleSpeak={handleSpeak}
+              handleCopy={handleCopy}
+              isSpeaking={isSpeaking}
+              isCopied={isCopied}
+              loading={loading}
+              transcript={transcript}
+              setTranscript={setTranscript}
+              userPreferences={userPreferences}
+            />
+          </TabPage>
         )}
 
         {activeTab === 'compose' && (
-          <ComposeTab
-            compose={composeTab}
-            state={state}
-            setState={setState}
-            vocab={vocab}
-            t={t}
-            showToast={showToast}
-            activeTab={activeTab}
-            context={context}
-            stopSpeaking={stopSpeaking}
-            setLoading={setLoading}
-            handleExtract={handleExtract}
-            isListening={isListening}
-            interimTranscript={interimTranscript}
-            handleToggleListening={handleToggleListening}
-            handleSpeak={handleSpeak}
-            copyToClipboard={copyToClipboard}
-            isSpeaking={isSpeaking}
-            loading={loading}
-            transcript={transcript}
-            setTranscript={setTranscript}
-            userPreferences={userPreferences}
-          />
+          <TabPage key="compose" {...tabPageProps} className="h-full">
+            <ComposeTab
+              compose={composeTab}
+              state={state}
+              setState={setState}
+              vocab={vocab}
+              t={t}
+              showToast={showToast}
+              activeTab={activeTab}
+              context={context}
+              stopSpeaking={stopSpeaking}
+              setLoading={setLoading}
+              handleExtract={handleExtract}
+              isListening={isListening}
+              interimTranscript={interimTranscript}
+              handleToggleListening={handleToggleListening}
+              handleSpeak={handleSpeak}
+              copyToClipboard={copyToClipboard}
+              isSpeaking={isSpeaking}
+              loading={loading}
+              transcript={transcript}
+              setTranscript={setTranscript}
+              userPreferences={userPreferences}
+            />
+          </TabPage>
         )}
 
         {activeTab === 'vocab' && (
-          <motion.div 
-            key="vocab"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="h-full"
-          >
+          <TabPage key="vocab" {...tabPageProps} className="h-full">
             <div className="premium-card h-full flex flex-col">
               <Suspense fallback={<FallbackSpinner />}>
                 <VocabManager t={t} userPreferences={userPreferences} />
               </Suspense>
             </div>
-          </motion.div>
+          </TabPage>
         )}
 
         {activeTab === 'talk' && (
-          <Suspense fallback={<FallbackSpinner />}>
-            <TalkTab settings={state.settings} vocab={vocab} t={t} showToast={showToast} userPreferences={userPreferences} />
-          </Suspense>
+          <TabPage key="talk" {...tabPageProps} className="h-full">
+            <Suspense fallback={<FallbackSpinner />}>
+              <TalkTab settings={state.settings} vocab={vocab} t={t} showToast={showToast} userPreferences={userPreferences} />
+            </Suspense>
+          </TabPage>
         )}
 
         {activeTab === 'history' && (
-          <motion.div 
-            key="history"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="h-full overflow-y-auto"
-          >
+          <TabPage key="history" {...tabPageProps} className="h-full overflow-y-auto">
             <Suspense fallback={<FallbackSpinner />}>
               <HistoryTab t={t} showToast={showToast} onReuse={handleReuse} userPreferences={userPreferences} />
             </Suspense>
-          </motion.div>
+          </TabPage>
         )}
 
         {activeTab === 'settings' && (
-          <motion.div 
-            key="settings"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="h-full overflow-y-auto"
-          >
+          <TabPage key="settings" {...tabPageProps} className="h-full overflow-y-auto">
             <Suspense fallback={<FallbackSpinner />}>
               <SettingsPanel 
                 globalLanguage={state.globalLanguage}
@@ -585,8 +660,9 @@ export default function App() {
                 }}
               />
             </Suspense>
-          </motion.div>
+          </TabPage>
         )}
+        </AnimatePresence>
       </div>
 
       <VoiceModal 
@@ -604,5 +680,6 @@ export default function App() {
       </AnimatePresence>
     </Layout>
     </>
+    </MotionConfig>
   );
 }
