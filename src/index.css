@@ -36,6 +36,15 @@
   /* Boundary of an interactive control (input, select). WCAG 1.4.11 wants
      3:1 here; --border-main stays soft for decorative hairlines. */
   --color-border-strong: var(--border-strong);
+
+  /* iOS grouped-list vocabulary, registered so components can reach each role
+     as a utility: systemFill behind inert controls (switch track, segmented
+     rail), the hairline between rows, and the dimmer label iOS puts on section
+     headers and right-hand row values. --ios-switch-knob is deliberately not
+     registered — it is internal to .ios-switch and wants no utility. */
+  --color-ios-fill: var(--ios-fill);
+  --color-ios-separator: var(--ios-separator);
+  --color-ios-label-secondary: var(--ios-label-secondary);
   
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
@@ -57,6 +66,17 @@
   --ios-glass-bg: rgba(255, 255, 255, 0.8);
   --ios-glass-border: rgba(255, 255, 255, 0.3);
 
+  --ios-fill: rgba(120, 120, 128, 0.16);      /* iOS secondarySystemFill */
+  --ios-separator: rgba(60, 60, 67, 0.29);
+  /* A named role of its own so a theme can dim its list labels without
+     touching body text; every palette currently points it at the vetted
+     --text-muted value rather than iOS's own 60/60/67/0.6, which misses 4.5:1
+     on these surfaces. */
+  --ios-label-secondary: var(--text-muted);
+  /* Knob for the OFF track only. Once the track turns accent-coloured the knob
+     switches to --accent-on, which each theme has already scored against it. */
+  --ios-switch-knob: #FFFFFF;
+
   --app-bg-opacity: 1;
   --app-blur-intensity: 0px;
 }
@@ -76,6 +96,11 @@
 
   --ios-glass-bg: rgba(21, 31, 50, 0.7);
   --ios-glass-border: rgba(255, 255, 255, 0.1);
+
+  --ios-fill: rgba(255, 255, 255, 0.10);
+  --ios-separator: rgba(255, 255, 255, 0.12);
+  --ios-label-secondary: var(--text-muted);
+  --ios-switch-knob: #FFFFFF;
 
   --app-bg-opacity: 1;
   --app-blur-intensity: 0px;
@@ -97,6 +122,11 @@
   --ios-glass-bg: rgba(23, 8, 41, 0.7);
   --ios-glass-border: rgba(168, 85, 247, 0.30);
 
+  --ios-fill: rgba(168, 85, 247, 0.16);
+  --ios-separator: rgba(168, 85, 247, 0.24);
+  --ios-label-secondary: var(--text-muted);
+  --ios-switch-knob: #F5F3FF;                 /* pure white halates on this palette */
+
   --app-bg-opacity: 1;
   --app-blur-intensity: 0px;
 }
@@ -116,6 +146,11 @@
 
   --ios-glass-bg: rgba(43, 49, 56, 0.7);
   --ios-glass-border: rgba(69, 79, 89, 0.3);
+
+  --ios-fill: rgba(255, 255, 255, 0.10);
+  --ios-separator: rgba(255, 255, 255, 0.12);
+  --ios-label-secondary: var(--text-muted);
+  --ios-switch-knob: #FFFFFF;
 
   --app-bg-opacity: 1;
   --app-blur-intensity: 0px;
@@ -271,6 +306,184 @@
   .markdown-body blockquote {
     @apply border-l-4 border-accent/50 pl-4 italic text-text-muted mb-4;
   }
+
+  /* --- iOS grouped list ---------------------------------------------------
+     Sections of rows inside an inset card: a small muted header above, hairline
+     separators between rows, an explanatory footer below. */
+  .ios-inset-group {
+    /* The card clips its own rounding so the first and last row follow it. */
+    @apply bg-surface overflow-hidden;
+    border-radius: 12px;
+  }
+
+  .ios-row {
+    /* 44px is the iOS touch-target floor; rows grow past it with content. */
+    @apply flex w-full items-center gap-3 min-h-[44px] px-4 py-2.5 text-left text-[17px] text-text-main;
+  }
+
+  .ios-separator {
+    border-bottom: 1px solid var(--ios-separator);
+  }
+
+  /* iOS never draws a separator after the last row, and the group's own 12px
+     rounding would clip one into two floating stubs. Guarding here means a
+     .map() can put .ios-separator on every row without a last: variant. Matches
+     any trailing child, not just a .ios-separator, so a conditionally rendered
+     last row does not reinstate the stub. */
+  .ios-inset-group > :last-child {
+    border-bottom-width: 0;
+  }
+
+  /* A full pixel reads heavy next to iOS's hairline. WebKit honours 0.5px on a
+     2x+ screen, which is the target here; Blink snaps it back to 1px, so this
+     is an enhancement on iOS rather than a cross-engine rule. The -webkit- form
+     is what iOS Safari before 16 understands; min-resolution covers the rest. */
+  @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 2dppx) {
+    .ios-separator {
+      border-bottom-width: 0.5px;
+    }
+  }
+
+  .ios-section-header {
+    @apply px-4 pt-6 pb-1.5 text-[13px] uppercase tracking-wide text-ios-label-secondary;
+  }
+
+  .ios-section-footer {
+    @apply px-4 pt-1.5 text-[13px] leading-snug text-ios-label-secondary;
+  }
+
+  /* Tap-down feedback. The curve is UIKit's: quick out, long settle. */
+  .ios-press {
+    @apply transition-transform duration-200 active:scale-[0.98];
+    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  /* UISwitch: 51x31 track, 27px knob. Drive it from a
+     <button role="switch" aria-checked="true|false"> so the state is announced;
+     add aria-disabled when it is temporarily unavailable. */
+  .ios-switch {
+    @apply relative inline-flex shrink-0 rounded-full transition-colors duration-300;
+    width: 51px;
+    height: 31px;
+    background-color: var(--ios-fill);
+    /* Neither track carries its own boundary: systemFill is ~1.2:1 against the
+       group surface, and the accent is only 2.75:1 on the dark card. The ring
+       stays on in both states, using the token already scored at 3:1 for
+       exactly this (WCAG 1.4.11). */
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .ios-switch[aria-checked="true"] {
+    background-color: var(--accent);
+  }
+
+  /* The other controls here strip the UA ring with outline-none; give this one
+     a ring of its own before someone does the same to it. */
+  .ios-switch:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+
+  /* aria-disabled is advisory only — a button carrying it still fires on tap
+     and on Enter/Space — so block the pointer here rather than leaving a dimmed
+     control that silently toggles the setting behind it. */
+  .ios-switch[aria-disabled="true"],
+  .ios-switch:disabled {
+    @apply opacity-50 cursor-not-allowed;
+    pointer-events: none;
+  }
+
+  /* The 31px track is under the 44px target floor, so an invisible overlay
+     grows the hit area to 59x45 without moving the visual. It stays inside an
+     .ios-row: that row's py-2.5 leaves 10px of slack above and below, so the
+     overlay never reaches into the neighbouring row. */
+  .ios-switch::before {
+    content: "";
+    position: absolute;
+    inset: -7px -4px;
+  }
+
+  .ios-switch::after {
+    content: "";
+    @apply absolute rounded-full;
+    top: 2px;
+    left: 2px;
+    width: 27px;
+    height: 27px;
+    background-color: var(--ios-switch-knob);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15), 0 1px 1px rgba(0, 0, 0, 0.16);
+    /* The colour rides along with the slide; on its own it would snap from
+       near-white to near-black in a single frame mid-travel. */
+    transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1),
+                background-color 300ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  /* Once the track is accent-coloured the knob has to be legible against the
+     accent, not against the neutral fill: --accent-on is the value each theme
+     already scored for exactly that (white is only 2.85:1 on Industrial's
+     orange, 5.00:1 dark on Cyberpunk's violet). */
+  .ios-switch[aria-checked="true"]::after {
+    background-color: var(--accent-on);
+    transform: translateX(20px);
+  }
+}
+
+/* The floors below are set per element (`class="pt-safe [--safe-pt:1.5rem]"`).
+   Registered so they do NOT inherit: otherwise a floor set on a page wrapper
+   would silently become the floor for every nested safe-area user. */
+@property --safe-pt { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --safe-pb { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --safe-px { syntax: "<length>"; inherits: false; initial-value: 0px; }
+
+/* Safe-area padding. env() is 0 without a notch or home indicator, so these
+   cost nothing elsewhere; they need viewport-fit=cover on the viewport meta,
+   or every inset reports 0.
+
+   Each REPLACES the padding on its side rather than adding to it — same layer
+   and specificity as p*-6, so `pt-6 pt-safe` would compute to 0 on any device
+   without a notch. Use the companion property for the floor instead of a second
+   padding utility. Declared with @utility, not a raw @layer utilities block, so
+   variants such as `landscape:px-safe` and `md:pb-safe` actually emit CSS. */
+@utility pt-safe {
+  padding-top: max(var(--safe-pt), env(safe-area-inset-top, 0px));
+}
+
+@utility pb-safe {
+  padding-bottom: max(var(--safe-pb), env(safe-area-inset-bottom, 0px));
+}
+
+/* Physical sides, matching the insets themselves — not Tailwind's logical
+   padding-inline, which would flip under a RTL writing mode. */
+@utility px-safe {
+  padding-left: max(var(--safe-px), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--safe-px), env(safe-area-inset-right, 0px));
+}
+
+/* Opt-in scroll physics: keep the rubber-band inside this panel instead of
+   chaining it to the page behind. Opt-in rather than blanket on
+   .overflow-y-auto, because containment is wrong for a short textarea or
+   popover, where dead-ending the gesture is worse than chaining.
+   -webkit-overflow-scrolling is a no-op since iOS 13 made momentum the default;
+   it is here only for builds older than that. */
+@utility ios-scroll {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 100vh on iOS Safari measures the viewport with the browser chrome hidden, so
+   a 100vh page runs taller than the screen and its last row hides under the
+   toolbar. svh is the smallest visible viewport — the right value for a floor,
+   where dvh would re-lay-out the page every time the toolbar collapses.
+   Unlayered so it outranks the min-h-screen utility already on #root. This sets
+   the document floor only; the min-h-screen / h-[calc(100vh-…)] inside the
+   layout components still measure against the large viewport and want the same
+   treatment when those files are touched. */
+@supports (height: 100svh) {
+  body,
+  #root {
+    min-height: 100svh;
+  }
 }
 
 @keyframes shimmer {
@@ -332,3 +545,49 @@
   font-family: 'Playfair Display', Didot, "Bodoni MT", serif;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  /* Collapse every CSS animation and transition rather than enumerating the
+     classes, so nothing added later has to remember to opt in. This reaches CSS
+     only — the motion/react springs are driven from JS and need a
+     <MotionConfig reducedMotion="user"> at the app root to follow suit. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* A spinner is a status indicator, not decoration: the blanket rule above
+     would freeze it, which reads as a hung request. Slow it instead. */
+  .animate-spin {
+    animation-duration: 1.5s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  /* The looping decorative ones read better stopped outright than run once: a
+     single 0.01ms pass leaves the shimmer gradient frozen mid-sweep. */
+  .shimmer {
+    animation: none;
+    background-image: none;
+  }
+
+  .animate-pulse-soft,
+  .animate-pulse-red,
+  .animate-pulse,
+  .animate-ping,
+  .animate-bounce {
+    animation: none;
+  }
+
+  .ios-press,
+  .ios-switch,
+  .ios-switch::after {
+    transition: none;
+  }
+
+  .scroll-smooth {
+    scroll-behavior: auto;
+  }
+}
