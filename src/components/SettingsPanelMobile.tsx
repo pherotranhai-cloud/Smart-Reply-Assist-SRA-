@@ -18,6 +18,7 @@ import { MAX_SAVED_WALLPAPERS } from '../utils/imageResize';
 import { APP_VERSION } from '../config/version';
 import { SUPPORTED_MODELS } from '../constants';
 import { DEFAULT_WALLPAPERS, WallpaperOption } from '../constants/wallpapers';
+import { ThemeSection } from './settings/ThemeSection';
 
 export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
   globalLanguage,
@@ -59,33 +60,12 @@ export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
         </h3>
 
         <div className="bg-panel rounded-xl p-4 shadow-sm border border-border-main space-y-5">
-          {/* Theme Selector */}
-          <div>
-            <span className="text-[13px] font-medium text-text-muted mb-2 block">
-              {t('personalization.theme') || 'Chủ đề giao diện'}
-            </span>
-            <div className="grid grid-cols-3 gap-2">
-              {uiThemeOptions.map((opt) => (
-                <button
-                  key={opt.mode}
-                  onClick={() => {
-                    onUserPreferencesChange({
-                      ...userPreferences,
-                      theme: opt.mode as any
-                    });
-                  }}
-                  className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
-                    userPreferences.theme === opt.mode
-                      ? 'border-accent bg-accent/5 text-text-main font-semibold'
-                      : 'border-border-main text-text-muted hover:border-text-muted/30 hover:text-text-main'
-                  }`}
-                >
-                  <span className="text-lg mb-1">{opt.emoji}</span>
-                  <span className="text-[12px]">{t(opt.key) || opt.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+          <ThemeSection
+            uiThemeOptions={uiThemeOptions}
+            userPreferences={userPreferences}
+            onUserPreferencesChange={onUserPreferencesChange}
+            t={t}
+          />
 
           {/* Font Selector */}
           <div>

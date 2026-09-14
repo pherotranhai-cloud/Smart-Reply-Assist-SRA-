@@ -236,6 +236,7 @@ export const translations = {
     "personalization.default_background": "Default Background",
     "personalization.active_badge": "Active",
     "personalization.remove_wallpaper": "Remove",
+    "personalization.theme.footer": "System follows your device's light or dark appearance setting.",
   },
   vi: {
     translate: 'Dịch',
@@ -474,6 +475,7 @@ export const translations = {
     "personalization.default_background": "Nền mặc định",
     "personalization.active_badge": "Đang dùng",
     "personalization.remove_wallpaper": "Xóa hình nền",
+    "personalization.theme.footer": "Chế độ Theo hệ thống sẽ đổi sáng/tối theo cài đặt của thiết bị.",
   },
   'zh-CN': {
     translate: '翻译',
@@ -683,6 +685,7 @@ export const translations = {
     "personalization.default_background": "默认背景",
     "personalization.active_badge": "使用中",
     "personalization.remove_wallpaper": "删除",
+    "personalization.theme.footer": "“跟随系统”会随设备的浅色/深色设置自动切换。",
   },
   'zh-TW': {
     translate: '翻譯',
@@ -892,5 +895,6 @@ export const translations = {
     "personalization.default_background": "預設背景",
     "personalization.active_badge": "使用中",
     "personalization.remove_wallpaper": "刪除",
+    "personalization.theme.footer": "「跟隨系統」會隨裝置的淺色/深色設定自動切換。",
   }
 };
