@@ -18,6 +18,7 @@ import { MAX_SAVED_WALLPAPERS } from '../utils/imageResize';
 import { APP_VERSION } from '../config/version';
 import { SUPPORTED_MODELS } from '../constants';
 import { DEFAULT_WALLPAPERS, WallpaperOption } from '../constants/wallpapers';
+import { SettingsPageHeader } from './settings/SettingsPageHeader';
 
 export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
   globalLanguage,
@@ -50,7 +51,9 @@ export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
   const [wallpaperNotice, setWallpaperNotice] = useState<string | null>(null);
 
   return (
-    <div className="space-y-8 pb-24 font-sans pt-4">
+    <div className="font-sans space-y-9 pb-[calc(6rem_+_env(safe-area-inset-bottom))]">
+      <SettingsPageHeader t={t} />
+
       {/* Personalization Section */}
       <section className="space-y-4">
         <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-1 flex items-center gap-2">
