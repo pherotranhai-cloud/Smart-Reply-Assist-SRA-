@@ -10,7 +10,6 @@ import {
   X,
   Send,
   Palette,
-  Sparkles,
   Image as ImageIcon
 } from 'lucide-react';
 import { SettingsPanelProps, useSettingsPanel } from '../hooks/useSettingsPanel';
@@ -18,6 +17,7 @@ import { MAX_SAVED_WALLPAPERS } from '../utils/imageResize';
 import { APP_VERSION } from '../config/version';
 import { SUPPORTED_MODELS } from '../constants';
 import { DEFAULT_WALLPAPERS, WallpaperOption } from '../constants/wallpapers';
+import { BackgroundEffectsSection } from './settings/BackgroundEffectsSection';
 
 export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
   globalLanguage,
@@ -321,39 +321,11 @@ export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
               </div>
             )}
           </div>
-          {/* Background Effects */}
-          <div>
-            <span className="text-[13px] font-medium text-text-muted mb-2 block flex items-center gap-1.5">
-              <Sparkles size={14} className="text-text-muted" />
-              {t('personalization.effects') || 'Hiệu ứng nền chuyển động'}
-            </span>
-            <div className="flex flex-wrap bg-text-muted/10 rounded-xl p-1 gap-1">
-              {[
-                { id: 'none', label: 'Tắt', key: 'personalization.effect.none' },
-                { id: 'particles', label: 'Particles', key: 'personalization.effect.particles' },
-                { id: 'liquid', label: 'Liquid', key: 'personalization.effect.liquid' },
-                { id: 'aurora', label: 'Aurora', key: 'personalization.effect.aurora' },
-                { id: 'waves', label: 'Waves', key: 'personalization.effect.waves' }
-              ].map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => {
-                    onUserPreferencesChange({
-                      ...userPreferences,
-                      backgroundEffect: opt.id as any
-                    });
-                  }}
-                  className={`flex-1 min-w-[70px] py-1.5 px-1 text-[12px] font-medium rounded-lg transition-all text-center ${
-                    userPreferences.backgroundEffect === opt.id
-                      ? 'bg-panel text-text-main shadow-sm font-semibold border border-border-main/50'
-                      : 'text-text-muted hover:text-text-main hover:bg-black/5'
-                  }`}
-                >
-                  {t(opt.key) || opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <BackgroundEffectsSection
+            userPreferences={userPreferences}
+            onUserPreferencesChange={onUserPreferencesChange}
+            t={t}
+          />
         </div>
       </section>
 
