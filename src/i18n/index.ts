@@ -236,6 +236,10 @@ export const translations = {
     "personalization.default_background": "Default Background",
     "personalization.active_badge": "Active",
     "personalization.remove_wallpaper": "Remove",
+    "model.capability.luna": "Newest, sharpest reasoning",
+    "model.capability.gpt4o": "Balanced quality and speed",
+    "model.capability.gpt35": "Fastest, lowest cost",
+    "model.footer": "Your choice applies right away.",
   },
   vi: {
     translate: 'Dịch',
@@ -474,6 +478,10 @@ export const translations = {
     "personalization.default_background": "Nền mặc định",
     "personalization.active_badge": "Đang dùng",
     "personalization.remove_wallpaper": "Xóa hình nền",
+    "model.capability.luna": "Mới nhất, suy luận sắc nhất",
+    "model.capability.gpt4o": "Cân bằng chất lượng, tốc độ",
+    "model.capability.gpt35": "Nhanh nhất, chi phí thấp",
+    "model.footer": "Lựa chọn được áp dụng ngay.",
   },
   'zh-CN': {
     translate: '翻译',
@@ -683,6 +691,10 @@ export const translations = {
     "personalization.default_background": "默认背景",
     "personalization.active_badge": "使用中",
     "personalization.remove_wallpaper": "删除",
+    "model.capability.luna": "最新，推理最出色",
+    "model.capability.gpt4o": "质量与速度均衡",
+    "model.capability.gpt35": "最快，成本最低",
+    "model.footer": "选择后立即生效。",
   },
   'zh-TW': {
     translate: '翻譯',
@@ -892,5 +904,9 @@ export const translations = {
     "personalization.default_background": "預設背景",
     "personalization.active_badge": "使用中",
     "personalization.remove_wallpaper": "刪除",
+    "model.capability.luna": "最新，推理最出色",
+    "model.capability.gpt4o": "品質與速度均衡",
+    "model.capability.gpt35": "最快，成本最低",
+    "model.footer": "選擇後立即生效。",
   }
 };
