@@ -14,6 +14,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { SettingsPanelProps, useSettingsPanel } from '../hooks/useSettingsPanel';
+import { LanguageSection } from './settings/LanguageSection';
 import { MAX_SAVED_WALLPAPERS } from '../utils/imageResize';
 import { APP_VERSION } from '../config/version';
 import { SUPPORTED_MODELS } from '../constants';
@@ -387,33 +388,14 @@ export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
         </div>
       </section>
 
-      {/* Language */}
-      <section>
-        <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
-          {t('interfaceLanguage')}
-        </h3>
-        <div className="bg-panel rounded-xl overflow-hidden shadow-sm border border-border-main">
-          {languageOptions.map((opt, idx) => (
-            <button
-              key={opt.lang}
-              onClick={() => onLanguageChange(opt.lang)}
-              className={`w-full flex items-center justify-between px-4 py-3 bg-panel transition-colors hover:bg-border-main/20 ${
-                idx !== languageOptions.length - 1 ? 'border-b border-border-main' : ''
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-md bg-accent flex items-center justify-center text-white">
-                  <Languages size={16} />
-                </div>
-                <span className="text-[17px] text-text-main">{opt.label}</span>
-              </div>
-              {globalLanguage === opt.lang ? (
-                <span className="text-accent text-[17px]">✓</span>
-              ) : null}
-            </button>
-          ))}
-        </div>
-      </section>
+      {/* Language — the reference iOS list row: 56px targets,
+          inset hairlines, radiogroup semantics. */}
+      <LanguageSection
+        languageOptions={languageOptions}
+        globalLanguage={globalLanguage}
+        onLanguageChange={onLanguageChange}
+        t={t}
+      />
 
       {/* Feedback & Support */}
       <section>
