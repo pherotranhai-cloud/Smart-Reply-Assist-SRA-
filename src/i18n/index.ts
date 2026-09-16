@@ -236,6 +236,18 @@ export const translations = {
     "personalization.default_background": "Default Background",
     "personalization.active_badge": "Active",
     "personalization.remove_wallpaper": "Remove",
+    // Feedback sheet. The desktop modal called these five keys while no
+    // dictionary defined them, so t() rendered the raw key on screen.
+    // feedback_error_report titles the sheet opened by the feedbackErrorReport
+    // row above, so the two read the same in every dictionary.
+    "feedback_error_report": "Report an Error / Feedback",
+    "feedback_subtext": "We read every message. Tell us what to fix or improve — thank you!",
+    "feedback_placeholder": "Describe your feedback or the bug you ran into...",
+    "feedback_cancel": "Cancel",
+    "sending": "Sending...",
+    "send_feedback": "Send",
+    "feedbackSuccess": "Thanks for your feedback!",
+    "feedbackError": "Could not send your feedback. Please try again later.",
   },
   vi: {
     translate: 'Dịch',
@@ -474,6 +486,15 @@ export const translations = {
     "personalization.default_background": "Nền mặc định",
     "personalization.active_badge": "Đang dùng",
     "personalization.remove_wallpaper": "Xóa hình nền",
+    // Feedback sheet.
+    "feedback_error_report": "Báo lỗi & Góp ý ý kiến",
+    "feedback_subtext": "Chúng tôi luôn lắng nghe để cải thiện ứng dụng tốt hơn. Cảm ơn bạn!",
+    "feedback_placeholder": "Nhập nội dung góp ý hoặc báo lỗi...",
+    "feedback_cancel": "Hủy",
+    "sending": "Đang gửi...",
+    "send_feedback": "Gửi",
+    "feedbackSuccess": "Cảm ơn bạn đã góp ý!",
+    "feedbackError": "Gửi góp ý thất bại. Vui lòng thử lại sau.",
   },
   'zh-CN': {
     translate: '翻译',
@@ -683,6 +704,18 @@ export const translations = {
     "personalization.default_background": "默认背景",
     "personalization.active_badge": "使用中",
     "personalization.remove_wallpaper": "删除",
+    // Feedback sheet. supportFeedback / feedbackErrorReport existed only in en
+    // and vi, so Chinese users fell through to English here.
+    "supportFeedback": "支持与反馈",
+    "feedbackErrorReport": "反馈与报告问题",
+    "feedback_error_report": "反馈与报告问题",
+    "feedback_subtext": "我们会阅读每一条反馈，帮助我们把应用做得更好。谢谢！",
+    "feedback_placeholder": "请输入您的反馈或遇到的问题…",
+    "feedback_cancel": "取消",
+    "sending": "正在发送…",
+    "send_feedback": "发送",
+    "feedbackSuccess": "感谢您的反馈！",
+    "feedbackError": "反馈发送失败，请稍后再试。",
   },
   'zh-TW': {
     translate: '翻譯',
@@ -892,5 +925,17 @@ export const translations = {
     "personalization.default_background": "預設背景",
     "personalization.active_badge": "使用中",
     "personalization.remove_wallpaper": "刪除",
+    // Feedback sheet. supportFeedback / feedbackErrorReport existed only in en
+    // and vi, so Chinese users fell through to English here.
+    "supportFeedback": "支援與意見回饋",
+    "feedbackErrorReport": "意見回饋與問題回報",
+    "feedback_error_report": "意見回饋與問題回報",
+    "feedback_subtext": "我們會閱讀每一則回饋，協助我們把應用做得更好。謝謝您！",
+    "feedback_placeholder": "請輸入您的意見或遇到的問題…",
+    "feedback_cancel": "取消",
+    "sending": "正在傳送…",
+    "send_feedback": "傳送",
+    "feedbackSuccess": "感謝您的意見回饋！",
+    "feedbackError": "傳送失敗，請稍後再試。",
   }
 };
