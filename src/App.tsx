@@ -345,25 +345,24 @@ export default function App() {
     setTranscript,
   });
 
+  // Both destructive actions are confirmed by the Settings action sheet
+  // (SystemSection) before they get here, so they no longer prompt themselves —
+  // a second, native window.confirm on top of the sheet would be two dialogs.
   const handleResetApp = useCallback(() => {
-    if (window.confirm(t('confirmResetApp') || 'Bạn có chắc chắn muốn đặt lại toàn bộ ứng dụng không? Mọi cài đặt và dữ liệu sẽ bị xóa sạch.')) {
-      try {
-        localStorage.clear();
-      } catch (err) {
-        console.error('LocalStorage clear error:', err);
-      }
-      window.location.reload();
+    try {
+      localStorage.clear();
+    } catch (err) {
+      console.error('LocalStorage clear error:', err);
     }
-  }, [t]);
+    window.location.reload();
+  }, []);
 
   const handleClearHistory = useCallback(async () => {
-    if (window.confirm(t('confirmClearHistory') || 'Bạn có chắc chắn muốn xóa toàn bộ lịch sử dịch thuật không?')) {
-      try {
-        await storage.clearHistory();
-        showToast(t('historyCleared') || 'Lịch sử dịch thuật đã được xóa sạch.', 'success');
-      } catch (err: any) {
-        showToast('Failed to clear history: ' + err.message, 'error');
-      }
+    try {
+      await storage.clearHistory();
+      showToast(t('historyCleared'), 'success');
+    } catch (err: any) {
+      showToast('Failed to clear history: ' + err.message, 'error');
     }
   }, [showToast, t]);
 

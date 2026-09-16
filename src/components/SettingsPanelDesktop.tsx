@@ -1,11 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  RotateCcw,
   Languages,
   ChevronRight,
   Cpu,
-  History,
   MessageSquareWarning,
   X,
   Send,
@@ -15,9 +13,10 @@ import {
 } from 'lucide-react';
 import { SettingsPanelProps, useSettingsPanel } from '../hooks/useSettingsPanel';
 import { MAX_SAVED_WALLPAPERS } from '../utils/imageResize';
-import { APP_VERSION } from '../config/version';
 import { SUPPORTED_MODELS } from '../constants';
 import { DEFAULT_WALLPAPERS, WallpaperOption } from '../constants/wallpapers';
+import { SystemSection } from './settings/SystemSection';
+import { AboutSection } from './settings/AboutSection';
 
 export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
   globalLanguage,
@@ -450,63 +449,10 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
         </section>
 
         {/* System Actions */}
-        <section>
-          <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
-            {t('system')}
-          </h3>
-          <div className={`rounded-xl overflow-hidden shadow-sm border border-border-main transition-all duration-300 ${
-            hasBgImage ? 'bg-panel/30' : 'bg-panel'
-          }`}>
-            <button
-              onClick={handleResetApp}
-              className="w-full flex items-center justify-between px-4 py-3 bg-transparent transition-colors hover:bg-border-main/20 border-b border-border-main"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-md bg-red-500 flex items-center justify-center text-white">
-                  <RotateCcw size={16} />
-                </div>
-                <span className="text-[17px] text-text-main">{t('resetApp')}</span>
-              </div>
-              <ChevronRight size={20} className="text-text-muted" />
-            </button>
-            
-            <button
-              onClick={handleClearHistory}
-              className="w-full flex items-center justify-between px-4 py-3 bg-transparent transition-colors hover:bg-border-main/20"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-md bg-red-600 flex items-center justify-center text-white">
-                  <History size={16} />
-                </div>
-                <span className="text-[17px] text-red-500 font-medium">{t('clearHistory')}</span>
-              </div>
-              <ChevronRight size={20} className="text-text-muted" />
-            </button>
-          </div>
-        </section>
+        <SystemSection t={t} handleResetApp={handleResetApp} handleClearHistory={handleClearHistory} />
 
         {/* About */}
-        <section>
-          <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
-            {t('about')}
-          </h3>
-          <div className={`rounded-xl overflow-hidden shadow-sm border border-border-main p-4 transition-all duration-300 ${
-            hasBgImage ? 'bg-panel/30' : 'bg-panel'
-          }`}>
-            <div className="flex items-center gap-4 mb-3">
-              <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center text-white shadow-sm">
-                <Languages size={24} />
-              </div>
-              <div>
-                <p className="text-[17px] font-semibold text-text-main">{t('appName')}</p>
-                <p className="text-[13px] text-text-muted">Phiên bản {APP_VERSION}</p>
-              </div>
-            </div>
-            <p className="text-[15px] text-text-muted leading-relaxed">
-              {t('appDescription')}
-            </p>
-          </div>
-        </section>
+        <AboutSection t={t} />
       </div>
 
       {/* Feedback Modal */}
