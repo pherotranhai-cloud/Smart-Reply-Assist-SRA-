@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { storage } from '../services/storage';
-import { HistoryItem } from '../types';
-import { copyTextToClipboard } from '../utils/clipboard';
+import { CopyFormat, HistoryItem } from '../types';
+import { copyFormattedText } from '../utils/clipboard';
 
 type FilterType = 'all' | 'translate' | 'compose' | 'talk';
 
@@ -14,7 +14,9 @@ type FilterType = 'all' | 'translate' | 'compose' | 'talk';
 export function useHistoryTab(
   t: (key: string) => string,
   showToast: (msg: string, type: 'success' | 'error' | 'info') => void,
-  refreshKey: number = 0
+  refreshKey: number = 0,
+  /** Settings → Copy Format; the row copy renders the same way the tabs do. */
+  copyFormat: CopyFormat = 'plain'
 ) {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [filter, setFilter] = useState<FilterType>('all');
@@ -37,7 +39,7 @@ export function useHistoryTab(
   };
 
   const handleCopy = async (text: string) => {
-    const success = await copyTextToClipboard(text);
+    const success = await copyFormattedText(text, copyFormat ?? 'plain');
     if (success) {
       showToast(t('copied'), 'success');
     } else {

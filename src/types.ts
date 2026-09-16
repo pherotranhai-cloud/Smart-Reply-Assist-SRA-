@@ -98,6 +98,20 @@ export interface SavedWallpaper {
 
 export type UiTheme = 'system' | 'light' | 'dark' | 'cyberpunk' | 'industrial';
 
+/**
+ * How a copy button renders the model's Markdown onto the clipboard.
+ *
+ * - `plain`      markers removed; the clipboard also carries an HTML flavour, so
+ *                apps that accept rich text still paste real bold.
+ * - `unicode`    bold spans become Unicode bold glyphs, which survive anywhere.
+ *                The alphabet only covers A-Z, a-z and 0-9, so a span holding
+ *                Vietnamese diacritics or Chinese is left plain.
+ * - `uppercase`  bold spans are upper-cased — the emphasis Vietnamese keeps but
+ *                Chinese and Japanese cannot show.
+ * - `markdown`   the raw text, for apps that parse it themselves.
+ */
+export type CopyFormat = 'plain' | 'unicode' | 'uppercase' | 'markdown';
+
 export interface UserPreferences {
   /** The single theme control. 'system' follows the OS light/dark setting. */
   theme?: UiTheme;
@@ -108,6 +122,8 @@ export interface UserPreferences {
   fontSize?: 'sm' | 'base' | 'lg' | 'xl';
   /** The four faces TypographySection offers and App.tsx maps to a class. */
   fontFamily?: 'sans' | 'mono' | 'serif' | 'playfair';
+  /** What the copy buttons put on the clipboard. Defaults to 'plain'. */
+  copyFormat?: CopyFormat;
 }
 
 export interface AppState {

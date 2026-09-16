@@ -4,7 +4,7 @@ import 'katex/dist/katex.min.css';
 import { storage } from './services/storage';
 import { AIService } from './services/ai';
 import { resolveUiTheme, isDarkPalette, watchSystemThemeChanges } from './utils/theme';
-import { copyTextToClipboard } from './utils/clipboard';
+import { copyFormattedText } from './utils/clipboard';
 import { safeLocalStorage } from './utils/safeStorage';
 import { translations } from './i18n';
 import { SplashScreen } from './components/SplashScreen';
@@ -480,9 +480,13 @@ export default function App() {
     showToast(t('reuseLoaded'), 'success');
   }, [composeTab, translateTab, setActiveTab, showToast, t]);
 
+  // Every copy button goes through the user's chosen format, so the Markdown
+  // the model writes never reaches a chat box that would show it literally.
+  const copyFormat = userPreferences.copyFormat ?? 'plain';
+
   const handleCopy = useCallback(async (text: string) => {
     if (!text) return;
-    const success = await copyTextToClipboard(text);
+    const success = await copyFormattedText(text, copyFormat);
     if (success) {
       setIsCopied(true);
       showToast(t('copiedToClipboard'), 'success');
@@ -490,16 +494,16 @@ export default function App() {
     } else {
       showToast(t('copyFailed'), 'error');
     }
-  }, [showToast, t]);
+  }, [showToast, t, copyFormat]);
 
   const copyToClipboard = useCallback(async (text: string) => {
-    const success = await copyTextToClipboard(text);
+    const success = await copyFormattedText(text, copyFormat);
     if (success) {
       showToast(t('copiedToClipboard'), 'success');
     } else {
       showToast(t('copyFailed'), 'error');
     }
-  }, [showToast, t]);
+  }, [showToast, t, copyFormat]);
 
   return (
     // reducedMotion="user" hands the OS setting to every motion component in the
@@ -513,7 +517,7 @@ export default function App() {
         onClose={() => setIsChangelogOpen(false)} 
       />
       
-      <FloatingAssistant settings={state.settings} vocab={vocab} />
+      <FloatingAssistant settings={state.settings} vocab={vocab} copyFormat={copyFormat} />
       
       <AnimatePresence>
         {showInstallBanner && (

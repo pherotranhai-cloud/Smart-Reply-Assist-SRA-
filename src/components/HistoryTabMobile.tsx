@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Copy, RefreshCw, Clock, History as HistoryIcon, PenTool, Globe, Inbox, Mic } from 'lucide-react';
-import { HistoryItem } from '../types';
+import { HistoryItem, UserPreferences } from '../types';
 import { useHistoryTab } from '../hooks/useHistoryTab';
 
 interface HistoryTabProps {
@@ -10,16 +10,18 @@ interface HistoryTabProps {
   onReuse: (item: HistoryItem) => void;
   /** Bumped by App when history is cleared, so the list re-reads storage. */
   historyVersion?: number;
+  /** Only Copy Format is read here; HistoryTab passes the whole object through. */
+  userPreferences?: UserPreferences;
 }
 
-export const HistoryTabMobile: React.FC<HistoryTabProps> = ({ t, showToast, onReuse, historyVersion }) => {
+export const HistoryTabMobile: React.FC<HistoryTabProps> = ({ t, showToast, onReuse, historyVersion, userPreferences }) => {
   const {
     filter,
     setFilter,
     loading,
     filteredHistory,
     handleCopy,
-  } = useHistoryTab(t, showToast, historyVersion);
+  } = useHistoryTab(t, showToast, historyVersion, userPreferences?.copyFormat);
 
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);

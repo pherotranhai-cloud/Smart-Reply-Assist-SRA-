@@ -15,7 +15,7 @@ interface HistoryTabDesktopProps {
 export const HistoryTabDesktop: React.FC<HistoryTabDesktopProps> = ({ t, showToast, onReuse, userPreferences, historyVersion }) => {
   const {
     filter, setFilter, loading, filteredHistory, handleCopy,
-  } = useHistoryTab(t, showToast, historyVersion);
+  } = useHistoryTab(t, showToast, historyVersion, userPreferences?.copyFormat);
 
   const hasBgImage = !!userPreferences?.backgroundImage || (userPreferences?.backgroundEffect && userPreferences.backgroundEffect !== 'none');
 

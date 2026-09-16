@@ -7,8 +7,36 @@ Cyberpunk-themed AI assistant for translation and message composition.
 - **AI Translation:** Multi-language support with vocabulary integration.
 - **Smart Composition:** Generate replies based on context, audience, and tone.
 - **Vocabulary Library:** Manage custom terms and meanings.
+- **Copy Format:** Chooses what the copy buttons put on the clipboard, so `**bold**` never
+  lands in a chat box as literal asterisks.
 - **Cyberpunk UI:** High-contrast, neon-themed interface.
 - **Admin Dashboard:** Lightweight operational view of the three metrics below.
+
+## Copy Format
+
+The model answers in Markdown and the app renders it with `react-markdown`, so `**text**` shows
+on screen as real bold. The copy buttons used to hand that raw Markdown to the clipboard, which
+is why pasting into Zalo, WeChat or Messenger — none of which parse Markdown — showed the
+asterisks around the words meant to stand out.
+
+Settings → **Copy Format** now decides what a copy produces. `src/utils/richText.ts` converts the
+Markdown; `copyFormattedText` in `src/utils/clipboard.ts` puts it on the clipboard, and every copy
+button in the app goes through it.
+
+| Mode | Clipboard contents |
+| --- | --- |
+| **Clean text** (default) | Markers removed. The clipboard also carries a `text/html` flavour, so a target that accepts rich text (Word, Gmail, a desktop chat client built on a web view) still pastes real bold, while a plain-text box gets the clean text. |
+| **Unicode bold** | Bold spans become Unicode Mathematical Sans-Serif Bold glyphs, which are ordinary characters and survive any app. That alphabet only covers `A-Z`, `a-z` and `0-9`, so a span holding Vietnamese diacritics, Chinese or emoji is left plain rather than half-converted — product codes, quantities and dates convert, `Xác nhận` does not. |
+| **UPPERCASE** | Bold spans are upper-cased — emphasis Vietnamese keeps but Chinese and Japanese cannot show. |
+| **Keep Markdown** | The raw text, for apps that parse Markdown themselves. |
+
+Only the default adds the HTML flavour: the other three are explicit choices about what the
+*plain* text should look like, and a styled flavour next to them would override that choice in
+every app that prefers rich text.
+
+The conversion also normalises the rest of what the model writes: headings keep their text (as a
+bold span) and lose the hashes, bullets become `•`, task boxes become `☐`/`☑`, links become
+`label (url)`, quote markers and code fences are dropped, and `snake_case` names are left alone.
 
 ## Admin Dashboard
 

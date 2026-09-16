@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useAnimation, useMotionValue } from 'motion/react';
 import { Bot, X, ChevronRight, Copy, Check, Loader2, Link as LinkIcon } from 'lucide-react';
-import { AISettings, VocabItem } from '../types';
-import { copyTextToClipboard } from '../utils/clipboard';
+import { AISettings, CopyFormat, VocabItem } from '../types';
+import { copyFormattedText } from '../utils/clipboard';
 import Markdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -12,9 +12,11 @@ import { useTranslation } from '../hooks/useTranslation';
 interface FloatingAssistantProps {
   settings: AISettings;
   vocab: VocabItem[];
+  /** Settings → Copy Format, so this copy matches the ones on the tabs. */
+  copyFormat?: CopyFormat;
 }
 
-export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, vocab }) => {
+export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, vocab, copyFormat }) => {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -97,7 +99,7 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
 
   const handleCopy = async () => {
     if (!result) return;
-    const success = await copyTextToClipboard(result);
+    const success = await copyFormattedText(result, copyFormat ?? 'plain');
     if (success) {
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
