@@ -85,7 +85,13 @@ The output will be in the `dist/` directory.
 The project is built as a full-stack application using Express and Vite:
 
 - **Backend:** Express server handles API requests and AI provider interaction.
-- **Frontend:** Single Page Application (SPA) served by Vite.
+- **Frontend:** Single Page Application (SPA) served by Vite, built as a single bundle.
+  Vocab, Talk, History, Settings and the admin dashboard used to be `React.lazy()` chunks
+  fetched on first visit to their tab; that download landed inside the swipe that asked for
+  the tab, so the page animated in over a spinner. Everything loads once now, behind the
+  splash screen, and a tab switch is only a render — do not reintroduce `lazy()` here without
+  measuring that trade again. The build's chunk-size warning is raised in `vite.config.ts`
+  for the same reason.
 - **AI Integration:** Backend proxies requests to AI providers using secure environment variables.
 - **Usage Logging:** Completed translate/compose requests are forwarded to `POST /api/public/log` and stored in Supabase.
 

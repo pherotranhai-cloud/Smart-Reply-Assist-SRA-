@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Suspense, lazy, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { motion, AnimatePresence, MotionConfig, useReducedMotion, type Variants } from 'motion/react';
 import 'katex/dist/katex.min.css';
 import { storage } from './services/storage';
@@ -26,23 +26,27 @@ import { DEFAULT_STATE, LANGUAGES } from './constants';
 import { Layout } from './components/Layout';
 import { BackgroundCanvas } from './components/BackgroundCanvas';
 import { useUserPreferences } from './hooks/useUserPreferences';
-import { FallbackSpinner } from './components/FallbackSpinner';
 import { InstallBanner } from './components/InstallBanner';
 import { ChangelogModal } from './components/ChangelogModal';
 import { FloatingAssistant } from './components/FloatingAssistant';
 import { UPDATE_CHANGELOG } from './config/version';
 import { TranslateTab } from './components/TranslateTab';
 import { ComposeTab } from './components/ComposeTab';
+// Vocab, Talk, History, Settings and the admin dashboard used to be React.lazy()
+// chunks, fetched the first time their tab was opened. That download landed in
+// the middle of the swipe that asked for the tab, so the page animated in over a
+// spinner and settled late. Every screen is part of the one bundle now: the app
+// is paid for once, at startup, behind the splash screen, and a tab switch is
+// only a render.
+import { VocabManager } from './components/VocabManager';
+import { TalkTab } from './components/TalkTab';
+import { HistoryTab } from './components/HistoryTab';
+import { SettingsPanel } from './components/SettingsPanel';
+import { AdminDashboard } from './components/AdminDashboard';
 import { useTabNavigation, TAB_ORDER } from './hooks/useTabNavigation';
 import { useTranslateTab } from './hooks/useTranslateTab';
 import { useComposeTab } from './hooks/useComposeTab';
 import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat';
-
-const VocabManager = lazy(() => import('./components/VocabManager').then(module => ({ default: module.VocabManager })));
-const SettingsPanel = lazy(() => import('./components/SettingsPanel').then(module => ({ default: module.SettingsPanel })));
-const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
-const TalkTab = lazy(() => import('./components/TalkTab').then(module => ({ default: module.TalkTab })));
-const HistoryTab = lazy(() => import('./components/HistoryTab').then(module => ({ default: module.HistoryTab })));
 
 // Slide direction comes from TAB_ORDER in useTabNavigation - the same array the
 // swipe gesture walks, imported rather than copied so the two cannot drift. The
@@ -614,54 +618,46 @@ export default function App() {
         {activeTab === 'vocab' && (
           <TabPage key="vocab" {...tabPageProps} className="h-full">
             <div className="premium-card h-full flex flex-col">
-              <Suspense fallback={<FallbackSpinner />}>
-                <VocabManager t={t} userPreferences={userPreferences} />
-              </Suspense>
+              <VocabManager t={t} userPreferences={userPreferences} />
             </div>
           </TabPage>
         )}
 
         {activeTab === 'talk' && (
           <TabPage key="talk" {...tabPageProps} className="h-full">
-            <Suspense fallback={<FallbackSpinner />}>
-              <TalkTab settings={state.settings} vocab={vocab} t={t} showToast={showToast} userPreferences={userPreferences} />
-            </Suspense>
+            <TalkTab settings={state.settings} vocab={vocab} t={t} showToast={showToast} userPreferences={userPreferences} />
           </TabPage>
         )}
 
         {activeTab === 'history' && (
           <TabPage key="history" {...tabPageProps} className="h-full overflow-y-auto">
-            <Suspense fallback={<FallbackSpinner />}>
-              <HistoryTab t={t} showToast={showToast} onReuse={handleReuse} userPreferences={userPreferences} historyVersion={historyVersion} />
-            </Suspense>
+            <HistoryTab t={t} showToast={showToast} onReuse={handleReuse} userPreferences={userPreferences} historyVersion={historyVersion} />
           </TabPage>
         )}
 
         {activeTab === 'settings' && (
           <TabPage key="settings" {...tabPageProps} className="h-full overflow-y-auto">
-            <Suspense fallback={<FallbackSpinner />}>
-              <SettingsPanel 
-                globalLanguage={state.globalLanguage}
-                onLanguageChange={async (lang) => {
-                  await storage.setGlobalLanguage(lang);
-                  setState(prev => ({ ...prev, globalLanguage: lang }));
-                  showToast(t('languageChanged'), 'info');
-                }}
-                handleResetApp={handleResetApp}
-                handleClearHistory={handleClearHistory}
-                settings={state.settings}
-                onSaveSettings={(s) => {
-                  storage.setSettings(s);
-                  setState(prev => ({ ...prev, settings: s }));
-                }}
-                t={t}
-                onOpenAdmin={(key) => setAdminKey(key)}
-                userPreferences={userPreferences}
-                onUserPreferencesChange={(prefs) => {
-                  setUserPreferences(prefs);
-                }}
-              />
-            </Suspense>
+            <SettingsPanel 
+              globalLanguage={state.globalLanguage}
+              onLanguageChange={async (lang) => {
+                await storage.setGlobalLanguage(lang);
+                setState(prev => ({ ...prev, globalLanguage: lang }));
+                showToast(t('languageChanged'), 'info');
+              }}
+              handleResetApp={handleResetApp}
+              handleClearHistory={handleClearHistory}
+              settings={state.settings}
+              onSaveSettings={(s) => {
+                storage.setSettings(s);
+                setState(prev => ({ ...prev, settings: s }));
+              }}
+              t={t}
+              onOpenAdmin={(key) => setAdminKey(key)}
+              userPreferences={userPreferences}
+              onUserPreferencesChange={(prefs) => {
+                setUserPreferences(prefs);
+              }}
+            />
           </TabPage>
         )}
         </AnimatePresence>
@@ -675,9 +671,7 @@ export default function App() {
 
       <AnimatePresence>
         {adminKey && (
-          <Suspense fallback={<FallbackSpinner />}>
-            <AdminDashboard adminKey={adminKey} onClose={() => setAdminKey(null)} />
-          </Suspense>
+          <AdminDashboard adminKey={adminKey} onClose={() => setAdminKey(null)} />
         )}
       </AnimatePresence>
     </Layout>

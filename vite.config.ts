@@ -55,6 +55,13 @@ export default defineConfig(({mode}) => {
       },
     },
     build: {
+      // The app has no dynamic imports left, so everything builds into one
+      // chunk on purpose: a tab used to fetch its own chunk on first open,
+      // which arrived in the middle of the swipe that asked for it. Rollup
+      // warns past 500 kB and recommends splitting it back up — this raises
+      // the bar above the real bundle instead, so a genuine jump in size is
+      // still what the warning reports.
+      chunkSizeWarningLimit: 1500,
       rollupOptions: {
         output: {
           // Default Vite chunking handles deduplication correctly
