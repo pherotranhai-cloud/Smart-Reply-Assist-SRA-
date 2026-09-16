@@ -1,23 +1,21 @@
 import React, { useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import {
   RotateCcw,
   Languages,
   ChevronRight,
+  Cpu,
   History,
-  MessageSquareWarning,
-  X,
-  Send,
   Palette,
+  Sparkles,
   Image as ImageIcon
 } from 'lucide-react';
 import { SettingsPanelProps, useSettingsPanel } from '../hooks/useSettingsPanel';
-import { LanguageSection } from './settings/LanguageSection';
 import { MAX_SAVED_WALLPAPERS } from '../utils/imageResize';
 import { APP_VERSION } from '../config/version';
-import { ModelSection } from './settings/ModelSection';
+import { SUPPORTED_MODELS } from '../constants';
 import { DEFAULT_WALLPAPERS, WallpaperOption } from '../constants/wallpapers';
-import { BackgroundEffectsSection } from './settings/BackgroundEffectsSection';
+import { FeedbackSection } from './settings/FeedbackSection';
+import { FeedbackSheet } from './settings/FeedbackSheet';
 
 export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
   globalLanguage,
@@ -321,50 +319,101 @@ export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
               </div>
             )}
           </div>
-          <BackgroundEffectsSection
-            userPreferences={userPreferences}
-            onUserPreferencesChange={onUserPreferencesChange}
-            t={t}
-          />
+          {/* Background Effects */}
+          <div>
+            <span className="text-[13px] font-medium text-text-muted mb-2 block flex items-center gap-1.5">
+              <Sparkles size={14} className="text-text-muted" />
+              {t('personalization.effects') || 'Hiệu ứng nền chuyển động'}
+            </span>
+            <div className="flex flex-wrap bg-text-muted/10 rounded-xl p-1 gap-1">
+              {[
+                { id: 'none', label: 'Tắt', key: 'personalization.effect.none' },
+                { id: 'particles', label: 'Particles', key: 'personalization.effect.particles' },
+                { id: 'liquid', label: 'Liquid', key: 'personalization.effect.liquid' },
+                { id: 'aurora', label: 'Aurora', key: 'personalization.effect.aurora' },
+                { id: 'waves', label: 'Waves', key: 'personalization.effect.waves' }
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => {
+                    onUserPreferencesChange({
+                      ...userPreferences,
+                      backgroundEffect: opt.id as any
+                    });
+                  }}
+                  className={`flex-1 min-w-[70px] py-1.5 px-1 text-[12px] font-medium rounded-lg transition-all text-center ${
+                    userPreferences.backgroundEffect === opt.id
+                      ? 'bg-panel text-text-main shadow-sm font-semibold border border-border-main/50'
+                      : 'text-text-muted hover:text-text-main hover:bg-black/5'
+                  }`}
+                >
+                  {t(opt.key) || opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
       {/* AI Model Section */}
-      <ModelSection
-        model={localSettings.openai.model}
-        onSelectModel={(model) => updateCurrent({ model })}
-        t={t}
-      />
-
-      {/* Language — the reference iOS list row: 56px targets,
-          inset hairlines, radiogroup semantics. */}
-      <LanguageSection
-        languageOptions={languageOptions}
-        globalLanguage={globalLanguage}
-        onLanguageChange={onLanguageChange}
-        t={t}
-      />
-
-      {/* Feedback & Support */}
       <section>
-        <h3 className="text-[12px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
-          {t('supportFeedback')}
+        <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2 flex items-center gap-2">
+          <Cpu size={14} className="text-accent" />
+          {t('model')}
         </h3>
-        <div className="bg-panel rounded-xl overflow-hidden shadow-sm border border-border-main">
-          <button
-            onClick={() => setIsFeedbackOpen(true)}
-            className="w-full flex items-center justify-between px-4 py-3 bg-panel transition-colors hover:bg-border-main/20"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-md bg-accent flex items-center justify-center text-white">
-                <MessageSquareWarning size={16} />
-              </div>
-              <span className="text-[17px] text-text-main">{t('feedbackErrorReport')}</span>
-            </div>
-            <ChevronRight size={20} className="text-text-muted" />
-          </button>
+        <div className="bg-panel rounded-xl overflow-hidden shadow-sm border border-border-main p-3">
+          <div className="grid grid-cols-1 gap-2">
+            {SUPPORTED_MODELS.map((modelId) => (
+              <button
+                key={modelId}
+                onClick={() => updateCurrent({ model: modelId })}
+                className={`w-full flex flex-col p-3 rounded-xl border text-left transition-all ${
+                  localSettings.openai.model === modelId
+                    ? 'border-accent bg-accent/5 text-text-main font-semibold'
+                    : 'border-border-main text-text-muted hover:border-text-muted/30 hover:text-text-main'
+                }`}
+              >
+                <div className="flex justify-between items-center w-full">
+                  <span className="text-[15px]">{modelId === 'gpt-5.6-luna' ? 'GPT-5.6 Luna' : modelId}</span>
+                  {localSettings.openai.model === modelId && (
+                    <span className="text-accent text-[15px]">✓</span>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       </section>
+
+      {/* Language */}
+      <section>
+        <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
+          {t('interfaceLanguage')}
+        </h3>
+        <div className="bg-panel rounded-xl overflow-hidden shadow-sm border border-border-main">
+          {languageOptions.map((opt, idx) => (
+            <button
+              key={opt.lang}
+              onClick={() => onLanguageChange(opt.lang)}
+              className={`w-full flex items-center justify-between px-4 py-3 bg-panel transition-colors hover:bg-border-main/20 ${
+                idx !== languageOptions.length - 1 ? 'border-b border-border-main' : ''
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-7 h-7 rounded-md bg-accent flex items-center justify-center text-white">
+                  <Languages size={16} />
+                </div>
+                <span className="text-[17px] text-text-main">{opt.label}</span>
+              </div>
+              {globalLanguage === opt.lang ? (
+                <span className="text-accent text-[17px]">✓</span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <FeedbackSection t={t} onOpen={() => setIsFeedbackOpen(true)} />
 
       {/* System Actions */}
       <section>
@@ -421,57 +470,16 @@ export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
         </div>
       </section>
 
-      {/* Feedback Modal */}
-      <AnimatePresence>
-        {isFeedbackOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-panel border border-border-main rounded-2xl w-full max-w-md overflow-hidden shadow-2xl relative"
-            >
-              <div className="p-4 border-b border-border-main flex justify-between items-center bg-bg-input">
-                <h3 className="text-lg font-semibold text-text-main flex items-center gap-2">
-                  <MessageSquareWarning size={20} className="text-accent" />
-                  Góp ý & Báo lỗi
-                </h3>
-                <button 
-                  onClick={() => setIsFeedbackOpen(false)}
-                  className="p-1 rounded-lg hover:bg-border-main/50 text-text-muted"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="p-4 space-y-4">
-                <p className="text-[14px] text-text-muted">
-                  Chúng tôi luôn lắng nghe để cải thiện ứng dụng tốt hơn. Cảm ơn bạn!
-                </p>
-                <textarea
-                  value={feedbackText}
-                  onChange={(e) => setFeedbackText(e.target.value)}
-                  placeholder="Nhập nội dung góp ý hoặc báo lỗi..."
-                  className="saas-input w-full h-32 resize-none"
-                />
-                <button
-                  onClick={handleFeedbackSubmit}
-                  disabled={!feedbackText.trim() || isSubmittingFeedback}
-                  className="saas-button primary-button w-full flex justify-center items-center gap-2"
-                >
-                  {isSubmittingFeedback ? (
-                    'Đang gửi...'
-                  ) : (
-                    <>
-                      <Send size={18} />
-                      Gửi góp ý
-                    </>
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* Feedback sheet */}
+      <FeedbackSheet
+        isOpen={isFeedbackOpen}
+        onClose={() => setIsFeedbackOpen(false)}
+        feedbackText={feedbackText}
+        setFeedbackText={setFeedbackText}
+        isSubmitting={isSubmittingFeedback}
+        onSubmit={handleFeedbackSubmit}
+        t={t}
+      />
     </div>
   );
 };
