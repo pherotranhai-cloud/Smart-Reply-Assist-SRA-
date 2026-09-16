@@ -2,6 +2,8 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Languages, PenTool, BookOpen, Settings, CheckCircle2, AlertCircle, X, History, Mic } from 'lucide-react';
 import { UserPreferences } from '../types';
+import { TabType } from '../hooks/useTabNavigation';
+import { useSwipeTabs } from '../hooks/useSwipeTabs';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -22,6 +24,8 @@ export const LayoutMobile: React.FC<LayoutProps> = ({
   t,
   userPreferences
 }) => {
+  // Horizontal swipe between tabs, wired to the surface around {children}.
+  const swipe = useSwipeTabs(activeTab as TabType, setActiveTab);
 
   const handleTabClick = (tab: string, e: React.MouseEvent<HTMLButtonElement>) => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -43,7 +47,27 @@ export const LayoutMobile: React.FC<LayoutProps> = ({
         animate={{ opacity: 1 }}
         className="flex-1 flex flex-col pb-20 max-w-2xl mx-auto w-full px-4 pt-6"
       >
-        {children}
+        {/* Swipe surface. Restricting touch-action leaves vertical scrolling
+            and pinch-zoom to the browser while stopping it from swallowing
+            horizontal gestures; dragDirectionLock then decides which axis the
+            finger meant. */}
+        <motion.div
+          ref={swipe.surfaceRef}
+          drag="x"
+          dragListener={false}
+          dragControls={swipe.dragControls}
+          dragDirectionLock
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={swipe.dragElastic}
+          dragMomentum={false}
+          dragTransition={{ bounceStiffness: 300, bounceDamping: 30 }}
+          onPointerDown={swipe.onPointerDown}
+          onDirectionLock={swipe.onDirectionLock}
+          onDragEnd={swipe.onDragEnd}
+          className="flex-1 flex flex-col [touch-action:pan-y_pinch-zoom]"
+        >
+          {children}
+        </motion.div>
       </motion.main>
 
       {/* Bottom Navigation */}
