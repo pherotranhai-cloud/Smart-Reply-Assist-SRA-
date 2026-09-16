@@ -18,6 +18,7 @@ import { MAX_SAVED_WALLPAPERS } from '../utils/imageResize';
 import { APP_VERSION } from '../config/version';
 import { SUPPORTED_MODELS } from '../constants';
 import { DEFAULT_WALLPAPERS, WallpaperOption } from '../constants/wallpapers';
+import { SettingsPageHeader } from './settings/SettingsPageHeader';
 
 export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
   globalLanguage,
@@ -52,10 +53,12 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
   const hasBgImage = !!userPreferences?.backgroundImage || (userPreferences?.backgroundEffect && userPreferences.backgroundEffect !== 'none');
 
   return (
-    <div className={`flex flex-col h-[calc(100vh-140px)] min-h-0 overflow-hidden w-full border border-border-main rounded-3xl p-6 transition-all duration-300 ${
-      hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'
+    <div className={`flex flex-col h-[calc(100vh-140px)] min-h-0 overflow-hidden w-full border border-border-main rounded-3xl px-6 pb-6 transition-all duration-300 ${
+      hasBgImage ? 'bg-surface backdrop-blur-md' : 'bg-panel'
     }`}>
-      <div className="flex-1 w-full overflow-y-auto pr-2 custom-scrollbar space-y-6">
+      <div className="flex-1 w-full overflow-y-auto pr-2 space-y-9">
+        <SettingsPageHeader t={t} variant="pane" />
+
         {/* Personalization Section */}
         <section className="space-y-4">
           <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-1 flex items-center gap-2">
