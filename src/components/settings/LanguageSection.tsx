@@ -19,12 +19,6 @@ interface LanguageSectionProps {
   globalLanguage: GlobalLanguage;
   onLanguageChange: (lang: GlobalLanguage) => void;
   t: (key: string) => string;
-  /**
-   * Desktop stacks this card on top of the user's wallpaper. --bg-card is
-   * already translucent there, so the card switches to the opaque surface
-   * token instead of stacking another fractional alpha on it.
-   */
-  overWallpaper?: boolean;
 }
 
 /**
@@ -35,8 +29,7 @@ export const LanguageSection: React.FC<LanguageSectionProps> = ({
   languageOptions,
   globalLanguage,
   onLanguageChange,
-  t,
-  overWallpaper = false
+  t
 }) => {
   const groupRef = useRef<HTMLDivElement>(null);
   const heading = t('interfaceLanguage');
@@ -81,9 +74,10 @@ export const LanguageSection: React.FC<LanguageSectionProps> = ({
         role="radiogroup"
         aria-label={heading}
         onKeyDown={handleKeyDown}
-        className={`rounded-xl overflow-hidden shadow-sm border border-border-main transition-all duration-300 ${
-          overWallpaper ? 'bg-surface' : 'bg-panel'
-        }`}
+        // bg-surface unconditionally, as every other section does: it is
+        // already theme- and wallpaper-correct, so the branch this used to
+        // carry bought nothing. See the same note in TalkTabDesktop.
+        className="rounded-xl overflow-hidden shadow-sm border border-border-main transition-all duration-300 bg-surface"
       >
         {languageOptions.map((opt, idx) => {
           const isSelected = opt.lang === globalLanguage;

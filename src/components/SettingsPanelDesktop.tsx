@@ -89,7 +89,6 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
           languageOptions={languageOptions}
           globalLanguage={globalLanguage}
           onLanguageChange={onLanguageChange}
-          overWallpaper={!!hasBgImage}
           t={t}
         />
 

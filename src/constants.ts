@@ -1,11 +1,34 @@
+import { Gauge, Sparkles, Zap, type LucideIcon } from 'lucide-react';
 import { AISettings, AppState, Audience, Tone, Length, Format } from './types';
 
 export const DEFAULT_AI_MODEL = 'gpt-5.6-luna';
-export const SUPPORTED_MODELS = [
-  'gpt-5.6-luna',
-  'gpt-4o',
-  'gpt-3.5-turbo',
-] as const;
+
+/**
+ * Every model the picker offers, and everything the picker needs to draw one.
+ *
+ * The ids and the per-model icon/caption used to live apart — the list here,
+ * the presentation in ModelSection — so adding a fourth model silently gave it
+ * a fallback icon and no caption. One entry is now the whole story.
+ *
+ * `displayName` is for ids whose own text does not read as a product name;
+ * leave it out and the id is shown as-is. Keep every caption translation under
+ * ~30 characters, because the row truncates at 320px.
+ */
+export interface ModelMeta {
+  displayName?: string;
+  icon: LucideIcon;
+  captionKey: string;
+}
+
+export const MODEL_REGISTRY: Record<string, ModelMeta> = {
+  'gpt-5.6-luna': { displayName: 'GPT-5.6 Luna', icon: Sparkles, captionKey: 'model.capability.luna' },
+  'gpt-4o': { icon: Zap, captionKey: 'model.capability.gpt4o' },
+  'gpt-3.5-turbo': { icon: Gauge, captionKey: 'model.capability.gpt35' },
+};
+
+// Derived, so the list and the registry cannot drift apart. Object key order is
+// insertion order for string keys, which is the order the picker renders.
+export const SUPPORTED_MODELS = Object.keys(MODEL_REGISTRY) as readonly string[];
 
 export const DEFAULT_SETTINGS: AISettings = {
   activeProvider: 'openai',
