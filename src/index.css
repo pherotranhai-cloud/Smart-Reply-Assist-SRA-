@@ -79,6 +79,12 @@
 
   --app-bg-opacity: 1;
   --app-blur-intensity: 0px;
+
+  /* Measured height of the mobile tab bar, published by LayoutMobile so
+     anything docked above it tracks the real bar instead of a tuned constant.
+     Not theme-dependent, so it is declared once here; 0 is the correct value
+     on desktop and for the frame before the ResizeObserver first fires. */
+  --tab-bar-h: 0px;
 }
 
 :root[data-theme="dark"], .dark { /* Dark Mode */

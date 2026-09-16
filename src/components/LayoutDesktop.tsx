@@ -31,12 +31,17 @@ export const LayoutDesktop: React.FC<LayoutDesktopProps> = ({
   t,
   userPreferences
 }) => {
+  // Order matches TAB_ORDER, which is also the mobile nav's order. The page
+  // transition derives its direction from that array, so listing vocab and
+  // history the other way round made that one pair animate backwards here.
+  // The `|| 'fallback'` tails these entries used to carry were unreachable:
+  // t() returns the key itself on a miss, so the left side is never falsy.
   const tabs = [
-    { id: 'translate', icon: Globe, label: t('tabTranslate') || 'Dịch văn bản' },
-    { id: 'talk', icon: Mic, label: t('tabTalk') || 'Dịch trực tiếp' },
-    { id: 'compose', icon: PenTool, label: t('tabCompose') || 'Soạn thảo' },
-    { id: 'history', icon: HistoryIcon, label: t('history') || 'Lịch sử' },
-    { id: 'vocab', icon: BookOpen, label: t('vocab') || 'Sổ từ vựng' }
+    { id: 'translate', icon: Globe, label: t('tabTranslate') },
+    { id: 'talk', icon: Mic, label: t('tabTalk') },
+    { id: 'compose', icon: PenTool, label: t('tabCompose') },
+    { id: 'vocab', icon: BookOpen, label: t('vocab') },
+    { id: 'history', icon: HistoryIcon, label: t('history') }
   ];
 
   const hasBgImage = !!userPreferences?.backgroundImage || (userPreferences?.backgroundEffect && userPreferences.backgroundEffect !== 'none');
@@ -80,7 +85,7 @@ export const LayoutDesktop: React.FC<LayoutDesktopProps> = ({
         <div className="flex flex-col gap-4 w-full items-center">
           <button
             onClick={() => setActiveTab('settings')}
-            title={t('settings') || 'Cài đặt'}
+            title={t('settings')}
             className={`flex items-center justify-center w-12 h-12 rounded-2xl transition-all ${
               activeTab === 'settings'
                 ? 'bg-accent text-accent-on shadow-md shadow-accent/20'

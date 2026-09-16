@@ -8,12 +8,14 @@ interface HistoryTabDesktopProps {
   showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
   onReuse: (item: HistoryItem) => void;
   userPreferences?: any;
+  /** Bumped by App when history is cleared, so the list re-reads storage. */
+  historyVersion?: number;
 }
 
-export const HistoryTabDesktop: React.FC<HistoryTabDesktopProps> = ({ t, showToast, onReuse, userPreferences }) => {
+export const HistoryTabDesktop: React.FC<HistoryTabDesktopProps> = ({ t, showToast, onReuse, userPreferences, historyVersion }) => {
   const {
     filter, setFilter, loading, filteredHistory, handleCopy,
-  } = useHistoryTab(t, showToast);
+  } = useHistoryTab(t, showToast, historyVersion);
 
   const hasBgImage = !!userPreferences?.backgroundImage || (userPreferences?.backgroundEffect && userPreferences.backgroundEffect !== 'none');
 

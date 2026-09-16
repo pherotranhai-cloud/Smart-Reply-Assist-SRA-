@@ -71,16 +71,22 @@ export function useSettingsPanel({
 
     setIsSubmittingFeedback(true);
     try {
-      await fetch('/api/feedback', {
+      const response = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: feedbackText, lang: globalLanguage }),
       });
+      // fetch only rejects on a network-level failure, so without this an HTTP
+      // 500 — or a deploy with no /api/feedback route at all — took the success
+      // path and thanked the user for feedback nobody stored.
+      if (!response.ok) {
+        throw new Error(`Feedback endpoint returned ${response.status}`);
+      }
       setIsFeedbackOpen(false);
       setFeedbackText('');
-      alert(t('feedbackSuccess') || 'Cảm ơn bạn đã góp ý!');
+      alert(t('feedbackSuccess'));
     } catch (err) {
-      alert(t('feedbackError') || 'Gửi góp ý thất bại. Vui lòng thử lại sau.');
+      alert(t('feedbackError'));
     } finally {
       setIsSubmittingFeedback(false);
     }
@@ -118,18 +124,32 @@ export function useSettingsPanel({
   /**
    * Adds picked image files to the saved gallery, downscaled so they fit in
    * localStorage. Returns a message when something could not be added.
+   *
+   * Every message goes through t(). These strings used to be hardcoded
+   * Vietnamese, so an English or Chinese user who hit the cap via upload got a
+   * Vietnamese notice — the link path was localised, this one was missed
+   * because the strings live in the hook rather than the component.
    */
   const addWallpaperFiles = async (
     files: FileList | File[],
     prefs: UserPreferences,
     onChange: (p: UserPreferences) => void
   ): Promise<string | null> => {
+    // t() has no interpolation, so counts are substituted into the message.
+    const fill = (key: string, values: Record<string, string | number>) =>
+      Object.entries(values).reduce(
+        (text, [name, value]) => text.replace(`{${name}}`, String(value)),
+        t(key)
+      );
+
     const existing = prefs.savedWallpapers || [];
     const room = MAX_SAVED_WALLPAPERS - existing.length;
-    if (room <= 0) return `Đã đạt giới hạn ${MAX_SAVED_WALLPAPERS} ảnh. Hãy xoá bớt trước khi thêm.`;
+    if (room <= 0) return fill('personalization.limit_reached', { max: MAX_SAVED_WALLPAPERS });
 
     const { images, failed } = await filesToScaledImages(files);
-    if (!images.length) return failed.length ? `Không đọc được: ${failed.join(', ')}` : null;
+    if (!images.length) {
+      return failed.length ? fill('personalization.upload_unreadable', { files: failed.join(', ') }) : null;
+    }
 
     const fresh = images.filter(img => !existing.some(w => w.url === img.dataUrl));
     const accepted = fresh.slice(0, room);
@@ -142,12 +162,23 @@ export function useSettingsPanel({
         backgroundImage: additions.length ? additions[additions.length - 1].url : prefs.backgroundImage,
       });
     } catch {
-      return 'Bộ nhớ trình duyệt đã đầy. Hãy xoá bớt ảnh đã lưu.';
+      return t('personalization.storage_full');
     }
 
     const skipped = fresh.length - accepted.length;
-    if (skipped > 0) return `Đã thêm ${accepted.length} ảnh; bỏ qua ${skipped} vì vượt giới hạn ${MAX_SAVED_WALLPAPERS}.`;
-    if (failed.length) return `Đã thêm ${accepted.length} ảnh; không đọc được: ${failed.join(', ')}`;
+    if (skipped > 0) {
+      return fill('personalization.upload_partial_limit', {
+        added: accepted.length,
+        skipped,
+        max: MAX_SAVED_WALLPAPERS,
+      });
+    }
+    if (failed.length) {
+      return fill('personalization.upload_partial_failed', {
+        added: accepted.length,
+        files: failed.join(', '),
+      });
+    }
     return null;
   };
 

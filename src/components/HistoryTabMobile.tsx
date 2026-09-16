@@ -8,16 +8,18 @@ interface HistoryTabProps {
   t: (key: string) => string;
   showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
   onReuse: (item: HistoryItem) => void;
+  /** Bumped by App when history is cleared, so the list re-reads storage. */
+  historyVersion?: number;
 }
 
-export const HistoryTabMobile: React.FC<HistoryTabProps> = ({ t, showToast, onReuse }) => {
+export const HistoryTabMobile: React.FC<HistoryTabProps> = ({ t, showToast, onReuse, historyVersion }) => {
   const {
     filter,
     setFilter,
     loading,
     filteredHistory,
     handleCopy,
-  } = useHistoryTab(t, showToast);
+  } = useHistoryTab(t, showToast, historyVersion);
 
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);

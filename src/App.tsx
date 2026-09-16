@@ -33,7 +33,7 @@ import { FloatingAssistant } from './components/FloatingAssistant';
 import { UPDATE_CHANGELOG } from './config/version';
 import { TranslateTab } from './components/TranslateTab';
 import { ComposeTab } from './components/ComposeTab';
-import { useTabNavigation, type TabType } from './hooks/useTabNavigation';
+import { useTabNavigation, TAB_ORDER } from './hooks/useTabNavigation';
 import { useTranslateTab } from './hooks/useTranslateTab';
 import { useComposeTab } from './hooks/useComposeTab';
 import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat';
@@ -44,12 +44,13 @@ const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(mod
 const TalkTab = lazy(() => import('./components/TalkTab').then(module => ({ default: module.TalkTab })));
 const HistoryTab = lazy(() => import('./components/HistoryTab').then(module => ({ default: module.HistoryTab })));
 
-// The order of the mobile bottom nav. The sign of the index delta between the
-// outgoing and the incoming tab decides which way the pages slide, so a forward
-// jump enters from the right and a back jump from the left (iOS push/pop).
-// (The desktop sidebar lists vocab and history the other way round, so that one
-// pair reads as a back gesture there.)
-const TAB_ORDER: TabType[] = ['translate', 'talk', 'compose', 'vocab', 'history', 'settings'];
+// Slide direction comes from TAB_ORDER in useTabNavigation - the same array the
+// swipe gesture walks, imported rather than copied so the two cannot drift. The
+// sign of the index delta between the outgoing and the incoming tab decides
+// which way the pages slide, so a forward jump enters from the right and a back
+// jump from the left (iOS push/pop). Both navs list it in this order; the
+// desktop sidebar used to have vocab and history the other way round, which
+// made that one pair read as a back gesture there.
 
 // `direction` arrives through AnimatePresence's `custom`: 1 = forward, -1 = back.
 const tabVariants: Variants = {
@@ -130,6 +131,8 @@ export default function App() {
   const [isIosPromptVisible, setIsIosPromptVisible] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
+  /** Bumped by handleClearHistory so the History tab re-reads storage. */
+  const [historyVersion, setHistoryVersion] = useState(0);
   const { preferences: userPreferences, setPreferences: setUserPreferences } = useUserPreferences();
 
   const prefersReducedMotion = useReducedMotion();
@@ -443,6 +446,10 @@ export default function App() {
   const handleClearHistory = useCallback(async () => {
     try {
       await storage.clearHistory();
+      // The History tab owns its own copy of the list. It currently unmounts
+      // while Settings is showing, so it re-reads on the way back anyway; this
+      // is what keeps the two in step if it is ever kept mounted.
+      setHistoryVersion(v => v + 1);
       showToast(t('historyCleared'), 'success');
     } catch (err: any) {
       showToast('Failed to clear history: ' + err.message, 'error');
@@ -629,7 +636,7 @@ export default function App() {
         {activeTab === 'history' && (
           <TabPage key="history" {...tabPageProps} className="h-full overflow-y-auto">
             <Suspense fallback={<FallbackSpinner />}>
-              <HistoryTab t={t} showToast={showToast} onReuse={handleReuse} userPreferences={userPreferences} />
+              <HistoryTab t={t} showToast={showToast} onReuse={handleReuse} userPreferences={userPreferences} historyVersion={historyVersion} />
             </Suspense>
           </TabPage>
         )}

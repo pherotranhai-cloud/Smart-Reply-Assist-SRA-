@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import Markdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -228,19 +229,32 @@ export function ComposeTabMobile({
         )}
       </div>
 
-      {/* Sticky Action Button */}
-      <div className="fixed bottom-[90px] left-0 right-0 p-4 bg-gradient-to-t from-app via-app/80 to-transparent pointer-events-none z-40">
-        <div className="max-w-3xl mx-auto pointer-events-auto">
-          <button 
-            onClick={handleCompose}
-            disabled={loading || (!composeReq.trim() && !(useContextInCompose && context && (context.sourceText || context.translatedText)))}
-            className="saas-button primary-button w-full shadow-lg shadow-accent/20"
-          >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : <PenTool size={20} />}
-            <span>{t('generateReply')}</span>
-          </button>
-        </div>
-      </div>
+      {/* Action button, docked just above the tab bar.
+
+          Rendered through a portal into <body>: the page wrapper carries a
+          transform for the duration of a swipe, and a transformed ancestor
+          becomes the containing block for its position: fixed children — which
+          made this bar travel with the gesture and settle back. Same escape
+          hatch, and the same reason, as SystemSection and SettingsPageHeader.
+
+          bottom is --tab-bar-h, published by LayoutMobile from the bar's
+          measured height. It replaces a hardcoded 90px that was tuned to the
+          old 96px tab bar and left a ~26px gap under the real 63.5px one. */}
+      {typeof document === 'undefined' ? null : createPortal(
+        <div className="fixed bottom-[var(--tab-bar-h)] left-0 right-0 p-4 bg-gradient-to-t from-app via-app/80 to-transparent pointer-events-none z-40">
+          <div className="max-w-3xl mx-auto pointer-events-auto">
+            <button
+              onClick={handleCompose}
+              disabled={loading || (!composeReq.trim() && !(useContextInCompose && context && (context.sourceText || context.translatedText)))}
+              className="saas-button primary-button w-full shadow-lg shadow-accent/20"
+            >
+              {loading ? <Loader2 className="animate-spin" size={20} /> : <PenTool size={20} />}
+              <span>{t('generateReply')}</span>
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
     </motion.div>
   );
 }
