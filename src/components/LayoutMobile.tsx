@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Languages, PenTool, BookOpen, Settings, CheckCircle2, AlertCircle, X, History, Mic } from 'lucide-react';
 import { UserPreferences } from '../types';
@@ -26,6 +26,27 @@ export const LayoutMobile: React.FC<LayoutProps> = ({
 }) => {
   // Horizontal swipe between tabs, wired to the surface around {children}.
   const swipe = useSwipeTabs(activeTab as TabType, setActiveTab);
+
+  // The bar's height is not a constant anyone can hardcode: it is pt-1 plus a
+  // NavItem plus max(env(safe-area-inset-bottom), 0.5rem), so it moves with the
+  // user's text size and with the safe-area inset. Publish what it actually
+  // measures as --tab-bar-h and let anything docked above it read that.
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const root = document.documentElement;
+    const publish = () => root.style.setProperty('--tab-bar-h', `${nav.offsetHeight}px`);
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(nav);
+    return () => {
+      observer.disconnect();
+      // The desktop layout has no tab bar, so leaving a stale height behind
+      // would push its own fixed children up by a bar that is not there.
+      root.style.removeProperty('--tab-bar-h');
+    };
+  }, []);
 
   const handleTabClick = (tab: string) => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -77,7 +98,7 @@ export const LayoutMobile: React.FC<LayoutProps> = ({
           the bar colour on the three dark ones.
           env(safe-area-inset-bottom) stays 0 until index.html's viewport meta
           gains viewport-fit=cover, so the max() holds a floor in the meantime. */}
-      <nav className="ios-glass fixed bottom-0 left-0 right-0 z-50 border-x-0 border-b-0 border-t-border-strong/40 pt-1 pb-[max(env(safe-area-inset-bottom),0.5rem)] transition-colors duration-300">
+      <nav ref={navRef} className="ios-glass fixed bottom-0 left-0 right-0 z-50 border-x-0 border-b-0 border-t-border-strong/40 pt-1 pb-[max(env(safe-area-inset-bottom),0.5rem)] transition-colors duration-300">
         <div className="mx-auto flex w-full max-w-2xl items-stretch justify-around">
           <NavItem
             icon={<Languages className="w-6 h-6" />}
@@ -135,7 +156,7 @@ export const LayoutMobile: React.FC<LayoutProps> = ({
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            className="fixed bottom-24 left-4 right-4 z-[100] flex justify-center pointer-events-none"
+            className="fixed bottom-[calc(var(--tab-bar-h)_+_0.5rem)] left-4 right-4 z-[100] flex justify-center pointer-events-none"
           >
             <div className={`pointer-events-auto px-4 py-3 rounded-2xl shadow-sm flex items-center gap-3 border backdrop-blur-xl min-w-[280px] ${
               toast.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-500' : 

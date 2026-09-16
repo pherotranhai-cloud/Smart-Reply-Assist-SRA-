@@ -144,14 +144,6 @@ export const storage = {
     }
   },
 
-  async getTheme(): Promise<'dark' | 'light' | 'system'> {
-    return (await adapter.get<'dark' | 'light' | 'system'>(STORAGE_KEYS.THEME)) || 'system';
-  },
-
-  async setTheme(theme: 'dark' | 'light' | 'system'): Promise<void> {
-    await adapter.set(STORAGE_KEYS.THEME, theme);
-  },
-  
   async getGlobalLanguage(): Promise<GlobalLanguage> {
     return (await adapter.get<GlobalLanguage>(STORAGE_KEYS.GLOBAL_LANGUAGE)) || 'en';
   },

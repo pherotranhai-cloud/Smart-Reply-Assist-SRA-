@@ -3,6 +3,9 @@ export const STORAGE_KEYS = {
   VOCAB: 'sra_vocab',
   LAST_OUTPUTS: 'sra_last_outputs',
   CONTEXT: 'sra_context',
+  // Legacy: written by the old Settings -> Theme Mode control. Nothing reads it
+  // any more — useUserPreferences migrates off it and then deletes it — but a
+  // reset still has to wipe it for installs that have not opened Settings yet.
   THEME: 'sra_theme',
   HISTORY: 'smart_reply_history',
   STRUCTURED_SUMMARY: 'sra_structured_summary',

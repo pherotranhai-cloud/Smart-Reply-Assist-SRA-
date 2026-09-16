@@ -192,7 +192,7 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
           <div className="bg-accent/5 dark:bg-accent/10 border border-accent/20 rounded-2xl p-4 overflow-y-auto max-h-48 custom-scrollbar flex-shrink-0">
             <div className="text-xs font-semibold text-accent uppercase tracking-wider mb-2 flex items-center gap-1">
               <BookOpen size={14} />
-              {props.t('matchedVocab') || 'Từ vựng khớp'}
+              {props.t('matchedVocab')}
             </div>
             <div className="flex flex-wrap gap-2">
               {matchedTerms.map((item, idx) => (
@@ -215,7 +215,7 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
         {/* Top bar: Header & Target Lang Selector */}
         <div className="flex items-center justify-between flex-shrink-0">
           <span className="text-sm font-semibold text-text-muted uppercase tracking-wider">
-            {props.t('translation') || 'Bản dịch'}
+            {props.t('translation')}
           </span>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">{props.t('targetLanguage')}:</span>

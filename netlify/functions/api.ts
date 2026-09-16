@@ -13,9 +13,12 @@ import {
   countTotalRequests,
   fetchRecentResponses
 } from '../../shared/adminService';
+import { requireAdmin, warnIfAdminAuthUnconfigured } from '../../shared/adminAuth';
 import { countOnline, recordHeartbeat } from '../../shared/presence';
 
 dotenv.config();
+
+warnIfAdminAuthUnconfigured('netlify/functions/api.ts');
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const APP_ENGINE_ID = process.env.APP_ENGINE_ID || 'gpt-5.6-luna';
@@ -660,7 +663,9 @@ router.post('/presence/ping', (req, res) => {
   res.json({ online: recordHeartbeat(sessionId.trim()) });
 });
 
-router.get('/admin/metrics', async (req, res) => {
+// requireAdmin gates this and /admin/responses: the latter returns real user
+// text out of app_logs, and both used to answer anyone who knew the URL.
+router.get('/admin/metrics', requireAdmin, async (req, res) => {
   const online = countOnline();
   if (!supabase) {
     return res.json({ online, totalRequests: 0, supabaseConfigured: false });
@@ -673,7 +678,7 @@ router.get('/admin/metrics', async (req, res) => {
   }
 });
 
-router.get('/admin/responses', async (req, res) => {
+router.get('/admin/responses', requireAdmin, async (req, res) => {
   if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
   try {
     res.json({ responses: await fetchRecentResponses(supabase, req.query.limit) });

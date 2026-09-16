@@ -8,16 +8,18 @@ interface HistoryTabProps {
   t: (key: string) => string;
   showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
   onReuse: (item: HistoryItem) => void;
+  /** Bumped by App when history is cleared, so the list re-reads storage. */
+  historyVersion?: number;
 }
 
-export const HistoryTabMobile: React.FC<HistoryTabProps> = ({ t, showToast, onReuse }) => {
+export const HistoryTabMobile: React.FC<HistoryTabProps> = ({ t, showToast, onReuse, historyVersion }) => {
   const {
     filter,
     setFilter,
     loading,
     filteredHistory,
     handleCopy,
-  } = useHistoryTab(t, showToast);
+  } = useHistoryTab(t, showToast, historyVersion);
 
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -33,7 +35,7 @@ export const HistoryTabMobile: React.FC<HistoryTabProps> = ({ t, showToast, onRe
     const timeStr = `${hours}:${minutes}`;
 
     if (isToday) return timeStr;
-    if (isYesterday) return `${t('yesterday') || 'Yesterday'} ${timeStr}`;
+    if (isYesterday) return `${t('yesterday')} ${timeStr}`;
     
     return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()} ${timeStr}`;
   };
@@ -99,7 +101,7 @@ export const HistoryTabMobile: React.FC<HistoryTabProps> = ({ t, showToast, onRe
         ) : filteredHistory.length === 0 ? (
           <div className="flex flex-col justify-center items-center h-full text-text-muted opacity-60">
             <Inbox size={64} className="mb-4" />
-            <p className="text-lg">{t('noHistory') || 'No history records found.'}</p>
+            <p className="text-lg">{t('noHistory')}</p>
           </div>
         ) : (
           <AnimatePresence>

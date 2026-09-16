@@ -5,14 +5,24 @@ import { copyTextToClipboard } from '../utils/clipboard';
 
 type FilterType = 'all' | 'translate' | 'compose' | 'talk';
 
-export function useHistoryTab(t: (key: string) => string, showToast: (msg: string, type: 'success' | 'error' | 'info') => void) {
+/**
+ * `refreshKey` re-reads storage when it changes. Today the History tab unmounts
+ * whenever another tab is showing, so a Settings -> Clear History round trip
+ * already comes back to a fresh read; the key is what keeps that true if the
+ * tab is ever kept mounted, since clearing storage cannot reach this state.
+ */
+export function useHistoryTab(
+  t: (key: string) => string,
+  showToast: (msg: string, type: 'success' | 'error' | 'info') => void,
+  refreshKey: number = 0
+) {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [filter, setFilter] = useState<FilterType>('all');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadHistory();
-  }, []);
+  }, [refreshKey]);
 
   const loadHistory = async () => {
     setLoading(true);
@@ -29,7 +39,7 @@ export function useHistoryTab(t: (key: string) => string, showToast: (msg: strin
   const handleCopy = async (text: string) => {
     const success = await copyTextToClipboard(text);
     if (success) {
-      showToast(t('copied') || 'Copied to clipboard', 'success');
+      showToast(t('copied'), 'success');
     } else {
       showToast('Failed to copy', 'error');
     }

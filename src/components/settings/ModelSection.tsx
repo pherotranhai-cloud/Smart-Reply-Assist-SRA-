@@ -1,7 +1,7 @@
 import React, { useId, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Check, Cpu, Gauge, Sparkles, Zap, LucideIcon } from 'lucide-react';
-import { SUPPORTED_MODELS } from '../../constants';
+import { Check, Cpu } from 'lucide-react';
+import { MODEL_REGISTRY, SUPPORTED_MODELS } from '../../constants';
 
 interface ModelSectionProps {
   /** Currently selected model id, from localSettings.openai.model. */
@@ -11,17 +11,9 @@ interface ModelSectionProps {
   t: (key: string) => string;
 }
 
-// GPT-5.6 Luna is the only id with a distinct display name; the rest show their id.
-const displayName = (modelId: string) => (modelId === 'gpt-5.6-luna' ? 'GPT-5.6 Luna' : modelId);
-
-// Per-model leading tile icon and the key of its one-line capability subtitle.
-// Model names are proper nouns and stay untranslated; the subtitles do not.
-// Keep every translation under ~30 characters — the row truncates at 320px.
-const MODEL_META: Record<string, { icon: LucideIcon; captionKey: string }> = {
-  'gpt-5.6-luna': { icon: Sparkles, captionKey: 'model.capability.luna' },
-  'gpt-4o': { icon: Zap, captionKey: 'model.capability.gpt4o' },
-  'gpt-3.5-turbo': { icon: Gauge, captionKey: 'model.capability.gpt35' },
-};
+// The ids, icons and caption keys all come from MODEL_REGISTRY in constants.ts,
+// so adding a model is one edit there. Model names are proper nouns and stay
+// untranslated; the captions do not.
 
 /**
  * iOS-style grouped selection list for the AI model: one row per model, a
@@ -35,7 +27,7 @@ export const ModelSection: React.FC<ModelSectionProps> = ({ model, onSelectModel
 
   // Roving tabIndex: the selected row is the group's single tab stop. An unknown
   // model id (nothing selected) falls back to the first row so the group stays reachable.
-  const selectedIndex = SUPPORTED_MODELS.indexOf(model as (typeof SUPPORTED_MODELS)[number]);
+  const selectedIndex = SUPPORTED_MODELS.indexOf(model);
   const tabStop = selectedIndex === -1 ? 0 : selectedIndex;
 
   // Arrow keys move and select, per the ARIA radiogroup pattern. Selection is
@@ -72,7 +64,7 @@ export const ModelSection: React.FC<ModelSectionProps> = ({ model, onSelectModel
       >
         {SUPPORTED_MODELS.map((modelId, idx) => {
           const isSelected = model === modelId;
-          const meta = MODEL_META[modelId];
+          const meta = MODEL_REGISTRY[modelId];
           const TileIcon = meta?.icon ?? Cpu;
           return (
             <button
@@ -99,7 +91,7 @@ export const ModelSection: React.FC<ModelSectionProps> = ({ model, onSelectModel
               >
                 {/* min-w-0 lets both lines truncate instead of overflowing at 320px. */}
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[17px] text-text-main">{displayName(modelId)}</span>
+                  <span className="block truncate text-[17px] text-text-main">{meta?.displayName ?? modelId}</span>
                   {meta && (
                     <span className="block truncate text-[13px] text-text-muted">{t(meta.captionKey)}</span>
                   )}
