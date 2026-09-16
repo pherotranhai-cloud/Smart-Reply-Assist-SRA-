@@ -243,6 +243,7 @@ export const translations = {
     nav_history: 'History',
     nav_settings: 'Settings',
     "personalization.theme.footer": "System follows your device's light or dark appearance setting.",
+    "personalization.fontSize.preview": "Every conversation, in the size that reads best.",
   },
   vi: {
     translate: 'Dịch',
@@ -488,6 +489,7 @@ export const translations = {
     nav_history: 'Lịch sử',
     nav_settings: 'Cài đặt',
     "personalization.theme.footer": "Chế độ Theo hệ thống sẽ đổi sáng/tối theo cài đặt của thiết bị.",
+    "personalization.fontSize.preview": "Mỗi cuộc trò chuyện, ở cỡ chữ bạn đọc thoải mái nhất.",
   },
   'zh-CN': {
     translate: '翻译',
@@ -704,6 +706,7 @@ export const translations = {
     nav_history: '历史',
     nav_settings: '设置',
     "personalization.theme.footer": "“跟随系统”会随设备的浅色/深色设置自动切换。",
+    "personalization.fontSize.preview": "每一次对话，都用最易读的字号呈现。",
   },
   'zh-TW': {
     translate: '翻譯',
@@ -920,5 +923,6 @@ export const translations = {
     nav_history: '歷史',
     nav_settings: '設置',
     "personalization.theme.footer": "「跟隨系統」會隨裝置的淺色/深色設定自動切換。",
+    "personalization.fontSize.preview": "每一次對話，都用最易讀的字級呈現。",
   }
 };
