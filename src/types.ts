@@ -39,8 +39,6 @@ export interface ConversationContext {
   contextSource: 'original' | 'translated';
 }
 
-export type ThemeMode = 'dark' | 'light' | 'system';
-export type Theme = 'dark' | 'light';
 export type GlobalLanguage = 'en' | 'vi' | 'zh-CN' | 'zh-TW';
 
 export interface StructuredSummary {
@@ -106,12 +104,13 @@ export interface UserPreferences {
   backgroundImage?: string;
   savedWallpapers: SavedWallpaper[];
   backgroundEffect: BackgroundEffect;
-  fontSize?: 'sm' | 'base' | 'md' | 'lg' | 'xl';
-  fontFamily?: string;
+  /** The four stops TypographySection offers and App.tsx maps to a class. */
+  fontSize?: 'sm' | 'base' | 'lg' | 'xl';
+  /** The four faces TypographySection offers and App.tsx maps to a class. */
+  fontFamily?: 'sans' | 'mono' | 'serif' | 'playfair';
 }
 
 export interface AppState {
-  themeMode: ThemeMode;
   globalLanguage: GlobalLanguage;
   settings: AISettings;
   lastOutputs: {

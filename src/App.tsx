@@ -242,9 +242,8 @@ export default function App() {
   useEffect(() => {
     const init = async () => {
       try {
-        const [settings, themeMode, lang, localVocab, outputs, ctx, summary] = await Promise.all([
+        const [settings, lang, localVocab, outputs, ctx, summary] = await Promise.all([
           storage.getSettings(),
-          storage.getTheme(),
           storage.getGlobalLanguage(),
           storage.getVocab(),
           storage.getLastOutputs(),
@@ -265,7 +264,6 @@ export default function App() {
         setState(prev => ({ 
           ...prev, 
           settings, 
-          themeMode, 
           globalLanguage: lang, 
           lastOutputs: outputs, 
           structuredSummary: summary || undefined 
@@ -306,15 +304,6 @@ export default function App() {
       else if (userPreferences.fontSize === 'lg') sizeClass = 'text-lg';
       else if (userPreferences.fontSize === 'xl') sizeClass = 'text-xl';
       document.documentElement.classList.add(sizeClass);
-
-      // Set background opacity/blur for glassmorphism
-      if (userPreferences.backgroundImage) {
-        document.documentElement.style.setProperty('--app-bg-opacity', '0.4');
-        document.documentElement.style.setProperty('--app-blur-intensity', '12px');
-      } else {
-        document.documentElement.style.setProperty('--app-bg-opacity', '1');
-        document.documentElement.style.setProperty('--app-blur-intensity', '0px');
-      }
     }
   }, [userPreferences]);
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UserPreferences, BackgroundEffect, SavedWallpaper } from '../types';
+import { UserPreferences, SavedWallpaper } from '../types';
 import { INITIAL_WALLPAPER } from '../constants/wallpapers';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 
@@ -88,44 +88,11 @@ export const useUserPreferences = () => {
     }
   };
 
-  const setBgImage = (url: string) => {
-    savePreferences({ ...preferences, backgroundImage: url });
-  };
-
-  const saveWallpaper = (wallpaper: SavedWallpaper) => {
-    const saved = preferences.savedWallpapers || [];
-    if (saved.some(w => w.url === wallpaper.url)) return;
-    savePreferences({ ...preferences, savedWallpapers: [...saved, wallpaper] });
-  };
-
-  const removeSavedWallpaper = (url: string) => {
-    const saved = preferences.savedWallpapers || [];
-    savePreferences({
-      ...preferences,
-      savedWallpapers: saved.filter(w => w.url !== url),
-      backgroundImage: preferences.backgroundImage === url ? '' : preferences.backgroundImage,
-    });
-  };
-
-  const renameSavedWallpaper = (url: string, name: string) => {
-    const saved = preferences.savedWallpapers || [];
-    savePreferences({
-      ...preferences,
-      savedWallpapers: saved.map(w => (w.url === url ? { ...w, name } : w)),
-    });
-  };
-
-  const setEffect = (effect: BackgroundEffect) => {
-    savePreferences({ ...preferences, backgroundEffect: effect });
-  };
-
+  // Settings writes whole preference objects through setPreferences; the
+  // per-field setters this used to export (setBgImage, saveWallpaper,
+  // removeSavedWallpaper, renameSavedWallpaper, setEffect) had no callers.
   return {
     preferences,
-    setBgImage,
-    saveWallpaper,
-    removeSavedWallpaper,
-    renameSavedWallpaper,
-    setEffect,
     setPreferences: savePreferences
   };
 };

@@ -77,9 +77,6 @@
      switches to --accent-on, which each theme has already scored against it. */
   --ios-switch-knob: #FFFFFF;
 
-  --app-bg-opacity: 1;
-  --app-blur-intensity: 0px;
-
   /* Measured height of the mobile tab bar, published by LayoutMobile so
      anything docked above it tracks the real bar instead of a tuned constant.
      Not theme-dependent, so it is declared once here; 0 is the correct value
@@ -108,8 +105,6 @@
   --ios-label-secondary: var(--text-muted);
   --ios-switch-knob: #FFFFFF;
 
-  --app-bg-opacity: 1;
-  --app-blur-intensity: 0px;
 }
 
 :root[data-theme="cyberpunk"] {
@@ -133,8 +128,6 @@
   --ios-label-secondary: var(--text-muted);
   --ios-switch-knob: #F5F3FF;                 /* pure white halates on this palette */
 
-  --app-bg-opacity: 1;
-  --app-blur-intensity: 0px;
 }
 
 :root[data-theme="industrial"] {
@@ -158,8 +151,6 @@
   --ios-label-secondary: var(--text-muted);
   --ios-switch-knob: #FFFFFF;
 
-  --app-bg-opacity: 1;
-  --app-blur-intensity: 0px;
 }
 
 @layer base {
