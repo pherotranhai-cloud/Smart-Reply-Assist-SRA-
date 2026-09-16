@@ -242,6 +242,7 @@ export const translations = {
     nav_vocab: 'Vocab',
     nav_history: 'History',
     nav_settings: 'Settings',
+    "personalization.theme.footer": "System follows your device's light or dark appearance setting.",
   },
   vi: {
     translate: 'Dịch',
@@ -486,6 +487,7 @@ export const translations = {
     nav_vocab: 'Từ vựng',
     nav_history: 'Lịch sử',
     nav_settings: 'Cài đặt',
+    "personalization.theme.footer": "Chế độ Theo hệ thống sẽ đổi sáng/tối theo cài đặt của thiết bị.",
   },
   'zh-CN': {
     translate: '翻译',
@@ -701,6 +703,7 @@ export const translations = {
     nav_vocab: '词汇',
     nav_history: '历史',
     nav_settings: '设置',
+    "personalization.theme.footer": "“跟随系统”会随设备的浅色/深色设置自动切换。",
   },
   'zh-TW': {
     translate: '翻譯',
@@ -916,5 +919,6 @@ export const translations = {
     nav_vocab: '詞彙',
     nav_history: '歷史',
     nav_settings: '設置',
+    "personalization.theme.footer": "「跟隨系統」會隨裝置的淺色/深色設定自動切換。",
   }
 };

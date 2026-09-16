@@ -18,7 +18,7 @@ import { MAX_SAVED_WALLPAPERS } from '../utils/imageResize';
 import { APP_VERSION } from '../config/version';
 import { SUPPORTED_MODELS } from '../constants';
 import { DEFAULT_WALLPAPERS, WallpaperOption } from '../constants/wallpapers';
-import { SettingsPageHeader } from './settings/SettingsPageHeader';
+import { ThemeSection } from './settings/ThemeSection';
 
 export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
   globalLanguage,
@@ -53,12 +53,10 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
   const hasBgImage = !!userPreferences?.backgroundImage || (userPreferences?.backgroundEffect && userPreferences.backgroundEffect !== 'none');
 
   return (
-    <div className={`flex flex-col h-[calc(100vh-140px)] min-h-0 overflow-hidden w-full border border-border-main rounded-3xl px-6 pb-6 transition-all duration-300 ${
-      hasBgImage ? 'bg-surface backdrop-blur-md' : 'bg-panel'
+    <div className={`flex flex-col h-[calc(100vh-140px)] min-h-0 overflow-hidden w-full border border-border-main rounded-3xl p-6 transition-all duration-300 ${
+      hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'
     }`}>
-      <div className="flex-1 w-full overflow-y-auto pr-2 space-y-9">
-        <SettingsPageHeader t={t} variant="pane" />
-
+      <div className="flex-1 w-full overflow-y-auto pr-2 custom-scrollbar space-y-6">
         {/* Personalization Section */}
         <section className="space-y-4">
           <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-1 flex items-center gap-2">
@@ -69,33 +67,12 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
           <div className={`rounded-xl p-4 shadow-sm border border-border-main space-y-5 transition-all duration-300 ${
             hasBgImage ? 'bg-panel/30' : 'bg-panel'
           }`}>
-            {/* Theme Selector */}
-            <div>
-              <span className="text-[13px] font-medium text-text-muted mb-2 block">
-                {t('personalization.theme') || 'Chủ đề giao diện'}
-              </span>
-              <div className="grid grid-cols-3 gap-2">
-                {uiThemeOptions.map((opt) => (
-                  <button
-                    key={opt.mode}
-                    onClick={() => {
-                      onUserPreferencesChange({
-                        ...userPreferences,
-                        theme: opt.mode as any
-                      });
-                    }}
-                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
-                      userPreferences.theme === opt.mode
-                        ? 'border-accent bg-accent/5 text-text-main font-semibold'
-                        : 'border-border-main text-text-muted hover:border-text-muted/30 hover:text-text-main'
-                    }`}
-                  >
-                    <span className="text-lg mb-1">{opt.emoji}</span>
-                    <span className="text-[12px]">{t(opt.key) || opt.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <ThemeSection
+              uiThemeOptions={uiThemeOptions}
+              userPreferences={userPreferences}
+              onUserPreferencesChange={onUserPreferencesChange}
+              t={t}
+            />
 
             {/* Font Selector */}
             <div>
