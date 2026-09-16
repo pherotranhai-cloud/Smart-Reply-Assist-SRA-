@@ -27,11 +27,10 @@ export const LayoutMobile: React.FC<LayoutProps> = ({
   // Horizontal swipe between tabs, wired to the surface around {children}.
   const swipe = useSwipeTabs(activeTab as TabType, setActiveTab);
 
-  const handleTabClick = (tab: string, e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleTabClick = (tab: string) => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate(40);
     }
-    e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     setActiveTab(tab);
   };
 
@@ -70,51 +69,62 @@ export const LayoutMobile: React.FC<LayoutProps> = ({
         </motion.div>
       </motion.main>
 
-      {/* Bottom Navigation */}
-      <nav className={`fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-6 pt-2 pointer-events-none transition-all duration-500 ${
-        hasBgImage ? 'bg-gradient-to-t from-black/20 via-transparent to-transparent' : 'bg-gradient-to-t from-app via-app/80 to-transparent'
-      }`}>
-        <div className="pointer-events-auto relative w-full max-w-md mx-4 drop-shadow-sm">
-          <div 
-            className="ios-glass rounded-[24px] flex items-center justify-around w-full px-2 py-2 md:px-6 gap-1 md:gap-3 overflow-hidden"
-          >
-            <NavItem 
-              icon={<Languages className="w-5 h-5 md:w-6 md:h-6" />} 
-              label={t('translate')}
-              active={activeTab === 'translate'} 
-              onClick={(e) => handleTabClick('translate', e)} 
-            />
-            <NavItem 
-              icon={<Mic className="w-5 h-5 md:w-6 md:h-6" />} 
-              label={t('live_translate') || 'Live Translate'}
-              active={activeTab === 'talk'} 
-              onClick={(e) => handleTabClick('talk', e)} 
-            />
-            <NavItem 
-              icon={<PenTool className="w-5 h-5 md:w-6 md:h-6" />} 
-              label={t('compose')}
-              active={activeTab === 'compose'} 
-              onClick={(e) => handleTabClick('compose', e)} 
-            />
-            <NavItem 
-              icon={<BookOpen className="w-5 h-5 md:w-6 md:h-6" />} 
-              label={t('vocab')}
-              active={activeTab === 'vocab'} 
-              onClick={(e) => handleTabClick('vocab', e)} 
-            />
-            <NavItem 
-              icon={<History className="w-5 h-5 md:w-6 md:h-6" />} 
-              label={t('history') || 'History'}
-              active={activeTab === 'history'} 
-              onClick={(e) => handleTabClick('history', e)} 
-            />
-            <NavItem 
-              icon={<Settings className="w-5 h-5 md:w-6 md:h-6" />} 
-              label={t('settings')}
-              active={activeTab === 'settings'} 
-              onClick={(e) => handleTabClick('settings', e)} 
-            />
-          </div>
+      {/* Bottom Navigation - edge-to-edge iOS tab bar: one translucent material
+          plate over --ios-glass-bg, with a hairline separator on top.
+          The hairline is border-strong at 40% because neither obvious token
+          works in all four themes: --ios-glass-border is white at 0.3 alpha
+          (invisible on the light bar) and --border-main sits within ~1.1:1 of
+          the bar colour on the three dark ones.
+          env(safe-area-inset-bottom) stays 0 until index.html's viewport meta
+          gains viewport-fit=cover, so the max() holds a floor in the meantime. */}
+      <nav className="ios-glass fixed bottom-0 left-0 right-0 z-50 border-x-0 border-b-0 border-t-border-strong/40 pt-1 pb-[max(env(safe-area-inset-bottom),0.5rem)] transition-colors duration-300">
+        <div className="mx-auto flex w-full max-w-2xl items-stretch justify-around">
+          <NavItem
+            icon={<Languages className="w-6 h-6" />}
+            label={t('nav_translate')}
+            ariaLabel={t('translate')}
+            active={activeTab === 'translate'}
+            onClick={() => handleTabClick('translate')}
+          />
+          <NavItem
+            icon={<Mic className="w-6 h-6" />}
+            label={t('nav_talk')}
+            ariaLabel={t('live_translate')}
+            active={activeTab === 'talk'}
+            onClick={() => handleTabClick('talk')}
+          />
+          <NavItem
+            icon={<PenTool className="w-6 h-6" />}
+            label={t('nav_compose')}
+            ariaLabel={t('compose')}
+            active={activeTab === 'compose'}
+            onClick={() => handleTabClick('compose')}
+          />
+          <NavItem
+            icon={<BookOpen className="w-6 h-6" />}
+            label={t('nav_vocab')}
+            ariaLabel={t('vocab')}
+            active={activeTab === 'vocab'}
+            onClick={() => handleTabClick('vocab')}
+          />
+          {/* History alone uses the short key for its accessible name too:
+              t('history') is missing from both zh dictionaries and falls back to
+              English, which would leave the accessible name not containing the
+              visible label (WCAG 2.5.3). nav_history is defined in all four. */}
+          <NavItem
+            icon={<History className="w-6 h-6" />}
+            label={t('nav_history')}
+            ariaLabel={t('nav_history')}
+            active={activeTab === 'history'}
+            onClick={() => handleTabClick('history')}
+          />
+          <NavItem
+            icon={<Settings className="w-6 h-6" />}
+            label={t('nav_settings')}
+            ariaLabel={t('settings')}
+            active={activeTab === 'settings'}
+            onClick={() => handleTabClick('settings')}
+          />
         </div>
       </nav>
 
@@ -146,29 +156,37 @@ export const LayoutMobile: React.FC<LayoutProps> = ({
   );
 };
 
-const NavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: (e: React.MouseEvent<HTMLButtonElement>) => void }) => (
-  <button 
+// One tab: a 24px glyph over a 10px SF-style label, on a 44pt minimum target.
+// min-w-[44px] also removes the automatic flex minimum, so a long label
+// truncates instead of widening the row - six tabs still fit at 320px.
+const NavItem = ({ icon, label, ariaLabel, active, onClick }: {
+  icon: React.ReactNode,
+  label: string,
+  ariaLabel: string,
+  active: boolean,
+  onClick: () => void
+}) => (
+  <button
+    type="button"
     onClick={onClick}
-    title={label}
-    aria-label={label}
-    className={`relative flex items-center justify-center flex-1 max-w-[48px] h-12 md:max-w-none md:w-16 md:h-16 shrink-0 rounded-2xl transition-all duration-300 ${
-      active ? 'text-[#006D77] scale-110' : 'text-slate-400 hover:text-slate-500 dark:text-slate-500 dark:hover:text-slate-400'
+    title={ariaLabel}
+    aria-label={ariaLabel}
+    aria-current={active ? 'page' : undefined}
+    className={`relative flex flex-1 min-w-[44px] min-h-[44px] flex-col items-center justify-center gap-0.5 px-0.5 pt-2 pb-1 transition-colors duration-200 active:opacity-60 ${
+      active ? 'text-accent-text' : 'text-text-muted'
     }`}
   >
-    {/* Subtle active background glow */}
-    <div className={`absolute inset-0.5 md:inset-1 bg-[#006D77]/5 dark:bg-[#006D77]/20 rounded-xl transition-opacity duration-300 ${
-      active ? 'opacity-100' : 'opacity-0'
-    }`} />
-    
-    <div className="relative z-10 flex flex-col items-center">
-      {icon}
-    </div>
+    {icon}
+    {/* Pinned at 10px so the row keeps fitting when the user scales body text. */}
+    <span className="w-full truncate text-center text-[10px] font-medium leading-tight tracking-tight">
+      {label}
+    </span>
 
-    {/* Top Dot Indicator */}
+    {/* Shared-element marker that springs across to the tab being selected */}
     {active && (
       <motion.div
         layoutId="activeTabIndicator"
-        className="absolute top-1 md:top-1.5 w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-[#006D77]"
+        className="absolute top-1 w-1 h-1 rounded-full bg-accent-text"
         initial={false}
         transition={{ type: "spring", stiffness: 500, damping: 30 }}
       />
