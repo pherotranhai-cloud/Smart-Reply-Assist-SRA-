@@ -7,11 +7,14 @@ import {
   countTotalRequests,
   fetchRecentResponses
 } from './shared/adminService';
+import { requireAdmin, warnIfAdminAuthUnconfigured } from './shared/adminAuth';
 import { countOnline, recordHeartbeat } from './shared/presence';
 
 dotenv.config();
 
 const supabase = createSupabaseClient();
+
+warnIfAdminAuthUnconfigured('server.ts');
 
 async function startServer() {
   const app = express();
@@ -128,8 +131,10 @@ async function startServer() {
     res.json({ online: recordHeartbeat(sessionId.trim()) });
   });
 
-  // GET /api/admin/metrics — số người online + tổng requests
-  apiRouter.get('/admin/metrics', async (req, res) => {
+  // GET /api/admin/metrics — số người online + tổng requests.
+  // requireAdmin gates this and /admin/responses: the latter returns real user
+  // text out of app_logs, and both used to answer anyone who knew the URL.
+  apiRouter.get('/admin/metrics', requireAdmin, async (req, res) => {
     const online = countOnline();
     if (!supabase) {
       return res.json({ online, totalRequests: 0, supabaseConfigured: false });
@@ -143,7 +148,7 @@ async function startServer() {
   });
 
   // GET /api/admin/responses — 50 phản hồi gần nhất của app
-  apiRouter.get('/admin/responses', async (req, res) => {
+  apiRouter.get('/admin/responses', requireAdmin, async (req, res) => {
     if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
     try {
       res.json({ responses: await fetchRecentResponses(supabase, req.query.limit) });

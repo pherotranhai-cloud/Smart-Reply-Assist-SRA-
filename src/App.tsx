@@ -123,7 +123,10 @@ export default function App() {
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'info' | 'error' | 'success' } | null>(null);
-  const [isAdminMode, setIsAdminMode] = useState(false);
+  // The key the server accepted at unlock, kept for the dashboard's requests.
+  // Session-scoped React state on purpose: it is never persisted, so closing
+  // the tab ends the admin session and nothing is left on disk to be found.
+  const [adminKey, setAdminKey] = useState<string | null>(null);
 
   const [context, setContext] = useState<ConversationContext | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -648,7 +651,7 @@ export default function App() {
                   setState(prev => ({ ...prev, settings: s }));
                 }}
                 t={t}
-                onOpenAdmin={() => setIsAdminMode(true)}
+                onOpenAdmin={(key) => setAdminKey(key)}
                 userPreferences={userPreferences}
                 onUserPreferencesChange={(prefs) => {
                   setUserPreferences(prefs);
@@ -667,9 +670,9 @@ export default function App() {
       />
 
       <AnimatePresence>
-        {isAdminMode && (
+        {adminKey && (
           <Suspense fallback={<FallbackSpinner />}>
-            <AdminDashboard onClose={() => setIsAdminMode(false)} />
+            <AdminDashboard adminKey={adminKey} onClose={() => setAdminKey(null)} />
           </Suspense>
         )}
       </AnimatePresence>

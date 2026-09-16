@@ -14,7 +14,8 @@ export interface SettingsPanelProps {
   settings: AISettings;
   onSaveSettings: (s: AISettings) => void;
   t: (key: string) => string;
-  onOpenAdmin?: () => void;
+  /** Receives the key the server accepted, for the dashboard's own requests. */
+  onOpenAdmin?: (adminKey: string) => void;
   userPreferences: UserPreferences;
   onUserPreferencesChange: (prefs: UserPreferences) => void;
 }
@@ -24,16 +25,28 @@ interface UseSettingsPanelParams {
   onSaveSettings: (s: AISettings) => void;
   globalLanguage: GlobalLanguage;
   t: (key: string) => string;
-  onOpenAdmin?: () => void;
+  /** Receives the key the server accepted, for the dashboard's own requests. */
+  onOpenAdmin?: (adminKey: string) => void;
 }
+
+// The dashboard's API host. Admin routes may live on the Render server rather
+// than alongside the bundle, so the unlock probe has to ask the same origin the
+// dashboard will, or a valid key would be checked against the wrong server.
+const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || '';
 
 /**
  * State and handlers behind the settings panel, shared by both layouts.
  *
- * NOTE: handleFeedbackSubmit doubles as the admin unlock — typing the admin key
- * into the feedback box opens the dashboard instead of submitting. The key is
- * compared client-side against a VITE_ env var, so it ships in the bundle and
- * is not a real access control; the /api/admin/* routes remain unauthenticated.
+ * handleFeedbackSubmit doubles as the admin unlock: what the user types is
+ * first offered to /api/admin/metrics as an x-admin-key header. A 200 means the
+ * server accepted it, so the dashboard opens and keeps the key for its own
+ * requests; anything else falls through and the text is submitted as feedback.
+ *
+ * The comparison is deliberately the server's, not ours. It used to be done
+ * here against VITE_ADMIN_SECRET_KEY — a VITE_ variable, so the secret was
+ * compiled into every shipped bundle — while /api/admin/* accepted anyone who
+ * knew the URL. The key now lives only in ADMIN_API_KEY on the server; see
+ * shared/adminAuth.ts.
  */
 export function useSettingsPanel({
   settings,
@@ -47,11 +60,35 @@ export function useSettingsPanel({
   const [feedbackText, setFeedbackText] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
+  /**
+   * Cheap shape filter, not a security check — the server still decides. It
+   * keeps genuine feedback, which runs to sentences and line breaks, out of a
+   * request header, and saves a round trip on every real submission.
+   */
+  const couldBeKey = (text: string) => text.length <= 128 && !/\s/.test(text);
+
+  /**
+   * Offers the typed text to the admin endpoint as a key. True means the server
+   * accepted it. A network failure is not an acceptance — it returns false and
+   * the text goes on to be submitted as ordinary feedback.
+   */
+  const unlocksAdmin = async (candidate: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`${SERVER_BASE_URL}/api/admin/metrics`, {
+        headers: { 'x-admin-key': candidate },
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  };
+
   const handleFeedbackSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
     const inputKey = feedbackText.trim();
-    const targetAdminKey = import.meta.env.VITE_ADMIN_SECRET_KEY || "MÃ_BẢO_MẬT_DỰ_PHÒNG_CỦA_BẠN";
+    if (!inputKey) return;
 
-    if (inputKey === targetAdminKey || inputKey === "MÃ_ADMIN_BẢO_MẬT_CỦA_BẠN") {
+    setIsSubmittingFeedback(true);
+    if (couldBeKey(inputKey) && await unlocksAdmin(inputKey)) {
       // Stop the form from also submitting the key as feedback.
       if (e) {
         e.preventDefault();
@@ -61,15 +98,13 @@ export function useSettingsPanel({
         }
       }
 
-      if (onOpenAdmin) onOpenAdmin();
+      setIsSubmittingFeedback(false);
+      if (onOpenAdmin) onOpenAdmin(inputKey);
       setFeedbackText('');
       setIsFeedbackOpen(false);
       return;
     }
 
-    if (!inputKey) return;
-
-    setIsSubmittingFeedback(true);
     try {
       const response = await fetch('/api/feedback', {
         method: 'POST',

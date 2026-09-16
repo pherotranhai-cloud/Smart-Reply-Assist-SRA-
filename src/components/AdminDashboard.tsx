@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { X, ShieldAlert, Users, Activity, MessageSquareText, RefreshCw, ChevronDown } from 'lucide-react';
 
@@ -11,6 +11,12 @@ const RESPONSE_LIMIT = 50;
 
 interface AdminDashboardProps {
   onClose: () => void;
+  /**
+   * The key the server accepted at unlock, sent on every admin request. Held in
+   * React state for the session only — never localStorage, so it does not
+   * outlive the tab or sit anywhere a later visitor could read it.
+   */
+  adminKey: string;
 }
 
 interface AdminMetrics {
@@ -100,7 +106,7 @@ const ResponseCard: React.FC<{ item: RecentResponse }> = ({ item }) => {
   );
 };
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, adminKey }) => {
   const [metrics, setMetrics] = useState<AdminMetrics>(EMPTY_METRICS);
   const [metricsError, setMetricsError] = useState(false);
   const [metricsLoading, setMetricsLoading] = useState(true);
@@ -112,9 +118,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   // Chặn setState sau khi modal đã đóng (interval có thể còn một lượt fetch dở).
   const isMountedRef = useRef(true);
 
+  // Memoised so the fetch callbacks below keep a stable identity — their effect
+  // re-runs on a new one, which would restart the refresh interval each render.
+  const authHeaders = useMemo(() => ({ 'x-admin-key': adminKey }), [adminKey]);
+
   const fetchMetrics = useCallback(async () => {
     try {
-      const res = await fetch(`${SERVER_BASE_URL}/api/admin/metrics`);
+      const res = await fetch(`${SERVER_BASE_URL}/api/admin/metrics`, { headers: authHeaders });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (!isMountedRef.current) return;
@@ -132,11 +142,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     } finally {
       if (isMountedRef.current) setMetricsLoading(false);
     }
-  }, []);
+  }, [authHeaders]);
 
   const fetchResponses = useCallback(async () => {
     try {
-      const res = await fetch(`${SERVER_BASE_URL}/api/admin/responses?limit=${RESPONSE_LIMIT}`);
+      const res = await fetch(`${SERVER_BASE_URL}/api/admin/responses?limit=${RESPONSE_LIMIT}`, {
+        headers: authHeaders,
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (!isMountedRef.current) return;
@@ -150,7 +162,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     } finally {
       if (isMountedRef.current) setResponsesLoading(false);
     }
-  }, []);
+  }, [authHeaders]);
 
   useEffect(() => {
     isMountedRef.current = true;
