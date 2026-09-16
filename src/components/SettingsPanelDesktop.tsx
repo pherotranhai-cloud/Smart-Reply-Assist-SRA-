@@ -1,21 +1,22 @@
 import React, { useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
-  RotateCcw,
   Languages,
   ChevronRight,
   Cpu,
-  History,
+  MessageSquareWarning,
+  X,
+  Send,
   Palette,
   Sparkles,
   Image as ImageIcon
 } from 'lucide-react';
 import { SettingsPanelProps, useSettingsPanel } from '../hooks/useSettingsPanel';
 import { MAX_SAVED_WALLPAPERS } from '../utils/imageResize';
-import { APP_VERSION } from '../config/version';
 import { SUPPORTED_MODELS } from '../constants';
 import { DEFAULT_WALLPAPERS, WallpaperOption } from '../constants/wallpapers';
-import { FeedbackSection } from './settings/FeedbackSection';
-import { FeedbackSheet } from './settings/FeedbackSheet';
+import { SystemSection } from './settings/SystemSection';
+import { AboutSection } from './settings/AboutSection';
 
 export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
   globalLanguage,
@@ -424,78 +425,87 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
           </div>
         </section>
 
-        <FeedbackSection t={t} onOpen={() => setIsFeedbackOpen(true)} />
-
-        {/* System Actions */}
+        {/* Feedback & Support */}
         <section>
-          <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
-            {t('system')}
+          <h3 className="text-[12px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
+            {t('supportFeedback')}
           </h3>
           <div className={`rounded-xl overflow-hidden shadow-sm border border-border-main transition-all duration-300 ${
             hasBgImage ? 'bg-panel/30' : 'bg-panel'
           }`}>
             <button
-              onClick={handleResetApp}
-              className="w-full flex items-center justify-between px-4 py-3 bg-transparent transition-colors hover:bg-border-main/20 border-b border-border-main"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-md bg-red-500 flex items-center justify-center text-white">
-                  <RotateCcw size={16} />
-                </div>
-                <span className="text-[17px] text-text-main">{t('resetApp')}</span>
-              </div>
-              <ChevronRight size={20} className="text-text-muted" />
-            </button>
-            
-            <button
-              onClick={handleClearHistory}
+              onClick={() => setIsFeedbackOpen(true)}
               className="w-full flex items-center justify-between px-4 py-3 bg-transparent transition-colors hover:bg-border-main/20"
             >
               <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-md bg-red-600 flex items-center justify-center text-white">
-                  <History size={16} />
+                <div className="w-7 h-7 rounded-md bg-accent flex items-center justify-center text-white">
+                  <MessageSquareWarning size={16} />
                 </div>
-                <span className="text-[17px] text-red-500 font-medium">{t('clearHistory')}</span>
+                <span className="text-[17px] text-text-main">{t('feedbackErrorReport')}</span>
               </div>
               <ChevronRight size={20} className="text-text-muted" />
             </button>
           </div>
         </section>
 
+        {/* System Actions */}
+        <SystemSection t={t} handleResetApp={handleResetApp} handleClearHistory={handleClearHistory} />
+
         {/* About */}
-        <section>
-          <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2">
-            {t('about')}
-          </h3>
-          <div className={`rounded-xl overflow-hidden shadow-sm border border-border-main p-4 transition-all duration-300 ${
-            hasBgImage ? 'bg-panel/30' : 'bg-panel'
-          }`}>
-            <div className="flex items-center gap-4 mb-3">
-              <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center text-white shadow-sm">
-                <Languages size={24} />
-              </div>
-              <div>
-                <p className="text-[17px] font-semibold text-text-main">{t('appName')}</p>
-                <p className="text-[13px] text-text-muted">Phiên bản {APP_VERSION}</p>
-              </div>
-            </div>
-            <p className="text-[15px] text-text-muted leading-relaxed">
-              {t('appDescription')}
-            </p>
-          </div>
-        </section>
+        <AboutSection t={t} />
       </div>
 
-      {/* Feedback sheet */}
-      <FeedbackSheet
-        isOpen={isFeedbackOpen}
-        onClose={() => setIsFeedbackOpen(false)}
-        feedbackText={feedbackText}
-        setFeedbackText={setFeedbackText}
-        isSubmitting={isSubmittingFeedback}
-        onSubmit={handleFeedbackSubmit}
-        t={t}
-      />
+      {/* Feedback Modal */}
+      <AnimatePresence>
+        {isFeedbackOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-panel border border-border-main rounded-2xl w-full max-w-md overflow-hidden shadow-2xl relative"
+            >
+              <div className="p-4 border-b border-border-main flex justify-between items-center bg-panel">
+                <h3 className="text-lg font-semibold text-text-main flex items-center gap-2">
+                  <MessageSquareWarning size={20} className="text-accent" />
+                  {t('feedback_error_report') || 'Góp ý & Báo lỗi'}
+                </h3>
+                <button 
+                  onClick={() => setIsFeedbackOpen(false)}
+                  className="p-1 rounded-lg hover:bg-border-main/50 text-text-muted"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-4 space-y-4">
+                <p className="text-[14px] text-text-muted">
+                  {t('feedback_subtext') || 'Chúng tôi luôn lắng nghe để cải thiện ứng dụng tốt hơn. Cảm ơn bạn!'}
+                </p>
+                <textarea
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  placeholder={t('feedback_placeholder') || 'Nhập nội dung góp ý hoặc báo lỗi...'}
+                  className="w-full h-32 resize-none rounded-xl p-3 bg-app text-text-main border border-border-main focus:ring-2 focus:ring-accent/20 focus:outline-none transition-all text-sm"
+                />
+                <button
+                  onClick={handleFeedbackSubmit}
+                  disabled={!feedbackText.trim() || isSubmittingFeedback}
+                  className="w-full py-3 bg-accent hover:bg-accent/90 text-white font-semibold rounded-xl transition-colors shadow-sm shadow-accent/20 flex justify-center items-center gap-2 disabled:opacity-50 disabled:shadow-none text-sm"
+                >
+                  {isSubmittingFeedback ? (
+                    t('sending') || 'Đang gửi...'
+                  ) : (
+                    <>
+                      <Send size={18} />
+                      {t('send_feedback') || 'Gửi góp ý'}
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
