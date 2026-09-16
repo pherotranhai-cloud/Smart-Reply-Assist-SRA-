@@ -4,7 +4,6 @@ import {
   RotateCcw,
   Languages,
   ChevronRight,
-  Cpu,
   History,
   MessageSquareWarning,
   X,
@@ -15,7 +14,7 @@ import {
 import { SettingsPanelProps, useSettingsPanel } from '../hooks/useSettingsPanel';
 import { MAX_SAVED_WALLPAPERS } from '../utils/imageResize';
 import { APP_VERSION } from '../config/version';
-import { SUPPORTED_MODELS } from '../constants';
+import { ModelSection } from './settings/ModelSection';
 import { DEFAULT_WALLPAPERS, WallpaperOption } from '../constants/wallpapers';
 import { BackgroundEffectsSection } from './settings/BackgroundEffectsSection';
 
@@ -337,36 +336,11 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
         </section>
 
         {/* AI Model Section */}
-        <section>
-          <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-widest px-4 mb-2 flex items-center gap-2">
-            <Cpu size={14} className="text-accent" />
-            {t('model')}
-          </h3>
-          <div className={`rounded-xl overflow-hidden shadow-sm border border-border-main p-3 transition-all duration-300 ${
-            hasBgImage ? 'bg-panel/30 backdrop-blur-sm' : 'bg-panel'
-          }`}>
-            <div className="grid grid-cols-2 gap-2">
-              {SUPPORTED_MODELS.map((modelId) => (
-                <button
-                  key={modelId}
-                  onClick={() => updateCurrent({ model: modelId })}
-                  className={`w-full flex flex-col p-3 rounded-xl border text-left transition-all ${
-                    localSettings.openai.model === modelId
-                      ? 'border-accent bg-accent/5 text-text-main font-semibold'
-                      : 'border-border-main text-text-muted hover:border-text-muted/30 hover:text-text-main'
-                  }`}
-                >
-                  <div className="flex justify-between items-center w-full">
-                    <span className="text-[15px]">{modelId === 'gpt-5.6-luna' ? 'GPT-5.6 Luna' : modelId}</span>
-                    {localSettings.openai.model === modelId && (
-                      <span className="text-accent text-[15px]">✓</span>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
+        <ModelSection
+          model={localSettings.openai.model}
+          onSelectModel={(model) => updateCurrent({ model })}
+          t={t}
+        />
 
         {/* Language */}
         <section>

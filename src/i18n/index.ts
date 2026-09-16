@@ -257,6 +257,10 @@ export const translations = {
     "personalization.effect.aurora.desc": "Soft light bands",
     "personalization.effect.waves.desc": "Layered rolling waves",
     "personalization.effects.footer": "Effects keep animating the whole time the app is open, even when the device asks for reduced motion. Choose None to stop them.",
+    "model.capability.luna": "Newest, sharpest reasoning",
+    "model.capability.gpt4o": "Balanced quality and speed",
+    "model.capability.gpt35": "Fastest, lowest cost",
+    "model.footer": "Your choice applies right away.",
   },
   vi: {
     translate: 'Dịch',
@@ -516,6 +520,10 @@ export const translations = {
     "personalization.effect.aurora.desc": "Dải sáng như cực quang",
     "personalization.effect.waves.desc": "Nhiều lớp sóng xô nhẹ",
     "personalization.effects.footer": "Hiệu ứng chạy liên tục suốt thời gian mở ứng dụng, kể cả khi thiết bị bật chế độ giảm chuyển động. Chọn Tắt để dừng hẳn.",
+    "model.capability.luna": "Mới nhất, suy luận sắc nhất",
+    "model.capability.gpt4o": "Cân bằng chất lượng, tốc độ",
+    "model.capability.gpt35": "Nhanh nhất, chi phí thấp",
+    "model.footer": "Lựa chọn được áp dụng ngay.",
   },
   'zh-CN': {
     translate: '翻译',
@@ -746,6 +754,10 @@ export const translations = {
     "personalization.effect.aurora.desc": "柔和极光色带",
     "personalization.effect.waves.desc": "多层起伏波浪",
     "personalization.effects.footer": "特效在应用打开期间会持续运行，即使设备开启了减弱动态效果也一样。选择「关闭」可完全停止。",
+    "model.capability.luna": "最新，推理最出色",
+    "model.capability.gpt4o": "质量与速度均衡",
+    "model.capability.gpt35": "最快，成本最低",
+    "model.footer": "选择后立即生效。",
   },
   'zh-TW': {
     translate: '翻譯',
@@ -976,5 +988,9 @@ export const translations = {
     "personalization.effect.aurora.desc": "柔和極光色帶",
     "personalization.effect.waves.desc": "多層起伏波浪",
     "personalization.effects.footer": "特效在應用程式開啟期間會持續運行，即使裝置開啟了減少動態效果也一樣。選擇「關閉」可完全停止。",
+    "model.capability.luna": "最新，推理最出色",
+    "model.capability.gpt4o": "品質與速度均衡",
+    "model.capability.gpt35": "最快，成本最低",
+    "model.footer": "選擇後立即生效。",
   }
 };
