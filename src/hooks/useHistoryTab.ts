@@ -39,7 +39,7 @@ export function useHistoryTab(
   const handleCopy = async (text: string) => {
     const success = await copyTextToClipboard(text);
     if (success) {
-      showToast(t('copied') || 'Copied to clipboard', 'success');
+      showToast(t('copied'), 'success');
     } else {
       showToast('Failed to copy', 'error');
     }

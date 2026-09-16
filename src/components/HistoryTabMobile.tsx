@@ -35,7 +35,7 @@ export const HistoryTabMobile: React.FC<HistoryTabProps> = ({ t, showToast, onRe
     const timeStr = `${hours}:${minutes}`;
 
     if (isToday) return timeStr;
-    if (isYesterday) return `${t('yesterday') || 'Yesterday'} ${timeStr}`;
+    if (isYesterday) return `${t('yesterday')} ${timeStr}`;
     
     return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()} ${timeStr}`;
   };
@@ -101,7 +101,7 @@ export const HistoryTabMobile: React.FC<HistoryTabProps> = ({ t, showToast, onRe
         ) : filteredHistory.length === 0 ? (
           <div className="flex flex-col justify-center items-center h-full text-text-muted opacity-60">
             <Inbox size={64} className="mb-4" />
-            <p className="text-lg">{t('noHistory') || 'No history records found.'}</p>
+            <p className="text-lg">{t('noHistory')}</p>
           </div>
         ) : (
           <AnimatePresence>

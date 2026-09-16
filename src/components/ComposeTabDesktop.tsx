@@ -144,7 +144,7 @@ export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
             }`}
           >
             <Settings2 size={16} />
-            <span>{props.t('custom') || 'Tùy chỉnh'}</span>
+            <span>{props.t('custom')}</span>
           </button>
         </div>
       </div>
@@ -235,7 +235,7 @@ export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
             {props.loading ? (
               <div className="flex flex-col items-center justify-center h-full text-text-muted gap-4">
                 <Loader2 size={32} className="animate-spin text-accent" />
-                <p className="font-medium animate-pulse">{props.t('generating') || 'Đang soạn thảo...'}</p>
+                <p className="font-medium animate-pulse">{props.t('generating')}</p>
               </div>
             ) : props.state.lastOutputs.generatedReply ? (
               <div className="flex flex-col gap-4">
@@ -291,7 +291,7 @@ export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-panel border border-border-main rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center p-4 border-b border-border-main bg-panel">
-              <h3 className="font-semibold text-text-main text-lg">{props.t('customConfiguration') || 'Cấu hình Tùy chỉnh'}</h3>
+              <h3 className="font-semibold text-text-main text-lg">{props.t('customConfiguration')}</h3>
               <button onClick={() => setIsCustomModalOpen(false)} className="text-text-muted hover:text-red-500 transition-colors p-1 rounded-lg">
                 <X size={20} />
               </button>

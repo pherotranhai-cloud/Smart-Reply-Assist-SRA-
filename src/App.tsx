@@ -488,7 +488,7 @@ export default function App() {
       showToast(t('copiedToClipboard'), 'success');
       setTimeout(() => setIsCopied(false), 2000);
     } else {
-      showToast(t('copyFailed') || 'Failed to copy', 'error');
+      showToast(t('copyFailed'), 'error');
     }
   }, [showToast, t]);
 
@@ -497,7 +497,7 @@ export default function App() {
     if (success) {
       showToast(t('copiedToClipboard'), 'success');
     } else {
-      showToast(t('copyFailed') || 'Failed to copy', 'error');
+      showToast(t('copyFailed'), 'error');
     }
   }, [showToast, t]);
 
