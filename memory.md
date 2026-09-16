@@ -6,7 +6,31 @@ code, so it can be trusted without re-scanning. Line numbers are as of #18.
 
 ---
 
-## 1. Open defects, ranked by user impact
+## 0. Status — §§1–4 are done
+
+Everything §1–§4 recorded was fixed on `claude/memory-flagged-issues-h3haz8`,
+one commit per section. Those sections are kept below as the record of what was
+wrong and why, **not as a to-do list** — do not re-investigate them. §5 (never
+verified) and §6 (working notes) still stand, with the amendments noted there.
+
+Two corrections to what was recorded:
+
+- **§1.8 did not reproduce.** See the note under it.
+- **`tabTalk` was defined in no dictionary**, so the desktop sidebar rendered
+  the literal string "tabTalk". A sweep found twelve such keys; all are defined
+  now. See the amendment under §2.
+
+Verified in Chromium: 18 assertions across two harnesses, plus the admin guard
+probed against a running server. Still unverified: real iOS Safari, real touch
+hardware, screen readers — as §5 says.
+
+**One deployment action is outstanding:** set `ADMIN_API_KEY` on Render and on
+Netlify, and delete `VITE_ADMIN_SECRET_KEY` from both. Until then the admin
+dashboard returns 401 by design. See §4.
+
+---
+
+## 1. Open defects, ranked by user impact  — ALL FIXED
 
 ### 1.1 `ComposeTabMobile.tsx:232` — action bar offset and drag shift
 Two separate problems in one element, flagged independently by three units.
@@ -63,13 +87,30 @@ mobile nav, which is what `TAB_ORDER` encodes. The directional page transition
 derives its direction from that array, so on desktop that one pair animates
 backwards.
 
-### 1.8 `handleClearHistory` leaves React state populated
-Clears storage but not the in-memory `history` state, so the list still shows
-until a reload. Pre-existing.
+### 1.8 `handleClearHistory` leaves React state populated — DID NOT REPRODUCE
+This entry is wrong, and appears to predate the tab extraction. The history list
+lives in `useHistoryTab`, mounted by `HistoryTabMobile`/`HistoryTabDesktop`, and
+`App.tsx` renders that tab conditionally inside `AnimatePresence` — so leaving
+the tab unmounts the hook and returning re-reads storage. Clearing is only
+reachable from Settings, i.e. from another tab, so the stale list described here
+cannot be produced.
+
+A `historyVersion` counter was added anyway: clearing storage has no other way
+to reach that state if the tab is ever kept mounted.
 
 ---
 
-## 2. Consistency seams left by parallel work
+## 2. Consistency seams left by parallel work  — ALL FIXED
+
+**Amendment.** The locale audit that produced the "27 keys short" figure
+compared the three dictionaries against `en`. It could not catch a key missing
+from `en` as well — and twelve were: `tabTalk`, `copied`, `copyFailed`,
+`custom`, `customConfiguration`, `generating`, `loading`, `matchedVocab`,
+`noHistory`, `paste`, `translation`, `yesterday`. Each rendered its own
+identifier on screen (the desktop sidebar's Live Translate tooltip read
+"tabTalk"). All four dictionaries are now 292 keys with full parity, and every
+`t('...')` call site in `src/` has an `en` entry. If you add a key, check it
+against the call sites, not just against `en`.
 
 - **`overWallpaper` prop.** `LanguageSection` accepts one and swaps
   `bg-panel` → `bg-surface`; every other section uses `bg-surface`
@@ -87,7 +128,7 @@ until a reload. Pre-existing.
 
 ---
 
-## 3. Known-dead code (safe to delete, verified unused)
+## 3. Known-dead code (safe to delete, verified unused)  — ALL DELETED
 
 - `UserPreferences['fontSize']` declares `'md'`; nothing in the UI or
   `App.tsx`'s class mapping handles it. `TypographySection` normalises any
@@ -105,13 +146,28 @@ until a reload. Pre-existing.
 
 ---
 
-## 4. Security note (pre-existing, documented in the code)
+## 4. Security note (pre-existing, documented in the code)  — FIXED
 
 `handleFeedbackSubmit` doubles as an admin unlock: typing the admin key into the
-feedback box opens the dashboard. The key is compared client-side against a
-`VITE_` env var, so **it ships in the bundle**, and the `/api/admin/*` routes are
-unauthenticated. The hook's own comment at `useSettingsPanel.ts:33-36` says this
-plainly. Out of scope for the batch; not a regression.
+feedback box opens the dashboard. The key was compared client-side against a
+`VITE_` env var, so **it shipped in the bundle**, and the `/api/admin/*` routes
+were unauthenticated — `GET /api/admin/responses` returns up to 50 rows of real
+user input and output text out of `app_logs`.
+
+The check is now the server's. `shared/adminAuth.ts` holds one `requireAdmin`
+middleware, mounted by both `server.ts` and `netlify/functions/api.ts`; it reads
+`ADMIN_API_KEY` (server-only, no `VITE_` prefix) and compares the `x-admin-key`
+header with `timingSafeEqual`. The client sends what the user typed and opens the
+dashboard only on a 200. `VITE_ADMIN_SECRET_KEY` and both hardcoded fallback
+literals are gone.
+
+**It is fail-closed**: with `ADMIN_API_KEY` unset, every admin request is
+rejected. So the variable has to be set on **both** hosts or the dashboard stops
+working. Treat any value `VITE_ADMIN_SECRET_KEY` ever held as public — it has
+been in every shipped bundle — and pick a new secret.
+
+This is still a shared secret typed into a text field, not a login. What changed
+is that the secret no longer reaches the client and the data routes are closed.
 
 ---
 
@@ -146,14 +202,32 @@ Things that cost time to discover.
 - Reusable harness: `scratchpad/e2e-smoke.mjs`. It dismisses the "what's new"
   modal and the PWA install banner (both cover the page on an iPhone UA), opens
   Settings, screenshots per theme, and drives a CDP touch swipe.
+  **The scratchpad does not survive the session** — that file was gone and had
+  to be rewritten. Things worth knowing next time:
+  - Seed `app_last_seen_version` in an `addInitScript` rather than trying to
+    click the changelog modal away; it renders inside `#root`, not on `body`.
+  - A script outside the repo cannot resolve `playwright` by ESM name. Symlink
+    `node_modules` next to it.
+  - `npx tsx server.ts` spawns a child; killing the wrapper PID leaves the port
+    bound, and the next server silently fails to start while the old one keeps
+    answering. Always re-check the port between runs, or a "fail-closed" probe
+    will be answered by the previous, differently-configured process.
+  - To prove the canvas loop is parked, count `ctx.clearRect` calls, not
+    `requestAnimationFrame` — `motion`'s frameloop shares rAF and keeps ticking.
+  - Assigning an invalid value to `.style` is a no-op, so a before/after CSS
+    probe has to use a fresh element or it just reads back the previous value.
 
 **Traps**
 - `.githooks/pre-commit` bumps `package.json`'s patch version on **every** commit.
   Across parallel branches that guarantees a conflict in each. Commit with
   `--no-verify` and never touch `package.json` / `package-lock.json`.
 - `t()` returns the **key** on a miss, so `t('x') || 'fallback'` is unreachable
-  dead code. New strings must be added to all four dictionaries in
-  `src/i18n/index.ts` (`en` :2, `vi` :240, `zh-CN` :478, `zh-TW` :687).
+  dead code — and it silently hides a key missing from `en` too, which is how
+  twelve of them reached the screen as raw identifiers. New strings must be
+  added to all four dictionaries in `src/i18n/index.ts`. Audit by walking the
+  `t('...')` call sites, not by diffing the dictionaries against each other.
+  (Line numbers for the four blocks drift with every addition; grep for
+  `^\s*(en|vi|'zh-CN'|'zh-TW'):\s*\{` instead of trusting a recorded one.)
 - Changing locale in a test requires driving the Settings UI. `App.tsx:102`
   derives `t` from React state, so writing `sra_global_language` to
   `localStorage` does nothing.
@@ -170,6 +244,12 @@ Things that cost time to discover.
   `pan-y pinch-zoom` to vertical-only scrollers inside the surface.
 - Mark any horizontally scrolling element `data-no-swipe` or it fights the tab
   gesture.
+
+- `--tab-bar-h` is published on `<html>` by `LayoutMobile` from the tab bar's
+  measured height. Anything docked above the bar reads it; do not reintroduce a
+  tuned pixel constant, and remember it is `0` on desktop.
+- Admin routes need `ADMIN_API_KEY` in the environment or they 401. `npm run
+  dev` without it is correct behaviour, not a broken server.
 
 **Design system**
 - Four palettes in `src/index.css:4-122`: light (`:root`), `dark`, `cyberpunk`,
