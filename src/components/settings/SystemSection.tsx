@@ -126,8 +126,12 @@ const ActionSheet: React.FC<ActionSheetProps> = ({ row, onCancel, onConfirm, t }
       window.clearTimeout(focusTimer);
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = previousOverflow;
-      // Only reclaim focus if nothing else took it in the meantime.
-      if (!document.activeElement || document.activeElement === document.body) {
+      // Reclaim focus unless something outside the sheet has already taken it.
+      // AnimatePresence keeps the sheet mounted through its exit spring, so at
+      // this point activeElement is usually still a button inside it — testing
+      // only for body would skip the restore and drop focus to the top of the page.
+      const active = document.activeElement as HTMLElement | null;
+      if (!active || active === document.body || sheetRef.current?.contains(active)) {
         previouslyFocused?.focus?.();
       }
     };
@@ -210,7 +214,7 @@ export const SystemSection: React.FC<SystemSectionProps> = ({ t, handleResetApp,
   };
 
   return (
-    <section>
+    <section aria-labelledby={headingId}>
       <h3
         id={headingId}
         className="text-[11px] font-medium text-text-muted uppercase tracking-widest px-4 mb-2"
@@ -219,10 +223,7 @@ export const SystemSection: React.FC<SystemSectionProps> = ({ t, handleResetApp,
       </h3>
       {/* bg-surface is already theme- and wallpaper-correct, so no hasBgImage
           branch is needed — see the same note in TalkTabDesktop. */}
-      <div
-        aria-labelledby={headingId}
-        className="rounded-xl overflow-hidden shadow-sm border border-border-main bg-surface backdrop-blur-xl"
-      >
+      <div className="rounded-xl overflow-hidden shadow-sm border border-border-main bg-surface backdrop-blur-xl">
         {ROWS.map((row, idx) => {
           const TileIcon = row.icon;
           return (

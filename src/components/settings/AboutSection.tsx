@@ -16,7 +16,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ t }) => {
   const footerId = useId();
 
   return (
-    <section>
+    <section aria-labelledby={headingId} aria-describedby={footerId}>
       <h3
         id={headingId}
         className="text-[11px] font-medium text-text-muted uppercase tracking-widest px-4 mb-2"
@@ -25,11 +25,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ t }) => {
       </h3>
       {/* bg-surface is already theme- and wallpaper-correct (alpha 0.92-0.94), so
           this card needs no hasBgImage branch to stay readable over a wallpaper. */}
-      <div
-        aria-labelledby={headingId}
-        aria-describedby={footerId}
-        className="rounded-xl overflow-hidden shadow-sm border border-border-main bg-surface backdrop-blur-xl"
-      >
+      <div className="rounded-xl overflow-hidden shadow-sm border border-border-main bg-surface backdrop-blur-xl">
         <div className="flex items-stretch gap-3 pl-4">
           <span className="flex items-center shrink-0">
             <span className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center text-accent-on shadow-sm">
