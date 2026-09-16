@@ -1,5 +1,5 @@
 import React, { useId, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Ban, Check, Droplets, Sparkles, Sunrise, Waves } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { BackgroundEffect, UserPreferences } from '../../types';
@@ -30,15 +30,22 @@ export const BackgroundEffectsSection: React.FC<BackgroundEffectsSectionProps> =
   onUserPreferencesChange,
   t
 }) => {
-  const headingId = useId();
+  const uid = useId();
+  const headingId = `${uid}heading`;
+  const footerId = `${uid}footer`;
   const rowRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const reduceMotion = useReducedMotion();
 
-  const current: BackgroundEffect = userPreferences.backgroundEffect ?? 'none';
-  const selectedIndex = Math.max(0, EFFECTS.findIndex((e) => e.id === current));
+  // Preferences come straight out of localStorage unvalidated, so a stored value
+  // we no longer know draws nothing — show it as None rather than as a group
+  // where every row reports aria-checked="false".
+  const storedIndex = EFFECTS.findIndex((e) => e.id === userPreferences.backgroundEffect);
+  const activeIndex = storedIndex === -1 ? 0 : storedIndex;
+  const current = EFFECTS[activeIndex].id;
 
-  const select = (index: number) => {
-    rowRefs.current[index]?.focus();
+  const select = (index: number, moveFocus = false) => {
     const next = EFFECTS[index];
+    if (moveFocus) rowRefs.current[index]?.focus();
     if (!next || next.id === current) return;
     onUserPreferencesChange({ ...userPreferences, backgroundEffect: next.id });
   };
@@ -46,14 +53,14 @@ export const BackgroundEffectsSection: React.FC<BackgroundEffectsSectionProps> =
   // Arrow keys clamp at the ends instead of wrapping: settings auto-save on
   // every change, so a held key on a wrapping list would write storage forever.
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    let next = selectedIndex;
-    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') next = Math.min(selectedIndex + 1, EFFECTS.length - 1);
-    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') next = Math.max(selectedIndex - 1, 0);
+    let next = activeIndex;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') next = Math.min(activeIndex + 1, EFFECTS.length - 1);
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') next = Math.max(activeIndex - 1, 0);
     else if (e.key === 'Home') next = 0;
     else if (e.key === 'End') next = EFFECTS.length - 1;
     else return;
     e.preventDefault();
-    select(next);
+    select(next, true);
   };
 
   return (
@@ -62,13 +69,14 @@ export const BackgroundEffectsSection: React.FC<BackgroundEffectsSectionProps> =
         id={headingId}
         className="mb-2 flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-wider text-text-muted"
       >
-        <Sparkles size={13} />
+        <Sparkles size={13} aria-hidden="true" />
         {t('personalization.effects')}
       </h4>
 
       <div
         role="radiogroup"
         aria-labelledby={headingId}
+        aria-describedby={footerId}
         onKeyDown={handleKeyDown}
         className="overflow-hidden rounded-xl border border-border-main bg-surface"
       >
@@ -84,9 +92,9 @@ export const BackgroundEffectsSection: React.FC<BackgroundEffectsSectionProps> =
               role="radio"
               aria-checked={selected}
               // Roving tab order: only the selected row is in the tab sequence.
-              tabIndex={i === selectedIndex ? 0 : -1}
+              tabIndex={i === activeIndex ? 0 : -1}
               onClick={() => select(i)}
-              className="relative flex min-h-[52px] w-full items-center gap-3 px-3 py-2 text-left transition-colors focus-visible:bg-bg-input focus-visible:outline-none active:bg-bg-input"
+              className="relative flex min-h-[52px] w-full items-center gap-3 px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent active:bg-bg-input"
             >
               {/* Hairline inset to the label, iOS style — none above the first row. */}
               {i > 0 && <span aria-hidden="true" className="absolute left-[3.25rem] right-0 top-0 h-px bg-border-main" />}
@@ -96,7 +104,7 @@ export const BackgroundEffectsSection: React.FC<BackgroundEffectsSectionProps> =
                   selected ? 'bg-accent text-accent-on' : 'bg-bg-input text-text-muted'
                 }`}
               >
-                <Icon size={15} />
+                <Icon size={15} aria-hidden="true" />
               </span>
 
               <span className="min-w-0 flex-1">
@@ -108,20 +116,18 @@ export const BackgroundEffectsSection: React.FC<BackgroundEffectsSectionProps> =
                 </span>
               </span>
 
-              <AnimatePresence initial={false}>
+              {/* Slot is always there so selecting a row does not narrow its own label. */}
+              <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center text-accent-text">
                 {selected && (
                   <motion.span
-                    key="check"
-                    initial={{ opacity: 0, scale: 0.5 }}
+                    initial={reduceMotion ? false : { opacity: 0, scale: 0.5 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.5 }}
                     transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                    className="shrink-0 text-accent-text"
                   >
-                    <Check size={18} strokeWidth={3} />
+                    <Check size={18} strokeWidth={3} aria-hidden="true" />
                   </motion.span>
                 )}
-              </AnimatePresence>
+              </span>
             </button>
           );
         })}
@@ -129,7 +135,7 @@ export const BackgroundEffectsSection: React.FC<BackgroundEffectsSectionProps> =
 
       {/* Deliberately does not promise reduced-motion handling: BackgroundCanvas
           has no prefers-reduced-motion check today (review R3). */}
-      <p className="mt-2 px-1 text-[12px] leading-snug text-text-muted">
+      <p id={footerId} className="mt-2 px-1 text-[12px] leading-snug text-text-muted">
         {t('personalization.effects.footer')}
       </p>
     </div>
