@@ -165,7 +165,10 @@ export function TranslateTabMobile({
           onChange={e => setTranslateInput(e.target.value)}
           onPaste={handlePaste}
           onKeyDown={e => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            // isComposing: Telex and Pinyin commit a candidate with Enter, so
+            // without this the keystroke that finishes a Vietnamese or Chinese
+            // word is swallowed and translates a half-typed input instead.
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               handleTranslate();
             }

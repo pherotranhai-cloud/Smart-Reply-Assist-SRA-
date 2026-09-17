@@ -1,14 +1,38 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useId } from 'react';
 import Markdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { Languages, Loader2, X, Camera, ClipboardCheck, Square, Volume2, Copy, Check, Share2, BookOpen, Mic, ChevronDown } from 'lucide-react';
+import { Languages, Loader2, X, Camera, ClipboardCheck, Square, Volume2, Copy, Check, Share2, ChevronDown, Zap } from 'lucide-react';
 import { LANGUAGES, LANGUAGE_FLAGS } from '../constants';
 import { Language, AppState, VocabItem, ConversationContext } from '../types';
 import { VoiceVisualizer } from './common/VoiceVisualizer';
 import { useTranslateTab } from '../hooks/useTranslateTab';
 
 type TranslateTabState = ReturnType<typeof useTranslateTab>;
+
+/**
+ * Twin of the constant in TranslateTabMobile: the recording indicator has to
+ * read as "live" in all four palettes, so it cannot come from an accent token,
+ * and Tailwind's `dark:` is a prefers-color-scheme query that would ignore a
+ * palette the user chose by hand.
+ */
+const RECORDING_TEXT =
+  'text-red-600 [[data-theme=dark]_&]:text-red-400 [[data-theme=cyberpunk]_&]:text-red-400 [[data-theme=industrial]_&]:text-red-400';
+
+/**
+ * Colour and feedback for an icon button. Twin of TranslateTabMobile's, plus a
+ * hover fill because this layout is driven by a pointer. Inside an .ios-toolbar
+ * the 44px box comes from the stylesheet, so nothing here restates it. No
+ * transition-* utility either — it would land in the utilities layer and
+ * override .ios-press's transition-transform, leaving the press scale instant.
+ * `active` swaps the whole colour utility instead of appending one: two text-*
+ * utilities on the same element are resolved by stylesheet order, not by the
+ * order they were written in.
+ */
+const toolbarButton = (active = false) =>
+  `ios-press hover:bg-bg-input active:bg-bg-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-text ${
+    active ? 'text-accent-text' : 'text-text-muted hover:text-accent-text'
+  }`;
 
 interface TranslateTabDesktopProps {
   state: AppState;
@@ -51,6 +75,14 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
 
   const outputRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // The switch is a bare button; the row label is its accessible name.
+  const summaryLabelId = useId();
+
+  const output = props.state.lastOutputs.translatedText;
+  /* `loading` drops on the first streamed chunk while `isTranslating` covers the
+     whole run, including the cached replay — so the pair, not either alone, is
+     "a translation is in flight". */
+  const isBusy = props.loading || isTranslating;
 
   useEffect(() => {
     if (outputRef.current && (isTranslating || props.isStreaming)) {
@@ -58,239 +90,301 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
     }
   }, [props.state.lastOutputs.translatedText, isTranslating, props.isStreaming]);
 
+  const toggleSummaryMode = () => setIsSummaryMode(prev => !prev);
+
   const handleShare = async () => {
-    const text = props.state.lastOutputs.translatedText;
-    if (!text) return;
+    if (!output) return;
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Translated Text',
-          text: text,
+          title: props.t('translatedOutput'),
+          text: output,
         });
       } catch (e) {
         console.log('Share canceled or failed', e);
       }
     } else {
-      props.handleCopy(text);
+      props.handleCopy(output);
     }
   };
 
   return (
+    /* Two panes at full height, each scrolling on its own — the split is what a
+       wide viewport is for; the grouped-list vocabulary inside it is shared with
+       the mobile layout. */
     <div className={`grid grid-cols-2 gap-6 w-full h-[calc(100vh-140px)] min-h-0 overflow-hidden pb-4 p-6 transition-all duration-300 ${
       hasBgImage ? 'bg-transparent' : 'bg-app'
     }`}>
-      {/* Left Column: Input & Vocab */}
-      <div className="flex flex-col h-full min-h-0 gap-4">
-        <div className="flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <Languages size={20} className="text-accent" />
-            <h2 className="font-semibold text-lg text-text-main">{props.t('translate')}</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsSummaryMode(!isSummaryMode)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                isSummaryMode ? 'bg-accent text-accent-on' : 'bg-bg-input text-text-muted hover:bg-border-main/50'
-              }`}
-            >
-              {props.t('summaryMode')}
-            </button>
-          </div>
-        </div>
+      {/* --- Left: source text, then the options that act on it ------------- */}
+      <div className="flex min-h-0 flex-col">
+        <h2 className="ios-section-header shrink-0 pt-0">{props.t('inputSource')}</h2>
 
-        <div className={`relative flex-1 flex flex-col h-full min-h-0 border border-border-main rounded-3xl p-5 overflow-hidden transition-all duration-300 ${
-          hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'
-        }`}>
+        {/* Only this group flexes; everything below keeps its content height, so
+            a short window shrinks the typing area rather than the controls.
+            .ios-inset-group is already bg-surface, the token meant for a panel
+            over a wallpaper — the blur is the only part still conditional. */}
+        <div className={`ios-inset-group flex min-h-0 flex-1 flex-col ${hasBgImage ? 'backdrop-blur-md' : ''}`}>
           <textarea
             value={translateInputWithInterim}
             onChange={(e) => {
               setTranslateInput(e.target.value);
             }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              // isComposing: Telex and Pinyin commit a candidate with Enter, so
+              // without this the keystroke that finishes a Vietnamese or Chinese
+              // word is swallowed and translates a half-typed input instead.
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
                 handleTranslate();
               }
             }}
             onPaste={handlePaste}
             placeholder={props.t('inputPlaceholder')}
-            className="flex-1 w-full h-full overflow-y-auto resize-none bg-transparent focus:outline-none focus:ring-0 custom-scrollbar text-text-main text-base border-none p-0"
+            className="ios-separator custom-scrollbar min-h-0 w-full flex-1 resize-none overflow-y-auto bg-transparent px-4 py-3 text-base leading-relaxed text-text-main placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-text"
           />
-          
+
+          {/* A row in the flow, not a floating thumbnail: the old wrapper carried
+              `absolute` and `relative` at once, so which one applied came down to
+              the order Tailwind happened to emit them in. */}
           {translateImage && (
-            <div className="absolute top-4 right-4 relative w-32 h-32 rounded-xl overflow-hidden border-2 border-accent shadow-lg mb-4 ml-4 group">
-              <img src={translateImage} alt="Uploaded" className="w-full h-full object-cover" />
-              <button 
+            <div className="ios-row ios-separator shrink-0">
+              {/* Decorative: the label beside it already names the attachment. */}
+              <img
+                src={translateImage}
+                alt=""
+                aria-hidden="true"
+                className="h-12 w-12 shrink-0 rounded-lg border border-border-main object-cover"
+              />
+              <span className="min-w-0 flex-1 truncate">{props.t('imageAttached')}</span>
+              {/* Was hover-only, which left no hint the attachment could go. */}
+              <button
+                type="button"
                 onClick={() => setTranslateImage(null)}
-                className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity"
+                aria-label={props.t('removeImage')}
+                title={props.t('removeImage')}
+                className={`${toolbarButton()} -mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full`}
               >
-                <X size={14} />
+                <X size={20} />
               </button>
             </div>
           )}
 
-          <div className="mt-4 pt-4 border-t border-border-main flex items-center justify-between bg-transparent flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                ref={fileInputRef}
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="p-2 text-text-muted hover:text-accent hover:bg-accent/10 rounded-xl transition-colors"
-                title={props.t('uploadImage')}
-              >
-                <Camera size={20} />
-              </button>
-              <button
-                onClick={handlePasteFromClipboard}
-                className="p-2 text-text-muted hover:text-accent hover:bg-accent/10 rounded-xl transition-colors"
-                title={props.t('paste')}
-              >
-                <ClipboardCheck size={20} />
-              </button>
-              <button
-                onClick={props.handleToggleListening}
-                className={`p-2 rounded-xl transition-all ${
-                  props.isListening 
-                    ? 'bg-red-500 text-white shadow-lg shadow-red-500/30' 
-                    : 'text-text-muted hover:text-accent hover:bg-accent/10'
-                }`}
-                title={props.isListening ? props.t('listeningActive') : props.t('startVoice') || 'Nói'}
-              >
-                {props.isListening ? <Square size={20} /> : <Mic size={20} />}
-              </button>
-              {props.isListening && <VoiceVisualizer isListening={true} onClick={props.handleToggleListening} />}
+          {matchedTerms.length > 0 && (
+            <div className="ios-separator shrink-0 px-4 py-2.5">
+              <p className="text-[13px] text-ios-label-secondary">{props.t('detectedTerms')}</p>
+              {/* Wraps rather than scrolling sideways — there is width for it
+                  here — but stays capped so a long match list cannot eat the
+                  typing area. */}
+              <div className="custom-scrollbar mt-1.5 flex max-h-[4.75rem] flex-wrap gap-1.5 overflow-y-auto">
+                {matchedTerms.map(match => (
+                  <span
+                    /* One row can match twice (its VI and EN phrases both present), so the span pins the key. */
+                    key={`${match.item.id}-${match.start}`}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-ios-fill px-2.5 py-1 text-[13px]"
+                  >
+                    {/* The phrase that actually matched, not item.term — that is a category label. */}
+                    <span className="font-semibold text-accent-text">{match.source}</span>
+                    <span aria-hidden="true" className="text-ios-label-secondary">&rarr;</span>
+                    <span className="font-medium text-text-main">{match.target}</span>
+                  </span>
+                ))}
+              </div>
             </div>
-            
-            <div className="flex items-center gap-2">
-              {translateInput && (
-                <button
-                  onClick={handleClearInput}
-                  className="p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              )}
-              <button
-                onClick={() => handleTranslate()}
-                disabled={props.loading || isTranslating || props.isStreaming || (!translateInput.trim() && !translateImage)}
-                className="px-5 py-2.5 bg-accent hover:bg-accent/90 text-accent-on rounded-xl font-semibold transition-all shadow-md shadow-accent/20 disabled:opacity-50 flex items-center gap-2 text-sm"
-              >
-                {props.loading || isTranslating ? <Loader2 className="animate-spin" size={16} /> : <Languages size={16} />}
-                <span>{props.t('translate') || 'Dịch'}</span>
-              </button>
+          )}
+
+          {/* The interim transcript lands in the textarea itself, so the state
+              needs saying somewhere that is not on top of the text being typed. */}
+          {props.isListening && (
+            <div className={`ios-row ios-separator shrink-0 gap-2 text-[13px] font-semibold uppercase tracking-widest ${RECORDING_TEXT}`}>
+              <span aria-hidden="true" className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-current" />
+              <span>{props.t('listening')}</span>
             </div>
+          )}
+
+          <div className="ios-toolbar shrink-0">
+            <button
+              type="button"
+              onClick={handleClearInput}
+              aria-label={props.t('clearInput')}
+              title={props.t('clearInput')}
+              className={toolbarButton()}
+            >
+              <X size={20} />
+            </button>
+            {/* Cleared on open, or picking the same file again after removing it
+                fires no change event and silently does nothing. */}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              ref={fileInputRef}
+              onClick={e => { (e.target as HTMLInputElement).value = ''; }}
+              onChange={handleImageUpload}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              aria-label={props.t('uploadImage')}
+              title={props.t('uploadImage')}
+              className={toolbarButton()}
+            >
+              <Camera size={20} />
+            </button>
+            {/* One mic, not a plain button plus a visualizer that appeared beside
+                it the moment recording started. */}
+            <VoiceVisualizer
+              isListening={props.isListening}
+              onClick={props.handleToggleListening}
+              title={props.isListening ? props.t('listeningActive') : props.t('startVoice')}
+            />
+            <button
+              type="button"
+              onClick={handlePasteFromClipboard}
+              aria-label={props.t('paste')}
+              title={props.t('paste')}
+              className={toolbarButton()}
+            >
+              <ClipboardCheck size={20} />
+            </button>
           </div>
         </div>
 
-        {/* Matched Vocab */}
-        {matchedTerms.length > 0 && (
-          <div className="bg-accent/5 dark:bg-accent/10 border border-accent/20 rounded-2xl p-4 overflow-y-auto max-h-48 custom-scrollbar flex-shrink-0">
-            <div className="text-xs font-semibold text-accent uppercase tracking-wider mb-2 flex items-center gap-1">
-              <BookOpen size={14} />
-              {props.t('matchedVocab')}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {matchedTerms.map((match, idx) => (
-                <div key={idx} className={`border border-border-main rounded-lg px-3 py-1.5 text-sm shadow-sm flex flex-col transition-all duration-300 ${
-                  hasBgImage ? 'bg-panel/30' : 'bg-panel'
-                }`}>
-                  {/* The phrase that actually matched, not item.term — that is a category label. */}
-                  <span className="font-medium text-text-main">{match.source}</span>
-                  <span className="text-accent font-semibold">{match.target}</span>
-                </div>
-              ))}
-            </div>
+        {/* Enter-to-translate is the fastest path on a keyboard and was entirely
+            undiscoverable before. */}
+        <p className="ios-section-footer shrink-0">{props.t('enterToTranslateHint')}</p>
+
+        {/* --- Options ----------------------------------------------------- */}
+        <h3 className="ios-section-header shrink-0">{props.t('translationOptions')}</h3>
+
+        <div className={`ios-inset-group shrink-0 ${hasBgImage ? 'backdrop-blur-md' : ''}`}>
+          {/* A native <select> stretched transparently over a presentation layer,
+              so the platform's own menu opens. The visual layer takes no pointer
+              events, and the select covers the whole row, so the label is part of
+              the target too. The ring is keyed off the select's own
+              focus-visible because an opacity-0 control cannot show one itself. */}
+          <div className="ios-row ios-separator relative has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-inset has-[select:focus-visible]:ring-accent-text">
+            {/* aria-hidden: the select below is named with these same words, and
+                without this the row announces "Target Language" twice. */}
+            <span aria-hidden="true" className="min-w-0 flex-1 truncate">{props.t('targetLanguage')}</span>
+            <span aria-hidden="true" className="pointer-events-none flex max-w-[60%] shrink-0 items-center gap-1 text-ios-label-secondary">
+              <span className="truncate">{LANGUAGE_FLAGS[targetLang]} {targetLang}</span>
+              <ChevronDown size={18} className="shrink-0" />
+            </span>
+            <select
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              value={targetLang}
+              onChange={e => setTargetLang(e.target.value as Language)}
+              aria-label={props.t('targetLanguage')}
+            >
+              {LANGUAGES.map(l => <option key={l} value={l} className="bg-panel text-text-main">{LANGUAGE_FLAGS[l]} {l}</option>)}
+            </select>
           </div>
-        )}
+
+          {/* The switch is the only focusable control, as on iOS; the row keeps a
+              pointer handler because the label was clickable before this.
+              stopPropagation on the switch keeps a click on it from toggling
+              twice. */}
+          <div className="ios-row cursor-pointer" onClick={toggleSummaryMode}>
+            <span id={summaryLabelId} className="min-w-0 flex-1 truncate">{props.t('summaryMode')}</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isSummaryMode}
+              aria-labelledby={summaryLabelId}
+              onClick={e => { e.stopPropagation(); toggleSummaryMode(); }}
+              className="ios-switch"
+            />
+          </div>
+        </div>
+
+        <p className="ios-section-footer shrink-0">{props.t('summaryModeHint')}</p>
+
+        <button
+          onClick={() => handleTranslate()}
+          disabled={props.loading || isTranslating || props.isStreaming || (!translateInput.trim() && !translateImage)}
+          className="saas-button primary-button mt-4 w-full shrink-0 shadow-lg shadow-accent/20"
+        >
+          {isBusy ? <Loader2 className="animate-spin" size={20} /> : <Languages size={20} />}
+          <span>{props.t('translate')}</span>
+        </button>
       </div>
 
-      {/* Right Column: Output */}
-      <div className={`flex flex-col h-full min-h-0 border border-border-main rounded-3xl p-5 justify-between relative transition-all duration-300 ${
-        hasBgImage ? 'bg-panel/20 backdrop-blur-md' : 'bg-panel'
-      }`}>
-        {/* Top bar: Header & Target Lang Selector */}
-        <div className="flex items-center justify-between flex-shrink-0">
-          <span className="text-sm font-semibold text-text-muted uppercase tracking-wider">
-            {props.t('translation')}
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">{props.t('targetLanguage')}:</span>
-            <div className="relative inline-block w-40">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-accent bg-accent/10 px-3 py-2 rounded-xl pointer-events-none w-full justify-between border border-border-main">
-                <span className="text-text-main">{LANGUAGE_FLAGS[targetLang]} {targetLang}</span>
-                <ChevronDown size={14} className="text-text-muted shrink-0" />
-              </div>
-              <select 
-                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-20"
-                value={targetLang}
-                onChange={e => setTargetLang(e.target.value as Language)}
-              >
-                {LANGUAGES.map(l => <option key={l} value={l} className="bg-panel text-text-main">{LANGUAGE_FLAGS[l]} {l}</option>)}
-              </select>
-            </div>
-          </div>
+      {/* --- Right: output ------------------------------------------------- */}
+      <div className="flex min-h-0 flex-col">
+        <div className="ios-section-header flex shrink-0 items-center gap-2 pt-0">
+          <h2 className="min-w-0 truncate">{props.t('translatedOutput')}</h2>
+          {isBusy && (
+            <span className="inline-flex shrink-0 animate-pulse items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-accent-text">
+              <Loader2 size={10} className="animate-spin" aria-hidden="true" />
+              {props.t('translating')}
+            </span>
+          )}
         </div>
 
-        {/* Output Content */}
-        <div 
-          ref={outputRef}
-          className="flex-1 w-full overflow-y-auto my-4 pr-2 custom-scrollbar"
-        >
-          {props.loading || isTranslating ? (
-            <div className="flex flex-col items-center justify-center h-full text-text-muted gap-4">
-              <Loader2 size={32} className="animate-spin text-accent" />
-              <p className="font-medium animate-pulse">{props.t('translating')}...</p>
-            </div>
-          ) : props.state.lastOutputs.translatedText ? (
-            <div className="markdown-body prose dark:prose-invert max-w-none text-lg">
-              <Markdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                {props.state.lastOutputs.translatedText}
-              </Markdown>
-              {isCached && (
-                <div className="mt-4 inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-green-500/10 text-green-600 text-xs font-medium border border-green-500/20">
-                  <Check size={12} />
-                  Cached
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-full text-text-muted opacity-50 text-lg">
-              {props.t('translationPlaceholder')}
+        <div className={`ios-inset-group flex min-h-0 flex-1 flex-col ${hasBgImage ? 'backdrop-blur-md' : ''}`}>
+          {/* The scroll region the streaming effect pins to the bottom. pre-wrap
+              is load-bearing: the model streams single newlines that Markdown
+              would otherwise fold into one paragraph. */}
+          <div
+            ref={outputRef}
+            className="ios-separator custom-scrollbar min-h-0 w-full flex-1 overflow-y-auto whitespace-pre-wrap px-4 py-3 text-base leading-relaxed text-text-main"
+          >
+            {output ? (
+              <div className="markdown-body">
+                <Markdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                  {output}
+                </Markdown>
+              </div>
+            ) : isBusy ? (
+              /* Only until the first chunk lands — after that the text itself is
+                 the progress, which is what the auto-scroll is there for. */
+              <div className="flex h-full flex-col items-center justify-center gap-4 text-text-muted">
+                <Loader2 size={32} className="animate-spin text-accent-text" />
+                <p className="animate-pulse font-medium">{props.t('translating')}</p>
+              </div>
+            ) : (
+              <span className="italic text-text-muted">{props.t('translationPlaceholder')}</span>
+            )}
+          </div>
+
+          {output && !isBusy && (
+            <div className="ios-toolbar shrink-0 justify-end">
+              <button
+                type="button"
+                onClick={() => props.handleSpeak(output, targetLang)}
+                aria-label={props.isSpeaking ? props.t('stopSpeaking') : props.t('speakText')}
+                title={props.isSpeaking ? props.t('stopSpeaking') : props.t('speakText')}
+                className={toolbarButton(props.isSpeaking)}
+              >
+                {props.isSpeaking ? <Square size={20} /> : <Volume2 size={20} />}
+              </button>
+              <button
+                type="button"
+                onClick={() => props.handleCopy(output)}
+                aria-label={props.t('copy')}
+                title={props.t('copy')}
+                className={toolbarButton(props.isCopied)}
+              >
+                {props.isCopied ? <Check size={20} /> : <Copy size={20} />}
+              </button>
+              <button
+                type="button"
+                onClick={handleShare}
+                aria-label={props.t('share')}
+                title={props.t('share')}
+                className={toolbarButton()}
+              >
+                <Share2 size={20} />
+              </button>
             </div>
           )}
         </div>
 
-        {/* Actions */}
-        {props.state.lastOutputs.translatedText && !props.loading && !isTranslating && (
-          <div className="pt-4 border-t border-border-main flex items-center justify-end gap-2 bg-transparent flex-shrink-0">
-             <button
-              onClick={() => props.handleSpeak(props.state.lastOutputs.translatedText!, targetLang)}
-              disabled={props.isSpeaking}
-              className="p-3 text-text-muted hover:text-accent hover:bg-accent/10 rounded-xl transition-colors disabled:opacity-50"
-              title="Text to Speech"
-            >
-              <Volume2 size={20} className={props.isSpeaking ? 'animate-pulse text-accent' : ''} />
-            </button>
-            <button
-              onClick={handleShare}
-              className="p-3 text-text-muted hover:text-accent hover:bg-accent/10 rounded-xl transition-colors"
-              title="Share"
-            >
-              <Share2 size={20} />
-            </button>
-            <button
-              onClick={() => props.handleCopy(props.state.lastOutputs.translatedText!)}
-              className="p-3 text-accent-on bg-accent hover:bg-accent/90 rounded-xl shadow-sm transition-colors flex items-center gap-2"
-            >
-              {props.isCopied ? <Check size={20} /> : <Copy size={20} />}
-              <span className="font-medium">{props.isCopied ? 'Đã chép' : 'Sao chép'}</span>
-            </button>
-          </div>
+        {output && isCached && !isBusy && (
+          <p className="ios-section-footer flex shrink-0 items-center gap-1.5">
+            <Zap size={13} aria-hidden="true" className="shrink-0" />
+            <span className="min-w-0 truncate">{props.t('instantTranslation')}</span>
+          </p>
         )}
       </div>
     </div>
