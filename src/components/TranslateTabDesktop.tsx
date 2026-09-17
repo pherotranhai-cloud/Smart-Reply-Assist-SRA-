@@ -41,7 +41,7 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
   const {
     translateInput, setTranslateInput, translateImage, setTranslateImage,
     targetLang, setTargetLang, isSummaryMode, setIsSummaryMode,
-    isTranslating, isCached, matchedTerms, getVocabTranslation,
+    isTranslating, isCached, matchedTerms,
     handleTranslate, handleClearInput,
     handleImageUpload, handlePaste, handlePasteFromClipboard,
     translateInputWithInterim
@@ -195,12 +195,13 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
               {props.t('matchedVocab')}
             </div>
             <div className="flex flex-wrap gap-2">
-              {matchedTerms.map((item, idx) => (
+              {matchedTerms.map((match, idx) => (
                 <div key={idx} className={`border border-border-main rounded-lg px-3 py-1.5 text-sm shadow-sm flex flex-col transition-all duration-300 ${
                   hasBgImage ? 'bg-panel/30' : 'bg-panel'
                 }`}>
-                  <span className="font-medium text-text-main">{item.term}</span>
-                  <span className="text-accent font-semibold">{getVocabTranslation(item, targetLang)}</span>
+                  {/* The phrase that actually matched, not item.term — that is a category label. */}
+                  <span className="font-medium text-text-main">{match.source}</span>
+                  <span className="text-accent font-semibold">{match.target}</span>
                 </div>
               ))}
             </div>

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { storage } from '../services/storage';
 import { AIService } from '../services/ai';
+import { getVocabTranslation, matchGlossary } from '../services/glossary';
 import { validateSecurity } from '../utils/security';
 import { generateHash } from '../utils/hash';
 import { Language, AppState, VocabItem, ConversationContext } from '../types';
@@ -53,43 +54,22 @@ export function useTranslateTab({
     setTranslateImage(null);
   }, []);
 
-  const getVocabTranslation = useCallback((item: VocabItem, lang: Language) => {
-    switch (lang) {
-      case 'Vietnamese': return item.vi;
-      case 'English': return item.en;
-      case 'Chinese (Simplified)': return item.zh_cn;
-      case 'Chinese (Traditional)': return item.zh_tw;
-      case 'Indonesian': return item.id_lang;
-      case 'Burmese': return item.my;
-      default: return item.vi || item.en;
-    }
-  }, []);
-
-  const getDetectedGlossaryTerms = useCallback(() => {
-    if (!translateInput.trim() || !vocab || vocab.length === 0) return [];
-    const lowerInput = translateInput.toLowerCase();
-    
-    return vocab.filter(item => {
-      if (item.enabled === false || item.enabled === 'false') return false;
-      const termLower = item.term?.toLowerCase();
-      if (!termLower || termLower.length < 2) return false;
-      
-      try {
-        const escapedTerm = termLower.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-        const isAlphanumeric = /^[a-zA-Z0-9\s]+$/.test(termLower);
-        if (isAlphanumeric) {
-          const regex = new RegExp(`\\b${escapedTerm}\\b`, 'i');
-          return regex.test(lowerInput);
-        } else {
-          return lowerInput.includes(termLower);
-        }
-      } catch (e) {
-        return lowerInput.includes(termLower);
-      }
-    });
-  }, [translateInput, vocab]);
-
-  const matchedTerms = getDetectedGlossaryTerms();
+  /**
+   * The same matcher AIService runs before it builds the prompt, so the chips
+   * and the injected glossary are the same set by construction. It used to be a
+   * second, different matcher here — it scanned `item.term`, which holds a
+   * category label ("Component"), so the chips listed terms the model was never
+   * told about and missed the ones it was.
+   *
+   * Matched against the typed input alone: OCR text only exists once a
+   * translation is in flight, and AIService re-matches against the assembled
+   * text at that point, so an attached image widens the injected glossary
+   * without the chips claiming a term that is not on screen yet.
+   */
+  const matchedTerms = useMemo(
+    () => matchGlossary(translateInput, vocab, targetLang),
+    [translateInput, vocab, targetLang]
+  );
 
   const handleTranslate = useCallback(async (isAuto = false) => {
     stopSpeaking();
@@ -157,13 +137,11 @@ export function useTranslateTab({
       }));
 
       let fullTranslation = '';
-      const matchedTermsList = getDetectedGlossaryTerms();
-      const injectedVocab = matchedTermsList.length > 0 ? matchedTermsList : currentVocab;
 
       let hasReceivedFirstChunk = false;
       setIsStreaming(true);
 
-      const result = await ai.translate(finalSourceText, targetLang, injectedVocab, undefined, isSummaryMode, (chunk) => {
+      const result = await ai.translate(finalSourceText, targetLang, currentVocab, undefined, isSummaryMode, (chunk) => {
         if (!hasReceivedFirstChunk && chunk.trim()) {
           hasReceivedFirstChunk = true;
           setLoading(false);
@@ -217,7 +195,7 @@ export function useTranslateTab({
       setIsStreaming(false);
       setIsTranslating(false);
     }
-  }, [translateInput, translateImage, targetLang, state.settings, state.lastOutputs, t, showToast, getDetectedGlossaryTerms, isSummaryMode, isTranslating, stopSpeaking, setLoading, setIsStreaming, setState, setContext]);
+  }, [translateInput, translateImage, targetLang, state.settings, state.lastOutputs, t, showToast, isSummaryMode, isTranslating, stopSpeaking, setLoading, setIsStreaming, setState, setContext]);
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

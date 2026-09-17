@@ -71,7 +71,6 @@ export function TranslateTabMobile({
     isTranslating,
     isCached,
     matchedTerms,
-    getVocabTranslation,
     handleTranslate,
     handleClearInput,
     handleImageUpload,
@@ -193,19 +192,18 @@ export function TranslateTabMobile({
               <span>🔍</span> {state.globalLanguage === 'vi' ? 'Phát hiện thuật ngữ' : 'Detected terms'}:
             </span>
             <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-              {matchedTerms.map(item => {
-                const translationText = getVocabTranslation(item, targetLang);
-                return (
-                  <span 
-                    key={item.id} 
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/80 dark:bg-slate-800/80 text-text-main shadow-sm border border-border-main backdrop-blur-sm"
-                  >
-                    <span className="font-semibold text-accent">{item.term}</span>
-                    <span className="text-text-muted text-[10px]">&rarr;</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">{translationText}</span>
-                  </span>
-                );
-              })}
+              {matchedTerms.map(match => (
+                <span 
+                  /* One row can match twice (its VI and EN phrases both present), so the span pins the key. */
+                  key={`${match.item.id}-${match.start}`} 
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/80 dark:bg-slate-800/80 text-text-main shadow-sm border border-border-main backdrop-blur-sm"
+                >
+                  {/* The phrase that actually matched, not item.term — that is a category label. */}
+                  <span className="font-semibold text-accent">{match.source}</span>
+                  <span className="text-text-muted text-[10px]">&rarr;</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">{match.target}</span>
+                </span>
+              ))}
             </div>
           </div>
         )}
