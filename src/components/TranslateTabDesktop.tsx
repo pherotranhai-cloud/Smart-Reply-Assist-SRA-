@@ -109,7 +109,7 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                handleTranslate(false);
+                handleTranslate();
               }
             }}
             onPaste={handlePaste}
@@ -176,7 +176,7 @@ export function TranslateTabDesktop(props: TranslateTabDesktopProps) {
                 </button>
               )}
               <button
-                onClick={() => handleTranslate(false)}
+                onClick={() => handleTranslate()}
                 disabled={props.loading || isTranslating || props.isStreaming || (!translateInput.trim() && !translateImage)}
                 className="px-5 py-2.5 bg-accent hover:bg-accent/90 text-accent-on rounded-xl font-semibold transition-all shadow-md shadow-accent/20 disabled:opacity-50 flex items-center gap-2 text-sm"
               >

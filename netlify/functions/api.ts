@@ -71,7 +71,7 @@ router.post('/translate', async (req, res) => {
     return res.status(500).json({ error: "Server Configuration Error" });
   }
 
-  const { text, targetLang, glossary, image, summarize, isAuto } = req.body;
+  const { text, targetLang, glossary, image, summarize } = req.body;
   try {
     // 1. Minified System Prompt (Already optimized for Factory Context)
     let explicitTargetLang = targetLang;
@@ -134,7 +134,7 @@ ${summaryInstruction}`;
     // 4. Push the unified content as a single user message
     messages.push({ role: 'user', content: userContent });
 
-    const targetModel = req.body.model || (isAuto ? "gpt-5.6-luna" : APP_ENGINE_ID);
+    const targetModel = req.body.model || APP_ENGINE_ID;
 
     const stream = await openai.chat.completions.create({
       model: targetModel,
@@ -158,16 +158,14 @@ ${summaryInstruction}`;
     res.end();
 
     // Non-blocking log to Supabase
-    if (!isAuto) {
-      logToSupabase({
-        task_type: 'translate',
-        input_text: text || '[Image only]',
-        output_text: outputText,
-        from_lang: 'auto',
-        to_lang: targetLang,
-        ip_address: (req as any).clientIp
-      });
-    }
+    logToSupabase({
+      task_type: 'translate',
+      input_text: text || '[Image only]',
+      output_text: outputText,
+      from_lang: 'auto',
+      to_lang: targetLang,
+      ip_address: (req as any).clientIp
+    });
   } catch (error: any) {
     console.error('Translation error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Translation failed', details: error.message });

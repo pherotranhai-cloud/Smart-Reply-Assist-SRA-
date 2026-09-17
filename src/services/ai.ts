@@ -33,7 +33,7 @@ export class AIService {
     }
   }
 
-  async translate(text: string, targetLang: string, vocab: VocabItem[], image?: string, summarize: boolean = false, onChunk?: (chunk: string) => void, isAuto: boolean = false) {
+  async translate(text: string, targetLang: string, vocab: VocabItem[], image?: string, summarize: boolean = false, onChunk?: (chunk: string) => void) {
     try {
       const glossary = this.buildGlossary(text, vocab, targetLang);
       
@@ -48,7 +48,6 @@ export class AIService {
           glossary, // Gửi Prompt Glossary đã dựng sẵn sang Backend
           image,
           summarize,
-          isAuto,
           model: this.settings.openai.model
         })
       });

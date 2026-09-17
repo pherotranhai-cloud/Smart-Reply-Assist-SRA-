@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { storage } from '../services/storage';
 import { AIService } from '../services/ai';
-import { getVocabTranslation, matchGlossary } from '../services/glossary';
+import { matchGlossary } from '../services/glossary';
 import { validateSecurity } from '../utils/security';
 import { generateHash } from '../utils/hash';
 import { Language, AppState, VocabItem, ConversationContext } from '../types';
@@ -42,12 +42,9 @@ export function useTranslateTab({
   const [translateInput, setTranslateInput] = useState('');
   const [translateImage, setTranslateImage] = useState<string | null>(null);
   const [targetLang, setTargetLang] = useState<Language>('Vietnamese');
-  const [speechLang, setSpeechLang] = useState<string>('vi-VN');
   const [isSummaryMode, setIsSummaryMode] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [isCached, setIsCached] = useState(false);
-
-  const lastAutoTranslatedInput = useRef("");
 
   const handleClearInput = useCallback(() => {
     setTranslateInput('');
@@ -71,18 +68,18 @@ export function useTranslateTab({
     [translateInput, vocab, targetLang]
   );
 
-  const handleTranslate = useCallback(async (isAuto = false) => {
+  const handleTranslate = useCallback(async () => {
     stopSpeaking();
     if (isTranslating) return;
 
     if (!translateInput && !translateImage) {
-      if (!isAuto) showToast(t('provideTextOrImage'), 'error');
+      showToast(t('provideTextOrImage'), 'error');
       return;
     }
 
     const securityCheck = validateSecurity(translateInput);
     if (!securityCheck.isValid) {
-      if (!isAuto) showToast(t(securityCheck.errorKey || 'SECURITY_FIREWALL_ERROR'), 'error');
+      showToast(t(securityCheck.errorKey || 'SECURITY_FIREWALL_ERROR'), 'error');
       setLoading(false);
       return;
     }
@@ -95,19 +92,18 @@ export function useTranslateTab({
     const hashKey = generateHash(translateInput + targetLang + imageHash);
     const cache = await storage.getTranslationCache();
 
-    if (!isAuto && cache[hashKey]) {
+    if (cache[hashKey]) {
       const cachedResult = cache[hashKey].translatedText;
       for (let i = 0; i <= cachedResult.length; i++) {
         await new Promise(resolve => setTimeout(resolve, 10));
-        setState(prev => ({ 
-          ...prev, 
-          lastOutputs: { ...prev.lastOutputs, translatedText: cachedResult.substring(0, i) } 
+        setState(prev => ({
+          ...prev,
+          lastOutputs: { ...prev.lastOutputs, translatedText: cachedResult.substring(0, i) }
         }));
       }
       setIsCached(true);
       showToast(t('instantTranslation'), 'success');
       setLoading(false);
-      lastAutoTranslatedInput.current = translateInput.trim();
       setIsTranslating(false);
       return;
     }
@@ -115,25 +111,25 @@ export function useTranslateTab({
     try {
       setIsCached(false);
       setLoading(true);
-      
+
       const ai = new AIService(state.settings);
       let finalSourceText = translateInput;
 
       if (translateImage) {
-        if (!isAuto) showToast(t('readingImage'), 'info');
+        showToast(t('readingImage'), 'info');
         const extractedText = await ai.extractTextFromImage(translateImage);
-        
+
         if (translateInput.trim()) {
           finalSourceText = `${translateInput}\n\n--- [Image Content] ---\n${extractedText}`;
         } else {
           finalSourceText = extractedText;
         }
-        if (!isAuto) showToast(t('translating'), 'info');
+        showToast(t('translating'), 'info');
       }
-      
-      setState(prev => ({ 
-        ...prev, 
-        lastOutputs: { ...prev.lastOutputs, translatedText: '' } 
+
+      setState(prev => ({
+        ...prev,
+        lastOutputs: { ...prev.lastOutputs, translatedText: '' }
       }));
 
       let fullTranslation = '';
@@ -147,18 +143,18 @@ export function useTranslateTab({
           setLoading(false);
         }
         fullTranslation += chunk;
-        setState(prev => ({ 
-          ...prev, 
-          lastOutputs: { ...prev.lastOutputs, translatedText: fullTranslation } 
+        setState(prev => ({
+          ...prev,
+          lastOutputs: { ...prev.lastOutputs, translatedText: fullTranslation }
         }));
-      }, isAuto);
-      
+      });
+
       setIsStreaming(false);
-      
+
       const newOutputs = { ...state.lastOutputs, translatedText: result, summary: '', contextSource: 'translated' as const };
       setState(prev => ({ ...prev, lastOutputs: newOutputs }));
       await storage.setLastOutputs(newOutputs);
-      
+
       const newContext: ConversationContext = {
         sourceText: finalSourceText,
         translatedText: result,
@@ -179,17 +175,14 @@ export function useTranslateTab({
         timestamp: Date.now()
       };
 
-      if (!isAuto) {
-        await storage.addHistory(historyItemToSave);
-      }
-      
+      await storage.addHistory(historyItemToSave);
+
       cache[hashKey] = { translatedText: result, timestamp: Date.now() };
       await storage.setTranslationCache(cache);
-      
-      if (!isAuto) showToast(t('translationUpdated'), 'success');
-      lastAutoTranslatedInput.current = translateInput.trim();
+
+      showToast(t('translationUpdated'), 'success');
     } catch (err: any) {
-      if (!isAuto) showToast(err.message, 'error');
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
       setIsStreaming(false);
@@ -239,19 +232,6 @@ export function useTranslateTab({
     }
   }, [showToast, t]);
 
-  useEffect(() => {
-    const langMap: Record<string, string> = {
-      'en': 'en-US',
-      'vi': 'vi-VN',
-      'zh-CN': 'zh-CN',
-      'zh-TW': 'zh-TW',
-      'id': 'id-ID'
-    };
-    if (langMap[state.globalLanguage]) {
-      setSpeechLang(langMap[state.globalLanguage]);
-    }
-  }, [state.globalLanguage]);
-
   // Owned here rather than in the tab components: the mobile and desktop
   // layouts would otherwise each run it, re-appending the transcript whenever
   // the viewport crossed the desktop breakpoint.
@@ -272,15 +252,11 @@ export function useTranslateTab({
     setTranslateImage,
     targetLang,
     setTargetLang,
-    speechLang,
-    setSpeechLang,
     isSummaryMode,
     setIsSummaryMode,
     isTranslating,
     isCached,
-    setIsCached,
     matchedTerms,
-    getVocabTranslation,
     handleTranslate,
     handleClearInput,
     handleImageUpload,

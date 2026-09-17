@@ -140,7 +140,7 @@ export function TranslateTabMobile({
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                handleTranslate(false);
+                handleTranslate();
               }
             }}
             maxLength={1500}
@@ -253,7 +253,7 @@ export function TranslateTabMobile({
 
           {/* Row 2: primary action keeps the full width and the thumb zone. */}
           <button
-            onClick={() => handleTranslate(false)}
+            onClick={() => handleTranslate()}
             disabled={loading || isTranslating || isStreaming || (!translateInput.trim() && !translateImage)}
             className="saas-button primary-button h-11 w-full flex items-center justify-center gap-2"
           >
@@ -270,7 +270,7 @@ export function TranslateTabMobile({
             {loading && (
               <div className="flex items-center gap-1 px-2 py-0.5 bg-accent/10 rounded-full text-[9px] font-bold text-accent uppercase tracking-wider animate-pulse">
                 <Loader2 size={10} className="animate-spin" />
-                <span>{state.globalLanguage === 'vi' ? 'Dịch ngầm...' : 'Auto-translating...'}</span>
+                <span>{t('translating')}</span>
               </div>
             )}
           </div>
