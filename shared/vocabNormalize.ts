@@ -127,6 +127,21 @@ export function hasSourcePhrase(item: Pick<VocabItem, 'vi' | 'en' | 'zh_cn' | 'z
 }
 
 /**
+ * An id for a stored record that arrived without one. `crypto.randomUUID` is
+ * only exposed in a secure context, so on a plain-http deployment it is
+ * undefined and calling it would throw out of `storage.getVocab()` — which
+ * `App.tsx` hydrates inside a `Promise.all`, taking the whole app down over a
+ * single malformed row. The counter suffix only has to be unique within one
+ * heal pass; the id is replaced by the content hash on the next sync.
+ */
+let fallbackIdCounter = 0;
+function fallbackId(): string {
+  const uuid = globalThis.crypto?.randomUUID;
+  if (typeof uuid === 'function') return globalThis.crypto.randomUUID();
+  return `vocab-local-${Date.now().toString(36)}-${fallbackIdCounter++}`;
+}
+
+/**
  * Heals one vocab item that may still be sitting in a user's localStorage
  * from before this fix — either the broken api.ts shape
  * ({meaning_vi, target_en, target_zh_cn, target_zh_tw, target_id, target_my})
@@ -141,6 +156,5 @@ export function hasSourcePhrase(item: Pick<VocabItem, 'vi' | 'en' | 'zh_cn' | 'z
 export function normalizeVocabItem(raw: unknown): VocabItem {
   const item = raw && typeof raw === 'object' ? (raw as Record<string, any>) : {};
   const fields = extractFields(item, { bareIdIsIndonesian: false });
-  const id = str(item.id) || crypto.randomUUID();
-  return { id, ...fields };
+  return { id: str(item.id) || fallbackId(), ...fields };
 }
