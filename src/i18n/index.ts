@@ -281,6 +281,21 @@ export const translations = {
     "model.capability.gpt4o": "Balanced quality and speed",
     "model.capability.gpt35": "Fastest, lowest cost",
     "model.footer": "Your choice applies right away.",
+    // Copy Format. The copy buttons hand the model's Markdown to the clipboard;
+    // Zalo, WeChat and most other chat boxes do not parse it, so the markers
+    // used to be pasted as literal characters. These name the four ways out.
+    "copyFormat": "Copy Format",
+    "copyFormat.plain": "Clean text",
+    "copyFormat.plain.caption": "Drops ** and the other markers. Apps that accept rich text still paste real bold.",
+    "copyFormat.unicode": "Unicode bold",
+    "copyFormat.unicode.caption": "\ud835\uddd5\ud835\uddfc\ud835\uddf9\ud835\uddf1 letters that show up anywhere. A-Z and 0-9 only, so accented and Chinese words stay plain.",
+    "copyFormat.uppercase": "UPPERCASE",
+    "copyFormat.uppercase.caption": "Bold words are upper-cased. Nothing changes for Chinese or Japanese.",
+    "copyFormat.markdown": "Keep Markdown",
+    "copyFormat.markdown.caption": "Copies ** exactly as written, for apps that read Markdown themselves.",
+    "copyFormat.preview": "Preview of the pasted text",
+    "copyFormat.footer": "This is what the copy buttons actually send. The app itself keeps showing the answer in bold either way.",
+    "copyFormat.sample": "**Confirmed** order **PO-1234**: *500 pairs*, delivery **20/09**.",
     // Feedback sheet. The desktop modal called these five keys while no
     // dictionary defined them, so t() rendered the raw key on screen.
     // feedback_error_report titles the sheet opened by the feedbackErrorReport
@@ -579,6 +594,18 @@ export const translations = {
     "model.capability.gpt4o": "Cân bằng chất lượng, tốc độ",
     "model.capability.gpt35": "Nhanh nhất, chi phí thấp",
     "model.footer": "Lựa chọn được áp dụng ngay.",
+    "copyFormat": "Định dạng khi sao chép",
+    "copyFormat.plain": "Văn bản sạch",
+    "copyFormat.plain.caption": "Bỏ dấu ** và các ký hiệu khác. Ứng dụng hỗ trợ văn bản có định dạng vẫn dán ra chữ in đậm thật.",
+    "copyFormat.unicode": "In đậm Unicode",
+    "copyFormat.unicode.caption": "Kiểu chữ \ud835\uddd5\ud835\uddfc\ud835\uddf9\ud835\uddf1 hiển thị được ở mọi nơi. Chỉ có A-Z và 0-9 nên chữ có dấu hay tiếng Trung giữ nguyên.",
+    "copyFormat.uppercase": "IN HOA",
+    "copyFormat.uppercase.caption": "Chuyển phần in đậm thành chữ hoa. Không có tác dụng với tiếng Trung hoặc tiếng Nhật.",
+    "copyFormat.markdown": "Giữ nguyên Markdown",
+    "copyFormat.markdown.caption": "Sao chép nguyên dấu ** cho ứng dụng tự đọc được Markdown.",
+    "copyFormat.preview": "Xem trước nội dung dán",
+    "copyFormat.footer": "Đây là nội dung nút sao chép thực sự gửi đi. Trong ứng dụng, câu trả lời vẫn hiển thị in đậm như cũ.",
+    "copyFormat.sample": "**Xác nhận** đơn **PO-1234**: *500 đôi*, giao ngày **20/09**.",
     // Feedback sheet.
     "feedback_error_report": "Báo lỗi & Góp ý ý kiến",
     "feedback_subtext": "Chúng tôi luôn lắng nghe để cải thiện ứng dụng tốt hơn. Cảm ơn bạn!",
@@ -874,6 +901,18 @@ export const translations = {
     "model.capability.gpt4o": "质量与速度均衡",
     "model.capability.gpt35": "最快，成本最低",
     "model.footer": "选择后立即生效。",
+    "copyFormat": "复制格式",
+    "copyFormat.plain": "纯净文本",
+    "copyFormat.plain.caption": "去掉 ** 等标记。支持富文本的应用仍然会粘贴出真正的粗体。",
+    "copyFormat.unicode": "Unicode 粗体",
+    "copyFormat.unicode.caption": "\ud835\uddd5\ud835\uddfc\ud835\uddf9\ud835\uddf1 字形在任何应用都能显示。仅支持 A-Z 和 0-9，带声调符号或中文的内容保持原样。",
+    "copyFormat.uppercase": "大写强调",
+    "copyFormat.uppercase.caption": "把粗体部分转成大写。对中文和日文无效。",
+    "copyFormat.markdown": "保留 Markdown",
+    "copyFormat.markdown.caption": "原样复制 **，适合自己能解析 Markdown 的应用。",
+    "copyFormat.preview": "粘贴效果预览",
+    "copyFormat.footer": "这是复制按钮实际发送的内容。应用内的回复仍然以粗体显示。",
+    "copyFormat.sample": "**确认**订单 **PO-1234**：*500 双*，**20/09** 交货。",
     // Feedback sheet. supportFeedback / feedbackErrorReport existed only in en
     // and vi, so Chinese users fell through to English here.
     "supportFeedback": "支持与反馈",
@@ -1173,6 +1212,18 @@ export const translations = {
     "model.capability.gpt4o": "品質與速度均衡",
     "model.capability.gpt35": "最快，成本最低",
     "model.footer": "選擇後立即生效。",
+    "copyFormat": "複製格式",
+    "copyFormat.plain": "純淨文字",
+    "copyFormat.plain.caption": "去掉 ** 等標記。支援富文字的應用程式仍然會貼上真正的粗體。",
+    "copyFormat.unicode": "Unicode 粗體",
+    "copyFormat.unicode.caption": "\ud835\uddd5\ud835\uddfc\ud835\uddf9\ud835\uddf1 字形在任何應用都能顯示。僅支援 A-Z 和 0-9，帶聲調符號或中文的內容保持原樣。",
+    "copyFormat.uppercase": "大寫強調",
+    "copyFormat.uppercase.caption": "把粗體部分轉成大寫。對中文和日文無效。",
+    "copyFormat.markdown": "保留 Markdown",
+    "copyFormat.markdown.caption": "原樣複製 **，適合自己能解析 Markdown 的應用。",
+    "copyFormat.preview": "貼上效果預覽",
+    "copyFormat.footer": "這是複製按鈕實際傳送的內容。應用內的回覆仍然以粗體顯示。",
+    "copyFormat.sample": "**確認**訂單 **PO-1234**：*500 雙*，**20/09** 交貨。",
     // Feedback sheet. supportFeedback / feedbackErrorReport existed only in en
     // and vi, so Chinese users fell through to English here.
     "supportFeedback": "支援與意見回饋",

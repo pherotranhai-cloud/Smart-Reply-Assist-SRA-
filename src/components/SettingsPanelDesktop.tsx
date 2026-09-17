@@ -3,6 +3,7 @@ import { SettingsPanelProps, useSettingsPanel } from '../hooks/useSettingsPanel'
 import { SettingsPageHeader } from './settings/SettingsPageHeader';
 import { ThemeSection } from './settings/ThemeSection';
 import { TypographySection } from './settings/TypographySection';
+import { CopyFormatSection } from './settings/CopyFormatSection';
 import { WallpaperSection } from './settings/WallpaperSection';
 import { BackgroundEffectsSection } from './settings/BackgroundEffectsSection';
 import { ModelSection } from './settings/ModelSection';
@@ -74,6 +75,12 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
         />
 
         <BackgroundEffectsSection
+          userPreferences={userPreferences}
+          onUserPreferencesChange={onUserPreferencesChange}
+          t={t}
+        />
+
+        <CopyFormatSection
           userPreferences={userPreferences}
           onUserPreferencesChange={onUserPreferencesChange}
           t={t}

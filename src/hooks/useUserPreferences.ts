@@ -14,7 +14,10 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   savedWallpapers: [],
   backgroundEffect: 'none',
   fontSize: 'base',
-  fontFamily: 'sans'
+  fontFamily: 'sans',
+  // Stripping the Markdown markers is the only setting that is right in every
+  // destination, so it is what a user who never opens Settings gets.
+  copyFormat: 'plain'
 };
 
 /**
