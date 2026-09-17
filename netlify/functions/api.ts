@@ -15,6 +15,7 @@ import {
 } from '../../shared/adminService';
 import { requireAdmin, warnIfAdminAuthUnconfigured } from '../../shared/adminAuth';
 import { countOnline, recordHeartbeat } from '../../shared/presence';
+import { normalizeHeader, extractVocabRow, vocabHashKey, hasSourcePhrase } from '../../shared/vocabNormalize';
 
 dotenv.config();
 
@@ -430,7 +431,7 @@ router.post('/import-vocab', async (req, res) => {
     const parsed = Papa.parse(csvData, {
       header: true,
       skipEmptyLines: true,
-      transformHeader: (header) => header.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
+      transformHeader: normalizeHeader
     });
 
     const rawData = parsed.data;
@@ -438,38 +439,15 @@ router.post('/import-vocab', async (req, res) => {
       return res.json({ message: 'No data found in Google Sheet', count: 0, data: [] });
     }
 
-    const sanitizedData = rawData.map((item: any) => {
-      const term = String(item.term || item.category || '').trim();
-      const meaning_vi = String(item.meaning_vi || item.vietnamese || item.tieng_viet || item.vi || '').trim();
-      const target_en = String(item.target_en || item.english || item.tieng_anh || item.en || '').trim();
-      
-      // Legacy fallbacks for Chinese
-      const legacyZh = String(item.target_zh || item.chinese || item.tieng_trung || item.zh || '').trim();
-      const target_zh_cn = String(item.target_zh_cn || item.chinese_simplified || item.zh_cn || legacyZh).trim();
-      const target_zh_tw = String(item.target_zh_tw || item.chinese_traditional || item.zh_tw || legacyZh).trim();
-      
-      // New targets
-      const target_id = String(item.target_id || item.indonesian || item.tieng_indo || item.id || '').trim();
-      const target_my = String(item.target_my || item.burmese || item.tieng_myanmar || item.my || '').trim();
-
-      const enabledVal = item.enable !== undefined ? item.enable : item.enabled;
-      const enabled = enabledVal !== false && String(enabledVal).toLowerCase() !== 'false';
-      
-      const hashInput = term ? `${term}-${meaning_vi}` : meaning_vi;
-      const id = crypto.createHash('md5').update(hashInput).digest('hex');
-
-      return {
-        id,
-        term: term || meaning_vi,
-        meaning_vi,
-        target_en,
-        target_zh_cn,
-        target_zh_tw,
-        target_id,
-        target_my,
-        enabled
-      };
-    }).filter((item: any) => item.meaning_vi);
+    // VocabItem's shape lives in shared/vocabNormalize.ts — kept in one place
+    // because it used to drift between this route and import-vocab.ts.
+    const sanitizedData = (rawData as Record<string, any>[])
+      .map((item) => {
+        const fields = extractVocabRow(item);
+        const id = crypto.createHash('md5').update(vocabHashKey(fields)).digest('hex');
+        return { id, ...fields };
+      })
+      .filter(hasSourcePhrase);
 
     if (sanitizedData.length === 0) {
       return res.json({ message: 'No valid items found after filtering', count: 0, data: [] });
