@@ -1,7 +1,7 @@
 {
   "name": "ai-smart-reply-assist",
   "private": true,
-  "version": "2.12.18",
+  "version": "2.12.19",
   "type": "module",
   "scripts": {
     "start": "node dist/server.cjs",

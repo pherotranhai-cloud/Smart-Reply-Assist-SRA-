@@ -10,9 +10,12 @@ interface TalkTabProps {
   vocab: any[];
   t: (key: string) => string;
   showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
+  /** False while another tab is showing: Talk stays mounted, so the hook needs
+   *  to be told when to close the live session. */
+  isActive?: boolean;
 }
 
-export const TalkTabMobile: React.FC<TalkTabProps> = ({ settings, vocab, t, showToast }) => {
+export const TalkTabMobile: React.FC<TalkTabProps> = ({ settings, vocab, t, showToast, isActive }) => {
   const {
     myLang,
     setMyLang,
@@ -30,7 +33,7 @@ export const TalkTabMobile: React.FC<TalkTabProps> = ({ settings, vocab, t, show
     handleSaveHistory,
     handleNativeShare,
     conversationLog,
-  } = useTalkTab({ t, showToast });
+  } = useTalkTab({ t, showToast, isActive });
 
   return (
     <div className="flex flex-col h-full bg-surface backdrop-blur-xl shadow-sm border border-border-main rounded-3xl overflow-hidden relative pb-4">

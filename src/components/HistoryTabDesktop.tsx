@@ -10,12 +10,15 @@ interface HistoryTabDesktopProps {
   userPreferences?: any;
   /** Bumped by App when history is cleared, so the list re-reads storage. */
   historyVersion?: number;
+  /** False while another tab is showing; History stays mounted and re-reads
+   *  storage when it comes back. */
+  isActive?: boolean;
 }
 
-export const HistoryTabDesktop: React.FC<HistoryTabDesktopProps> = ({ t, showToast, onReuse, userPreferences, historyVersion }) => {
+export const HistoryTabDesktop: React.FC<HistoryTabDesktopProps> = ({ t, showToast, onReuse, userPreferences, historyVersion, isActive }) => {
   const {
     filter, setFilter, loading, filteredHistory, handleCopy,
-  } = useHistoryTab(t, showToast, historyVersion, userPreferences?.copyFormat);
+  } = useHistoryTab(t, showToast, historyVersion, userPreferences?.copyFormat, isActive);
 
   const hasBgImage = !!userPreferences?.backgroundImage || (userPreferences?.backgroundEffect && userPreferences.backgroundEffect !== 'none');
 

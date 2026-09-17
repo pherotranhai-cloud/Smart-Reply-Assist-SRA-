@@ -12,16 +12,19 @@ interface HistoryTabProps {
   historyVersion?: number;
   /** Only Copy Format is read here; HistoryTab passes the whole object through. */
   userPreferences?: UserPreferences;
+  /** False while another tab is showing; History stays mounted and re-reads
+   *  storage when it comes back. */
+  isActive?: boolean;
 }
 
-export const HistoryTabMobile: React.FC<HistoryTabProps> = ({ t, showToast, onReuse, historyVersion, userPreferences }) => {
+export const HistoryTabMobile: React.FC<HistoryTabProps> = ({ t, showToast, onReuse, historyVersion, userPreferences, isActive }) => {
   const {
     filter,
     setFilter,
     loading,
     filteredHistory,
     handleCopy,
-  } = useHistoryTab(t, showToast, historyVersion, userPreferences?.copyFormat);
+  } = useHistoryTab(t, showToast, historyVersion, userPreferences?.copyFormat, isActive);
 
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);

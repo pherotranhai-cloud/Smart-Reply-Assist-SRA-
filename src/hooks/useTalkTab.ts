@@ -5,9 +5,11 @@ import { storage } from '../services/storage';
 interface UseTalkTabParams {
   t: (key: string) => string;
   showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
+  /** Whether Talk is the tab on screen. See the effect that watches it below. */
+  isActive?: boolean;
 }
 
-export function useTalkTab({ t, showToast }: UseTalkTabParams) {
+export function useTalkTab({ t, showToast, isActive = true }: UseTalkTabParams) {
   const [myLang, setMyLang] = useState<string>(() => safeLocalStorage.getItem('talk_my_lang') || 'Vietnamese');
   
   useEffect(() => { safeLocalStorage.setItem('talk_my_lang', myLang); }, [myLang]);
@@ -215,6 +217,16 @@ export function useTalkTab({ t, showToast }: UseTalkTabParams) {
       closeRealtimeStream();
     };
   }, []);
+
+  // Leaving the tab is no longer an unmount: the page stays mounted so coming
+  // back is instant, which means the cleanup above no longer runs when the user
+  // swipes away. Without this the microphone, the WebRTC session, the wake lock
+  // and the quota timer would all keep running behind another tab.
+  useEffect(() => {
+    if (!isActive && (isListening || isInitializing)) {
+      closeRealtimeStream();
+    }
+  }, [isActive, isListening, isInitializing]);
 
   const initRealtimeStream = async () => {
     if (isListening) {

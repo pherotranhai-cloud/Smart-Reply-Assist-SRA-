@@ -12,15 +12,18 @@ interface TalkTabDesktopProps {
   t: (key: string) => string;
   showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
   userPreferences?: any;
+  /** False while another tab is showing: Talk stays mounted, so the hook needs
+   *  to be told when to close the live session. */
+  isActive?: boolean;
 }
 
-export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab, t, showToast, userPreferences }) => {
+export const TalkTabDesktop: React.FC<TalkTabDesktopProps> = ({ settings, vocab, t, showToast, userPreferences, isActive }) => {
   const {
     myLang, setMyLang, usedSeconds, QUOTA_LIMIT, isListening,
     sourceSubtitle, targetSubtitle, isInitializing, connectionProgress,
     currentTriviaKey, scrollRef, isLimitReached, handleMicClick,
     handleSaveHistory, handleNativeShare, conversationLog
-  } = useTalkTab({ t, showToast });
+  } = useTalkTab({ t, showToast, isActive });
 
   const progressPercentage = Math.min(100, (usedSeconds / QUOTA_LIMIT) * 100);
   const hasBgImage = !!userPreferences?.backgroundImage || (userPreferences?.backgroundEffect && userPreferences.backgroundEffect !== 'none');

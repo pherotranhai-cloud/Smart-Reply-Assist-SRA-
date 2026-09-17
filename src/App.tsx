@@ -43,22 +43,31 @@ import { TalkTab } from './components/TalkTab';
 import { HistoryTab } from './components/HistoryTab';
 import { SettingsPanel } from './components/SettingsPanel';
 import { AdminDashboard } from './components/AdminDashboard';
-import { useTabNavigation, TAB_ORDER } from './hooks/useTabNavigation';
+import { useTabNavigation, TAB_ORDER, type TabType } from './hooks/useTabNavigation';
 import { useTranslateTab } from './hooks/useTranslateTab';
 import { useComposeTab } from './hooks/useComposeTab';
 import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat';
 
-// Slide direction comes from TAB_ORDER in useTabNavigation - the same array the
-// swipe gesture walks, imported rather than copied so the two cannot drift. The
-// sign of the index delta between the outgoing and the incoming tab decides
-// which way the pages slide, so a forward jump enters from the right and a back
-// jump from the left (iOS push/pop). Both navs list it in this order; the
-// desktop sidebar used to have vocab and history the other way round, which
-// made that one pair read as a back gesture there.
+// Where a page waits while another one is showing: on the side it sits on in
+// TAB_ORDER - the same array the swipe gesture walks, imported rather than
+// copied so the two cannot drift. A page below the active tab rests to the
+// left, one above it rests to the right, so moving forward brings the next page
+// in from the right and moving back brings the previous one in from the left
+// (iOS push/pop), without anything having to remember which way the last move
+// went. Both navs list the tabs in this order; the desktop sidebar used to have
+// vocab and history the other way round, which made that one pair read as a
+// back gesture there.
+const ASIDE_OFFSET = 28;
 
-// `direction` arrives through AnimatePresence's `custom`: 1 = forward, -1 = back.
+// `offset` arrives through `custom`: -28 for a page to the left, 28 to the right.
+// For the page that is showing it is the side it arrived from, which only its
+// first mount ever uses.
 const tabVariants: Variants = {
-  enter: (direction: number) => ({ opacity: 0, x: direction < 0 ? -28 : 28 }),
+  aside: (offset: number) => ({
+    opacity: 0,
+    x: offset,
+    transition: { duration: 0.13, ease: 'easeIn' },
+  }),
   center: {
     opacity: 1,
     x: 0,
@@ -71,44 +80,45 @@ const tabVariants: Variants = {
       opacity: { duration: 0.18 },
     },
   },
-  // mode="wait" plays exit and enter back to back, so the outgoing page leaves on
-  // a short tween instead of a spring - a settling spring here would add ~half a
-  // second before the new tab even starts.
-  exit: (direction: number) => ({
-    opacity: 0,
-    x: direction < 0 ? 28 : -28,
-    transition: { duration: 0.13, ease: 'easeIn' },
-  }),
 };
 
 const reducedTabVariants: Variants = {
-  enter: { opacity: 0 },
+  aside: { opacity: 0, transition: { duration: 0.08 } },
   center: { opacity: 1, transition: { duration: 0.12 } },
-  exit: { opacity: 0, transition: { duration: 0.08 } },
 };
 
-// One page of the pager. The nested AnimatePresence is a shield, not a second
-// transition: several tabs still carry their own spring `exit` props, and
-// AnimatePresence waits for every motion component in the leaving subtree, so
-// those springs would hold the next tab back by the best part of a second.
-// Marking the page's own content as present leaves the exit to this wrapper
-// alone, while the content keeps the mount animations it has always had.
-function TabPage({ direction, reducedMotion, className, children }: {
-  direction: number;
+// One page of the pager.
+//
+// A page is mounted the first time its tab is opened and then stays mounted for
+// the rest of the session. While another tab is showing it is `display: none`,
+// which keeps its React state, its scroll position and its DOM while costing
+// nothing to lay out or paint - and takes any `position: fixed` child of the
+// tab with it. Coming back is a style flip and a spring, not a fresh mount that
+// re-runs every effect and re-reads storage.
+//
+// A page that is already mounted animates from wherever it was parked to the
+// centre, so it needs no `initial` at all. A page mounting for the first time
+// has nowhere to come from, and `initial="aside"` is what gives that first
+// visit the same arrival as every one after it. The page the app opens on is
+// the exception: it has not been navigated to, so it starts at the centre.
+function TabPage({ active, offset, enterOnMount, reducedMotion, className, children }: {
+  active: boolean;
+  offset: number;
+  enterOnMount: boolean;
   reducedMotion: boolean;
   className?: string;
   children: ReactNode;
 }) {
   return (
     <motion.div
-      custom={direction}
+      custom={offset}
       variants={reducedMotion ? reducedTabVariants : tabVariants}
-      initial="enter"
-      animate="center"
-      exit="exit"
-      className={className}
+      initial={enterOnMount ? 'aside' : false}
+      animate={active ? 'center' : 'aside'}
+      className={`${active ? '' : 'hidden '}${className ?? ''}`}
+      aria-hidden={!active}
     >
-      <AnimatePresence>{children}</AnimatePresence>
+      {children}
     </motion.div>
   );
 }
@@ -144,22 +154,47 @@ export default function App() {
 
   const prefersReducedMotion = useReducedMotion();
 
-  // Slide direction is derived while rendering and then frozen until the next
-  // tab change. It cannot be computed in an effect: with mode="wait" the
-  // incoming page mounts after the outgoing one has left, and it reads `custom`
-  // at that moment - an effect would already have reset it to 0 by then.
-  const [tabTransition, setTabTransition] = useState({ tab: activeTab, direction: 1 });
-  if (tabTransition.tab !== activeTab) {
-    setTabTransition({
+  // Which tabs exist in the DOM. A tab joins the set the first time it is
+  // opened and never leaves it, so the first visit pays for the mount and every
+  // visit after that is a style flip. Recorded while rendering rather than in an
+  // effect: the page has to be in the tree on the same commit that shows it, or
+  // the tab would flash empty for a frame.
+  const [mountedTabs, setMountedTabs] = useState<Set<TabType>>(() => new Set([activeTab]));
+  if (!mountedTabs.has(activeTab)) {
+    setMountedTabs(prev => new Set(prev).add(activeTab));
+  }
+
+  /** The tab the app opened on: the one page that should not animate in. */
+  const [startupTab] = useState(activeTab);
+
+  // Which way the last tab change went, derived while rendering and then frozen
+  // until the next one. Only a page's very first mount needs it — a page that
+  // is already mounted comes back from the side it is parked on, which its
+  // place in TAB_ORDER decides. It cannot be computed in an effect: a mounting
+  // page reads `custom` on the same commit that adds it to the tree, and an
+  // effect would not have run yet.
+  const [lastMove, setLastMove] = useState({ tab: activeTab, direction: 1 });
+  if (lastMove.tab !== activeTab) {
+    setLastMove({
       tab: activeTab,
-      direction: TAB_ORDER.indexOf(activeTab) < TAB_ORDER.indexOf(tabTransition.tab) ? -1 : 1,
+      direction: TAB_ORDER.indexOf(activeTab) < TAB_ORDER.indexOf(lastMove.tab) ? -1 : 1,
     });
   }
 
-  const tabPageProps = {
-    direction: tabTransition.direction,
+  const activeTabIndex = TAB_ORDER.indexOf(activeTab);
+  const tabPage = (tab: TabType) => ({
+    active: activeTab === tab,
+    // A page that is showing keeps the side it arrived from; a page that is not
+    // waits on the side it sits on in TAB_ORDER, ready to come back from there.
+    offset:
+      activeTab === tab
+        ? lastMove.direction * ASIDE_OFFSET
+        : TAB_ORDER.indexOf(tab) < activeTabIndex
+          ? -ASIDE_OFFSET
+          : ASIDE_OFFSET,
+    enterOnMount: tab !== startupTab,
     reducedMotion: !!prefersReducedMotion,
-  };
+  });
   
   // Keyed to the release-notes version, not APP_VERSION: the latter is bumped
   // by the pre-commit hook on every commit, which would show this modal to
@@ -442,9 +477,9 @@ export default function App() {
   const handleClearHistory = useCallback(async () => {
     try {
       await storage.clearHistory();
-      // The History tab owns its own copy of the list. It currently unmounts
-      // while Settings is showing, so it re-reads on the way back anyway; this
-      // is what keeps the two in step if it is ever kept mounted.
+      // The History tab owns its own copy of the list and stays mounted behind
+      // Settings, so clearing storage cannot reach it. This is what tells it to
+      // re-read.
       setHistoryVersion(v => v + 1);
       showToast(t('historyCleared'), 'success');
     } catch (err: any) {
@@ -556,9 +591,8 @@ export default function App() {
           other axis to auto - which would let the slide scroll sideways. clip,
           not hidden, so the container never gains a stray scroll position. */}
       <div className="flex-1 overflow-y-auto overflow-x-clip pb-24">
-        <AnimatePresence mode="wait" initial={false} custom={tabTransition.direction}>
-        {activeTab === 'translate' && (
-          <TabPage key="translate" {...tabPageProps}>
+        {mountedTabs.has('translate') && (
+          <TabPage key="translate" {...tabPage('translate')}>
             <TranslateTab
               translate={translateTab}
               state={state}
@@ -587,8 +621,8 @@ export default function App() {
           </TabPage>
         )}
 
-        {activeTab === 'compose' && (
-          <TabPage key="compose" {...tabPageProps} className="h-full">
+        {mountedTabs.has('compose') && (
+          <TabPage key="compose" {...tabPage('compose')} className="h-full">
             <ComposeTab
               compose={composeTab}
               state={state}
@@ -615,28 +649,28 @@ export default function App() {
           </TabPage>
         )}
 
-        {activeTab === 'vocab' && (
-          <TabPage key="vocab" {...tabPageProps} className="h-full">
+        {mountedTabs.has('vocab') && (
+          <TabPage key="vocab" {...tabPage('vocab')} className="h-full">
             <div className="premium-card h-full flex flex-col">
               <VocabManager t={t} userPreferences={userPreferences} />
             </div>
           </TabPage>
         )}
 
-        {activeTab === 'talk' && (
-          <TabPage key="talk" {...tabPageProps} className="h-full">
-            <TalkTab settings={state.settings} vocab={vocab} t={t} showToast={showToast} userPreferences={userPreferences} />
+        {mountedTabs.has('talk') && (
+          <TabPage key="talk" {...tabPage('talk')} className="h-full">
+            <TalkTab settings={state.settings} vocab={vocab} t={t} showToast={showToast} userPreferences={userPreferences} isActive={activeTab === 'talk'} />
           </TabPage>
         )}
 
-        {activeTab === 'history' && (
-          <TabPage key="history" {...tabPageProps} className="h-full overflow-y-auto">
-            <HistoryTab t={t} showToast={showToast} onReuse={handleReuse} userPreferences={userPreferences} historyVersion={historyVersion} />
+        {mountedTabs.has('history') && (
+          <TabPage key="history" {...tabPage('history')} className="h-full overflow-y-auto">
+            <HistoryTab t={t} showToast={showToast} onReuse={handleReuse} userPreferences={userPreferences} historyVersion={historyVersion} isActive={activeTab === 'history'} />
           </TabPage>
         )}
 
-        {activeTab === 'settings' && (
-          <TabPage key="settings" {...tabPageProps} className="h-full overflow-y-auto">
+        {mountedTabs.has('settings') && (
+          <TabPage key="settings" {...tabPage('settings')} className="h-full overflow-y-auto">
             <SettingsPanel 
               globalLanguage={state.globalLanguage}
               onLanguageChange={async (lang) => {
@@ -660,7 +694,6 @@ export default function App() {
             />
           </TabPage>
         )}
-        </AnimatePresence>
       </div>
 
       <VoiceModal 
