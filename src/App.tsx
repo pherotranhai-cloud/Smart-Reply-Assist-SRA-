@@ -43,7 +43,7 @@ import { TalkTab } from './components/TalkTab';
 import { HistoryTab } from './components/HistoryTab';
 import { SettingsPanel } from './components/SettingsPanel';
 import { AdminDashboard } from './components/AdminDashboard';
-import { useTabNavigation, TAB_ORDER, type TabType } from './hooks/useTabNavigation';
+import { useTabNavigation, TAB_ORDER, TabActiveProvider, type TabType } from './hooks/useTabNavigation';
 import { useTranslateTab } from './hooks/useTranslateTab';
 import { useComposeTab } from './hooks/useComposeTab';
 import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat';
@@ -118,7 +118,9 @@ function TabPage({ active, offset, enterOnMount, reducedMotion, className, child
       className={`${active ? '' : 'hidden '}${className ?? ''}`}
       aria-hidden={!active}
     >
-      {children}
+      {/* `display: none` cannot reach what the page portals into <body>, so the
+          page says out loud whether it is the one showing. */}
+      <TabActiveProvider value={active}>{children}</TabActiveProvider>
     </motion.div>
   );
 }
