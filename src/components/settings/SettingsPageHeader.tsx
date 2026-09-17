@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
+import { useTabActive } from '../../hooks/useTabNavigation';
 
 interface SettingsPageHeaderProps {
   t: (key: string) => string;
@@ -26,6 +27,10 @@ export const SettingsPageHeader: React.FC<SettingsPageHeaderProps> = ({ t, varia
   const sentinelRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  // The Settings tab stays mounted behind whatever tab is showing, and the bar
+  // below is portalled into <body>, where the tab's `display: none` cannot
+  // reach it. Without this it stayed pinned across the top of every other tab.
+  const isTabActive = useTabActive();
 
   // The two layouts scroll different things (the document on mobile, the pane
   // on desktop), so watch against the viewport: with root: null the observer
@@ -33,6 +38,15 @@ export const SettingsPageHeader: React.FC<SettingsPageHeaderProps> = ({ t, varia
   // measured off the bar rather than assumed, because the bar rests at the
   // viewport's top edge on mobile but ~32px down inside the desktop pane.
   useEffect(() => {
+    // A hidden page has no boxes: the sentinel reports an all-zero rect, which
+    // reads as "scrolled past the top" and would collapse the bar while away.
+    // Re-running on the way back also re-measures the bar, which a page that
+    // was hidden at mount could not have done.
+    if (!isTabActive) {
+      setIsCollapsed(false);
+      return;
+    }
+
     const sentinel = sentinelRef.current;
     const bar = barRef.current;
     if (!sentinel || !bar || typeof IntersectionObserver === 'undefined') return;
@@ -49,7 +63,7 @@ export const SettingsPageHeader: React.FC<SettingsPageHeaderProps> = ({ t, varia
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, []);
+  }, [isTabActive]);
 
   const isPane = variant === 'pane';
   const surface = isCollapsed
@@ -99,7 +113,9 @@ export const SettingsPageHeader: React.FC<SettingsPageHeaderProps> = ({ t, varia
         <>
           {/* Holds the fixed bar's row open in the flow. */}
           <div aria-hidden="true" className="h-[calc(44px_+_env(safe-area-inset-top))]" />
-          {typeof document === 'undefined' ? null : createPortal(fixedBar, document.body)}
+          {typeof document === 'undefined' || !isTabActive
+            ? null
+            : createPortal(fixedBar, document.body)}
         </>
       )}
 

@@ -101,7 +101,10 @@ The project is built as a full-stack application using Express and Vite:
   from that and must stay wired: the Talk tab is told when it stops being active and closes its
   microphone and WebRTC session there (`useTalkTab`), since leaving the tab is no longer an
   unmount, and the History tab re-reads storage each time it comes back (`useHistoryTab`),
-  since a remount no longer does it.
+  since a remount no longer does it. Anything a tab renders through a portal has to read
+  `useTabActive` and render nothing while its tab is away: a portal lands in `<body>`, where the
+  tab's `display: none` cannot reach it, and it used to disappear only because the tab unmounted.
+  The Settings header bar and Compose's action bar both do this.
 - **AI Integration:** Backend proxies requests to AI providers using secure environment variables.
 - **Usage Logging:** Completed translate/compose requests are forwarded to `POST /api/public/log` and stored in Supabase.
 

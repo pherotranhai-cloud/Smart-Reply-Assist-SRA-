@@ -6,6 +6,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Loader2, PenTool, AlertCircle, X, Square, Volume2, Copy, Check, Share2 } from 'lucide-react';
 import { PresetGrid } from './common/PresetGrid';
+import { useTabActive } from '../hooks/useTabNavigation';
 import { VoiceVisualizer } from './common/VoiceVisualizer';
 import { AppState, ConversationContext } from '../types';
 import { useComposeTab } from '../hooks/useComposeTab';
@@ -69,6 +70,9 @@ export function ComposeTabMobile({
   } = compose;
 
   const [isCopied, setIsCopied] = useState(false);
+  // The action bar below is portalled into <body>, where the tab's
+  // `display: none` cannot reach it — it stayed docked over every other tab.
+  const isTabActive = useTabActive();
   const tInterim = isListening && interimTranscript ? interimTranscript : '';
   const composeInputWithInterim = composeReq + (activeTab === 'compose' && tInterim ? (composeReq && !composeReq.endsWith(' ') ? ' ' : '') + tInterim : '');
 
@@ -240,7 +244,7 @@ export function ComposeTabMobile({
           bottom is --tab-bar-h, published by LayoutMobile from the bar's
           measured height. It replaces a hardcoded 90px that was tuned to the
           old 96px tab bar and left a ~26px gap under the real 63.5px one. */}
-      {typeof document === 'undefined' ? null : createPortal(
+      {typeof document === 'undefined' || !isTabActive ? null : createPortal(
         <div className="fixed bottom-[var(--tab-bar-h)] left-0 right-0 p-4 bg-gradient-to-t from-app via-app/80 to-transparent pointer-events-none z-40">
           <div className="max-w-3xl mx-auto pointer-events-auto">
             <button
