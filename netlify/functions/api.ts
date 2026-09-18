@@ -406,11 +406,13 @@ router.post('/talk', async (req, res) => {
 });
 
 /**
- * src/constants.ts's ComposeGoal, redeclared rather than imported: this
- * function bundles as a Netlify function and must not pull in the Vite
- * client tree. The two lists have to stay in step — `params.goal` on the
- * wire is one of these strings verbatim, and a token that exists there but
- * not here silently downgrades that preset to the Custom (shapeless) branch.
+ * src/constants.ts's ComposeGoal, redeclared because the server bundle
+ * imports from shared/ and never from src/. The two lists are hand-synced
+ * and the drift is silent in the worst way: `params.goal` on the wire is one
+ * of these strings verbatim, so a token added to ComposeGoal but not here
+ * fails no build — it just downgrades that preset to the Custom (shapeless)
+ * branch. The cure is to move the union into shared/, next to
+ * vocabNormalize; until someone does, add to both.
  */
 type ComposeGoalToken = 'Report' | 'Explain' | 'Remind' | 'Consult' | 'Announce' | 'Custom';
 
@@ -434,18 +436,18 @@ const GOAL_CONTRACTS: Record<ComposeGoalToken, string> = {
 Open the very first sentence on what is wrong and where: the production line, the model or article name, and the item code. No pleasantry before it. State the quantity affected and when it was found (date, shift or time) as facts in their own right. Close by naming the decision or the support you need from the reader — approval to hold the lot, rework manpower, a material substitution, a schedule change — so the reader knows what is being asked of them. Do NOT close on an apology. Do NOT speculate about blame: no named culprit, no guessed cause, no "probably because". Facts and the ask only.`,
 
   Explain: `GOAL — ROOT-CAUSE ACCOUNT.
-Carry these four moves, in this order, each clearly separated: (1) what happened, stated as the reader observed it; (2) WHY it happened — the actual mechanism, such as a machine setting, a material lot, a skipped inspection step or a tooling wear limit, never the symptom restated in other words; (3) the containment already in place to stop the escape; (4) the preventive action, with a named owner and a concrete date. Do NOT minimise — "minor", "only a few pairs", "no real impact" are not available to you. Do NOT promise a guarantee, a yield figure or a delivery date that the requirements do not state.`,
+Carry these four moves, in this order, each clearly separated: (1) what happened, stated as the reader observed it; (2) WHY it happened — the actual mechanism, such as a machine setting, a material lot, a skipped inspection step or a tooling wear limit, never the symptom restated in other words; (3) the containment already in place to stop the escape; (4) the preventive action, with a named owner and a concrete date. Do NOT minimise — "minor", "only a few pairs", "no real impact" are not available to you. Do NOT promise a guarantee, a yield figure or a delivery date that the note does not state.`,
 
   Remind: `GOAL — FOLLOW-UP ON SOMETHING ALREADY AGREED.
-One subject only: if the requirements raise several open items, follow up on the single most time-critical one and drop the rest. Name the deadline and name the responsible person, by name or by role. If the requirements supply neither, ask the recipient for the missing one explicitly, in a single clause — never invent a date and never guess who owns it. Do NOT re-explain the background: one short reference to what was agreed ("as agreed on Monday") is the maximum, then go straight to the ask.`,
+One subject only: if the note raises several open items, follow up on the single most time-critical one and drop the rest. Name the deadline and name the responsible person, by name or by role. If the note supplies neither, ask the recipient for the missing one explicitly, in a single clause — never invent a date and never guess who owns it. Do NOT re-explain the background: one short reference to what was agreed ("as agreed on Monday") is the maximum, then go straight to the ask.`,
 
   Consult: `GOAL — REQUEST FOR EXPERT JUDGEMENT.
 Give the technical context compactly first — the process step, the material or machine, the parameters already tried and what each of them produced — then ask exactly ONE specific, answerable question. Do NOT ask an open "any advice?" or "what do you think?": a question that cannot be answered with a number, a setting or a yes/no is a failed output. You may offer your own hypothesis, but only as one option for the expert to confirm or reject — never as a settled conclusion, and never in place of the question.`,
 
   Announce: `GOAL — DIRECTIVE TO THE FLOOR OR A DEPARTMENT.
-State what changes, the exact date or shift it takes effect from, and who it applies to — which lines, which departments, which shifts. Close on the action required of the reader and on where to raise a problem: a named person, role or channel. Do NOT write it as a request or a proposal; no "could you please", no "if possible", no asking for agreement. Do NOT leave the effective date vague — "soon", "as early as possible" and "in the coming days" are not acceptable. If the requirements give no date, say the effective date will be confirmed and name who will confirm it.`,
+State what changes, the exact date or shift it takes effect from, and who it applies to — which lines, which departments, which shifts. Close on the action required of the reader and on where to raise a problem: a named person, role or channel. Do NOT write it as a request or a proposal; no "could you please", no "if possible", no asking for agreement. Do NOT leave the effective date vague — "soon", "as early as possible" and "in the coming days" are not acceptable. If the note gives no date, say the effective date will be confirmed and name who will confirm it.`,
 
-  Custom: `GOAL — none. Impose no document shape of your own: do not add an escalation, a root cause, a deadline, a question or a directive that the requirements did not ask for. Follow the audience, tone, length and document-shape instructions alone, and keep the requirements' own moves in the requirements' own order.`
+  Custom: `GOAL — none. Impose no document shape of your own: do not add an escalation, a root cause, a deadline, a question or a directive that the note did not ask for. Follow the audience, tone, length and document-shape instructions alone, and keep the note's own moves in the note's own order.`
 };
 
 /**
@@ -470,7 +472,7 @@ Subject: <a concise, specific subject in the target language>
 Then a blank line, a salutation matched to the audience, body paragraphs separated by blank lines, and a professional closing with a sign-off. The subject line and the sign-off do not count against the length budget.`,
 
   action_list: `DOCUMENT SHAPE — ACTION LIST.
-Do NOT write a subject line, and do NOT write a salutation or a sign-off. One short framing sentence, then the content as a numbered or bulleted list: one action per item, each carrying its owner and its deadline where the requirements supply them. After the last item, add nothing but the single closing line the goal contract calls for, if it calls for one.`,
+Do NOT write a subject line, and do NOT write a salutation or a sign-off. One short framing sentence, then the content as a numbered or bulleted list: one action per item, each carrying its owner and its deadline where the note supplies them. After the last item, add nothing but the single closing line the goal contract calls for, if it calls for one.`,
 
   wechat_zalo: `DOCUMENT SHAPE — GROUP-CHAT MESSAGE (WeChat / Zalo).
 Do NOT write a subject line, a salutation block or a sign-off. Write one message a supervisor can take in on a phone in a few seconds: at most three short paragraphs, or short bullets where the content really is a list. Prefer a line break to a long sentence.`
@@ -507,9 +509,46 @@ const TONE_LINES: Record<string, string> = {
   professional: 'TONE: neutral and professional. Factual, with no emotional colouring in either direction.',
   strict_urgent: 'TONE: strict and urgent. The time pressure must be audible in the first sentence. No hedging ("maybe", "a bit", "when convenient") and no softening of the deadline. Firm, but never rude and never accusatory.',
   collaborative: 'TONE: collaborative. Frame it as a shared problem with a shared fix: acknowledge the other side\'s constraint in one clause, then state your part and theirs.',
-  persuasive: 'TONE: persuasive. Lead with the reason this reader should care — their risk, their cost, their delivery date — and back every claim with a fact taken from the requirements, never with pressure or flattery.',
+  persuasive: 'TONE: persuasive. Lead with the reason this reader should care — their risk, their cost, their delivery date — and back every claim with a fact taken from the note, never with pressure or flattery.',
   humble: 'TONE: humble and deferential. Modest phrasing and the target language\'s polite forms — but do not go vague with it: the facts, the numbers and the ask stay exactly as concrete as they would be in any other tone.'
 };
+
+/**
+ * The desktop custom-settings modal's <select> values are cast
+ * `as Audience` / `as Tone` / `as Format` (src/components/ComposeTabDesktop.tsx),
+ * so seven spellings that match no enum in src/types.ts reach this route and
+ * would drop straight through to the fallbacks. Aliased onto the nearest
+ * real entry because the fallbacks are actively wrong here: unmapped,
+ * 'management' drew the peer-department register ("colleague to colleague,
+ * no deference") for a message to the plant head, and 'bullet_points' made
+ * the action-list shape unreachable from desktop altogether. The modal's own
+ * values are what want fixing — this keeps the wire honest meanwhile.
+ */
+AUDIENCE_REGISTERS.management = AUDIENCE_REGISTERS.top_management;
+AUDIENCE_REGISTERS.team = AUDIENCE_REGISTERS.subordinates;
+AUDIENCE_REGISTERS.external = AUDIENCE_REGISTERS.brand_client;
+TONE_LINES.friendly = TONE_LINES.collaborative;
+TONE_LINES.direct = TONE_LINES.professional;
+TONE_LINES.diplomatic = TONE_LINES.humble;
+FORMAT_SHAPES.bullet_points = FORMAT_SHAPES.action_list;
+
+/**
+ * A table lookup that counts only the table's own keys as a hit.
+ * `FORMAT_SHAPES['toString']` resolves Object.prototype.toString rather than
+ * undefined, so a plain `?? fallback` never fires for it and the prompt goes
+ * out with "function toString() { [native code] }" as its document shape.
+ * Every key here arrives on `req.body.params`, which is `any` on an
+ * unauthenticated route, so 'constructor' and '__proto__' are reachable too.
+ * The value is re-checked as well as the key, because the aliases above
+ * assign one entry from another: rename a canonical key and the alias holds
+ * an own property worth `undefined`, which passes a key-only guard and
+ * interpolates the word "undefined" into the prompt.
+ */
+function pickInstruction(table: Record<string, string>, key: unknown, fallback: string): string {
+  const k = String(key ?? '').trim();
+  const hit = Object.prototype.hasOwnProperty.call(table, k) ? table[k] : undefined;
+  return typeof hit === 'string' && hit.length > 0 ? hit : fallback;
+}
 
 /** What the Compose tab puts on the wire, one field per control (src/constants.ts). */
 export interface ComposePromptInput {
@@ -554,10 +593,10 @@ export function buildComposeSystemPrompt(input: ComposePromptInput): string {
   const goalKey = String(input.goal ?? '').trim().toLowerCase();
   const goal = COMPOSE_GOAL_TOKENS.find(token => token.toLowerCase() === goalKey) ?? 'Custom';
 
-  const formatShape = FORMAT_SHAPES[String(input.format ?? '').trim()] ?? FORMAT_SHAPES.wechat_zalo;
-  const lengthBudget = LENGTH_BUDGETS[String(input.length ?? '').trim()] ?? LENGTH_BUDGETS.standard;
-  const audienceRegister = AUDIENCE_REGISTERS[String(input.audience ?? '').trim()] ?? AUDIENCE_REGISTERS.cross_dept;
-  const toneLine = TONE_LINES[String(input.tone ?? '').trim()] ?? TONE_LINES.professional;
+  const formatShape = pickInstruction(FORMAT_SHAPES, input.format, FORMAT_SHAPES.wechat_zalo);
+  const lengthBudget = pickInstruction(LENGTH_BUDGETS, input.length, LENGTH_BUDGETS.standard);
+  const audienceRegister = pickInstruction(AUDIENCE_REGISTERS, input.audience, AUDIENCE_REGISTERS.cross_dept);
+  const toneLine = pickInstruction(TONE_LINES, input.tone, TONE_LINES.professional);
 
   // Omitted entirely when empty, not stubbed with "No specific glossary
   // provided.": a placeholder still reads as a section the model should
@@ -569,6 +608,20 @@ export function buildComposeSystemPrompt(input: ComposePromptInput): string {
 ${glossaryText}
 These translations are REQUIRED and override your own default wording. A \`term\` still applies when it appears inflected, pluralised, capitalised differently, or embedded inside a longer compound word or phrase — recognise it in any of those forms and use the paired \`translation\` verbatim. Do not substitute a synonym, and do not skip a term because its surface form does not match the entry exactly.`
     : '';
+
+  // The glossary rule is dropped, not left pointing at nothing, when no
+  // glossary came through: a numbered rule citing a section that is absent
+  // from the prompt invites the model to reconstruct one, which is the same
+  // failure as the "No specific glossary provided." stub above but harder to
+  // spot. Numbering is derived so the list stays contiguous either way.
+  const rules = [
+    'You are the sender, writing in their first person. The output IS the message, addressed to the reader described under AUDIENCE. Never address the sender, never acknowledge or restate their note, never offer them variants or ask them to choose. Where a goal contract tells you to ask for a missing fact, that question is addressed to the recipient, inside the message.',
+    'Model numbers, article and item codes, machine and mould IDs, brand names and "@name" mentions are copied exactly as written — never translated, transliterated or reformatted. Numeric measurements and their units (mm, kg, %, pairs, pcs, °C, times) are copied exactly; only the quantifier words around them are written in the target language.',
+    'Invent nothing. No quantity, date, person, cause, root cause or commitment that the note does not contain. Where a goal contract needs a fact the note does not supply, either ask the recipient for it or leave a visible blank for the sender to fill — never fill it yourself with a plausible-looking value.',
+    ...(hasGlossary ? ['Any term matching a GLOSSARY entry is mandatory-overridden by that entry (see GLOSSARY below for the full contract, including inflected and compound forms).'] : []),
+    'Use bold (`**...**`) only on the load-bearing details a reader must not miss — line numbers, item codes, quantities, deadlines, the person responsible. Bolding a whole paragraph bolds nothing.'
+  ];
+  const rulesBlock = rules.map((rule, i) => `${i + 1}. ${rule}`).join('\n');
 
   return `ROLE: You are the ghostwriter for a production and quality manager at a Vietnamese footwear factory. They hand you a rough note — typed in a hurry, in whatever language came to hand — and you return the finished message they will send. It goes out as-is, with no editing.
 
@@ -585,11 +638,7 @@ ${GOAL_CONTRACTS[goal]}
 ${formatShape}
 
 RULES (in order; each governs its own, non-overlapping category):
-1. You are the sender, writing in their first person. The output IS the message, addressed to the reader described under AUDIENCE. Never address the sender, never acknowledge or restate their note, never offer them variants or ask them to choose. Where a goal contract tells you to ask for a missing fact, that question is addressed to the recipient, inside the message.
-2. Model numbers, article and item codes, machine and mould IDs, brand names and "@name" mentions are copied exactly as written — never translated, transliterated or reformatted. Numeric measurements and their units (mm, kg, %, pairs, pcs, °C, times) are copied exactly; only the quantifier words around them are written in the target language.
-3. Invent nothing. No quantity, date, person, cause, root cause or commitment that the note does not contain. Where a goal contract needs a fact the note does not supply, either ask the recipient for it or leave a visible blank for the sender to fill — never fill it yourself with a plausible-looking value.
-4. Any term matching a GLOSSARY entry is mandatory-overridden by that entry (see GLOSSARY below for the full contract, including inflected and compound forms).
-5. Use bold (\`**...**\`) only on the load-bearing details a reader must not miss — line numbers, item codes, quantities, deadlines, the person responsible. Bolding a whole paragraph bolds nothing.${glossarySection}
+${rulesBlock}${glossarySection}
 
 OUTPUT CONTRACT: Return ONLY the finished message in ${mappedLang}, ready to paste as-is. No preamble, no sign of your reasoning, no alternatives, no labels beyond the ones DOCUMENT SHAPE requires, and no markdown code fences.`;
 }
