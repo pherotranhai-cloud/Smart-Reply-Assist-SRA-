@@ -198,7 +198,7 @@ export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
             </div>
             <button
               onClick={handleCompose}
-              disabled={props.loading || (!composeReq.trim() && !props.context)}
+              disabled={props.loading || !composeReq.trim()}
               className="px-6 py-2.5 bg-[#006D77] hover:bg-[#005c65] text-white rounded-xl font-semibold shadow-md shadow-[#006D77]/25 disabled:opacity-50 disabled:shadow-none transition-all flex items-center gap-2 text-sm"
             >
               {props.loading ? <Loader2 size={16} className="animate-spin" /> : <PenTool size={16} />}

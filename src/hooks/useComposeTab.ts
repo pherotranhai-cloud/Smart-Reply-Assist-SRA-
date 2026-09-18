@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { storage } from '../services/storage';
 import { AIService } from '../services/ai';
 import { validateSecurity } from '../utils/security';
-import { AppState, ConversationContext, Audience, Tone, Length, Format, Language } from '../types';
+import { AppState, Audience, Tone, Length, Format, Language } from '../types';
 
 interface UseComposeTabParams {
   state: AppState;
@@ -11,10 +11,8 @@ interface UseComposeTabParams {
   t: (key: string) => string;
   showToast: (message: string, type?: 'info' | 'error' | 'success') => void;
   activeTab: string;
-  context: ConversationContext | null;
   stopSpeaking: () => void;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  handleExtract: (text: string, sourceLang: string, contextSource: 'original' | 'translated') => Promise<any>;
   transcript: string;
   setTranscript: React.Dispatch<React.SetStateAction<string>>;
 }
@@ -26,10 +24,8 @@ export function useComposeTab({
   t,
   showToast,
   activeTab,
-  context,
   stopSpeaking,
   setLoading,
-  handleExtract,
   transcript,
   setTranscript,
 }: UseComposeTabParams) {
@@ -42,7 +38,6 @@ export function useComposeTab({
     lang: 'English' as Language,
     format: 'wechat_zalo' as Format
   });
-  const [useContextInCompose, setUseContextInCompose] = useState(false);
 
   const composeCacheRef = useRef<Map<string, string>>(new Map());
 
@@ -57,10 +52,8 @@ export function useComposeTab({
 
   const handleCompose = useCallback(async () => {
     stopSpeaking();
-    const currentContext = useContextInCompose ? context : null;
-    const hasContext = currentContext && (currentContext.sourceText || currentContext.translatedText);
 
-    if (!composeReq.trim() && !hasContext) {
+    if (!composeReq.trim()) {
       showToast(t('provideRequirements'), 'error');
       return;
     }
@@ -107,24 +100,6 @@ export function useComposeTab({
     setLoading(true);
     try {
       const ai = new AIService(state.settings);
-      
-      let contextText = '';
-      let currentStructuredSummary = null;
-
-      if (currentContext && (currentContext.sourceText || currentContext.translatedText)) {
-        contextText = state.lastOutputs.contextSource === 'original' 
-          ? currentContext.sourceText 
-          : currentContext.translatedText;
-        
-        currentStructuredSummary = state.structuredSummary;
-        const isStale = !currentStructuredSummary || 
-          new Date(currentContext.lastUpdatedIso) > new Date(currentStructuredSummary.meta.extractedAtIso);
-        
-        if (isStale) {
-          const sourceLang = currentContext.targetTranslationLanguage || 'Auto';
-          currentStructuredSummary = await handleExtract(contextText, sourceLang, state.lastOutputs.contextSource || 'translated');
-        }
-      }
 
       let fullReply = '';
       
@@ -134,8 +109,7 @@ export function useComposeTab({
       }));
 
       const result = await ai.compose(
-        contextText,
-        composeReq, 
+        composeReq,
         {
           audience: composeParams.audience,
           tone: composeParams.tone,
@@ -145,7 +119,6 @@ export function useComposeTab({
           goal: activePresetId === 'custom' ? 'Custom' : activePresetId.charAt(0).toUpperCase() + activePresetId.slice(1)
         }, 
         vocab,
-        currentStructuredSummary || undefined,
         (chunk) => {
           fullReply += chunk;
           
@@ -198,7 +171,7 @@ export function useComposeTab({
     } finally {
       setLoading(false);
     }
-  }, [composeReq, composeParams, context, useContextInCompose, state.settings, state.lastOutputs, state.structuredSummary, vocab, handleExtract, t, showToast, activePresetId, setLoading, setState, stopSpeaking]);
+  }, [composeReq, composeParams, state.settings, state.lastOutputs, vocab, t, showToast, activePresetId, setLoading, setState, stopSpeaking]);
 
   return {
     composeReq,
@@ -207,8 +180,6 @@ export function useComposeTab({
     setActivePresetId,
     composeParams,
     setComposeParams,
-    useContextInCompose,
-    setUseContextInCompose,
     handleCompose,
   };
 }

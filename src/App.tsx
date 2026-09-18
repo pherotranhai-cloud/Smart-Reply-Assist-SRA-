@@ -456,10 +456,8 @@ export default function App() {
     t,
     showToast,
     activeTab,
-    context,
     stopSpeaking,
     setLoading,
-    handleExtract,
     transcript,
     setTranscript,
   });

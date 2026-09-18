@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import Markdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { Loader2, PenTool, AlertCircle, X, Square, Volume2, Copy, Check, Share2 } from 'lucide-react';
+import { Loader2, PenTool, X, Square, Volume2, Copy, Check, Share2 } from 'lucide-react';
 import { PresetGrid } from './common/PresetGrid';
 import { useTabActive } from '../hooks/useTabNavigation';
 import { VoiceVisualizer } from './common/VoiceVisualizer';
@@ -64,8 +64,6 @@ export function ComposeTabMobile({
     setActivePresetId,
     composeParams,
     setComposeParams,
-    useContextInCompose,
-    setUseContextInCompose,
     handleCompose,
   } = compose;
 
@@ -108,28 +106,6 @@ export function ComposeTabMobile({
     >
       <div className="flex-1 overflow-y-auto pb-32 space-y-4">
         <div className="premium-card space-y-6">
-          
-          {/* Context Toggle */}
-          <div className="flex justify-center">
-            {context ? (
-              <button
-                onClick={() => setUseContextInCompose(!useContextInCompose)}
-                className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[13px] font-medium transition-all duration-300 border ${
-                  useContextInCompose 
-                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
-                    : 'bg-panel border-border-main text-text-muted hover:text-text-main'
-                }`}
-              >
-                <div className={`w-2 h-2 rounded-full transition-colors duration-300 ${useContextInCompose ? 'bg-emerald-500' : 'bg-text-muted'}`} />
-                <span>{useContextInCompose ? t('linkedToContext') : t('independentMode')}</span>
-              </button>
-            ) : (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-panel border border-border-main text-text-muted rounded-full text-[13px] font-medium">
-                <AlertCircle size={14} />
-                <span>{t('noContext')}</span>
-              </div>
-            )}
-          </div>
 
           {/* Primary Focus: Reply Requirements */}
           <div className="space-y-2 flex flex-col flex-1">
@@ -249,7 +225,7 @@ export function ComposeTabMobile({
           <div className="max-w-3xl mx-auto pointer-events-auto">
             <button
               onClick={handleCompose}
-              disabled={loading || (!composeReq.trim() && !(useContextInCompose && context && (context.sourceText || context.translatedText)))}
+              disabled={loading || !composeReq.trim()}
               className="saas-button primary-button w-full shadow-lg shadow-accent/20"
             >
               {loading ? <Loader2 className="animate-spin" size={20} /> : <PenTool size={20} />}

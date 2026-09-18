@@ -411,7 +411,16 @@ router.post('/compose', async (req, res) => {
     return res.status(500).json({ error: "Server Configuration Error" });
   }
 
-  const { contextText, requirements, params, glossary } = req.body;
+  const { requirements, params, glossary } = req.body;
+
+  // Requirements are the whole user turn now that the conversation context is
+  // gone, so an empty one would send the model a system prompt and nothing to
+  // rewrite. A client cached from before that change can still post a
+  // context-only compose, which used to be legal.
+  if (!requirements || !String(requirements).trim()) {
+    return res.status(400).json({ error: "Missing requirements" });
+  }
+
   try {
     // Same resolveLanguage() /translate uses below, rather than a second copy
     // of this if-chain: this route used to have its own, and it disagreed
@@ -505,7 +514,7 @@ ${structureInstruction}`;
         model: targetModel,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `${contextText}\n${requirements}` }
+          { role: 'user', content: requirements }
         ],
       },
       tuningFor(targetModel, 'compose')
@@ -516,7 +525,7 @@ ${structureInstruction}`;
     // Non-blocking log to Supabase
     logToSupabase({
       task_type: 'compose',
-      input_text: `${contextText}\n${requirements}`,
+      input_text: requirements,
       output_text: outputText,
       from_lang: 'auto',
       to_lang: mappedLang,
