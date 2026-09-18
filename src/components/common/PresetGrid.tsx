@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, FileText, FileSearch, Clock, HelpCircle, Megaphone, Settings2, ChevronDown } from 'lucide-react';
-import { CORE_PRESETS, AUDIENCES, TONES, LENGTHS, FORMATS, ComposePreset, LANGUAGES, LANGUAGE_FLAGS } from '../../constants';
+import { CORE_PRESETS, AUDIENCES, TONES, LENGTHS, FORMATS, ComposePreset, LANGUAGES, LANGUAGE_FLAGS, presetById } from '../../constants';
 import { Audience, Tone, Length, Format, Language } from '../../types';
 import { useLongPress } from '../../hooks/useLongPress';
 import { safeLocalStorage } from '../../utils/safeStorage';
@@ -60,7 +60,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
     setIsModalOpen(false);
   };
 
-  const activeConfig = CORE_PRESETS.find(p => p.id === activePresetId) || CORE_PRESETS[5];
+  const activeConfig = presetById(activePresetId);
   const currentSettings = activePresetId === 'custom' ? localCustom : activeConfig.settings;
 
   const longPressProps = useLongPress(() => {
@@ -86,7 +86,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
             <button
               key={preset.id}
               {...buttonProps}
-              title={preset.name}
+              title={t(preset.nameKey)}
               className={`flex-1 flex items-center justify-center py-2.5 rounded-lg transition-all duration-300 ${
                 isActive
                   ? 'bg-panel shadow-sm text-accent'

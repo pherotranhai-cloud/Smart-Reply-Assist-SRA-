@@ -47,11 +47,11 @@ const adapter = {
 };
 
 /**
- * Keys the link-context feature wrote. They are out of STORAGE_KEYS now, so no
- * reset path names them any more — but an install that ran the old build is
- * still holding a whole source-plus-translation pair under `sra_context`, and
- * with saved wallpapers living inline in the same localStorage the quota is the
- * realistic limit. Nothing else would ever reclaim it, so startup sweeps them.
+ * Keys the link-context feature wrote, now gone from STORAGE_KEYS. Reset App is
+ * a blanket localStorage.clear(), so a reset would still catch them — but
+ * nobody resets a working install, and `sra_context` holds a whole
+ * source-plus-translation pair in the same quota saved wallpapers live inline
+ * in. Startup sweeps them rather than waiting for a reset that never comes.
  */
 const RETIRED_CONTEXT_KEYS = ['sra_context', 'sra_structured_summary'];
 
@@ -140,7 +140,15 @@ export const storage = {
   },
 
   async getLastOutputs(): Promise<AppState['lastOutputs']> {
-    return (await adapter.get<AppState['lastOutputs']>(STORAGE_KEYS.LAST_OUTPUTS)) || DEFAULT_STATE.lastOutputs;
+    const stored = await adapter.get<AppState['lastOutputs'] & { contextSource?: string }>(STORAGE_KEYS.LAST_OUTPUTS);
+    // adapter.get() hands back the raw string when JSON.parse fails, so a
+    // corrupted value has to reach the default instead of being spread.
+    if (!stored || typeof stored !== 'object') return DEFAULT_STATE.lastOutputs;
+    // `contextSource` left AppState with the link-context feature. What is read
+    // here is spread into every subsequent write, so without this an upgraded
+    // install would keep re-persisting the dead field for good.
+    const { contextSource: _retired, ...outputs } = stored;
+    return outputs;
   },
 
   async setLastOutputs(lastOutputs: AppState['lastOutputs']): Promise<void> {

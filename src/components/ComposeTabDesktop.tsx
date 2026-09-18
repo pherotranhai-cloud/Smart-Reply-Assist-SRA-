@@ -25,7 +25,7 @@ import { useComposeTab } from '../hooks/useComposeTab';
 
 type ComposeTabState = ReturnType<typeof useComposeTab>;
 import { VoiceVisualizer } from './common/VoiceVisualizer';
-import { LANGUAGES, LANGUAGE_FLAGS, CORE_PRESETS } from '../constants';
+import { LANGUAGES, LANGUAGE_FLAGS, CORE_PRESETS, presetById } from '../constants';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   FileText,
@@ -127,7 +127,7 @@ export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
                 }`}
               >
                 <IconComponent size={16} />
-                <span>{preset.name}</span>
+                <span>{props.t(preset.nameKey)}</span>
               </button>
             );
           })}
@@ -161,7 +161,7 @@ export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
             </span>
             {activePresetId && (
               <span className="text-xs font-medium text-accent bg-accent/10 px-2.5 py-1 rounded-full">
-                {CORE_PRESETS.find(p => p.id === activePresetId)?.name}
+                {props.t(presetById(activePresetId).nameKey)}
               </span>
             )}
           </div>

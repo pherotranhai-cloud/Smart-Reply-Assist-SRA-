@@ -93,9 +93,32 @@ export const FORMATS = [
   { value: 'action_list', labelKey: 'format.actionList' }
 ];
 
+/**
+ * The goal token the compose prompt branches on.
+ *
+ * This is an API contract with /api/compose, not a label: the server matches
+ * these exact strings to pick a document shape, so a value that drifts here
+ * silently downgrades the preset to the generic branch. It used to be derived
+ * from `id` by upper-casing the first letter in two separate places, which
+ * tied the wire format to an identifier nobody thought of as public.
+ */
+export type ComposeGoal = 'Report' | 'Explain' | 'Remind' | 'Consult' | 'Announce' | 'Custom';
+
+/**
+ * One entry of the Compose preset picker: what to call it, what it produces,
+ * and the parameters it applies.
+ *
+ * `nameKey`/`hintKey` are i18n keys rather than text because the six names were
+ * hardcoded Vietnamese — a Taiwanese supervisor got Vietnamese chips in an
+ * otherwise Chinese screen. `hintKey` is the one-line "what you get" caption
+ * under the picker; keep both short, the name has to survive a six-way
+ * segmented control at 390px.
+ */
 export interface ComposePreset {
   id: string;
-  name: string;
+  goal: ComposeGoal;
+  nameKey: string;
+  hintKey: string;
   iconName: string;
   settings: {
     audience: Audience;
@@ -105,41 +128,68 @@ export interface ComposePreset {
   };
 }
 
+// Named, not just the last array element: presetById() falls back to it, and
+// the lookups it replaces ended in CORE_PRESETS[5] — "custom" only for as long
+// as nobody reordered the list.
+const CUSTOM_PRESET: ComposePreset = {
+  id: 'custom',
+  goal: 'Custom',
+  nameKey: 'preset.custom',
+  hintKey: 'preset.custom.hint',
+  iconName: 'Settings2',
+  settings: { audience: 'cross_dept', tone: 'professional', length: 'standard', format: 'wechat_zalo' }
+};
+
 export const CORE_PRESETS: ComposePreset[] = [
   {
     id: 'report',
-    name: 'Báo cáo lỗi (Urgent)',
+    goal: 'Report',
+    nameKey: 'preset.report',
+    hintKey: 'preset.report.hint',
     iconName: 'FileText',
     settings: { audience: 'top_management', tone: 'strict_urgent', length: 'short', format: 'wechat_zalo' }
   },
   {
     id: 'explain',
-    name: 'Giải trình (Explain)',
+    goal: 'Explain',
+    nameKey: 'preset.explain',
+    hintKey: 'preset.explain.hint',
     iconName: 'FileSearch',
     settings: { audience: 'brand_client', tone: 'persuasive', length: 'detailed', format: 'formal_email' }
   },
   {
     id: 'remind',
-    name: 'Nhắc việc (Remind)',
+    goal: 'Remind',
+    nameKey: 'preset.remind',
+    hintKey: 'preset.remind.hint',
     iconName: 'Clock',
     settings: { audience: 'cross_dept', tone: 'collaborative', length: 'short', format: 'wechat_zalo' }
   },
   {
     id: 'consult',
-    name: 'Hỏi ý kiến (Consult)',
+    goal: 'Consult',
+    nameKey: 'preset.consult',
+    hintKey: 'preset.consult.hint',
     iconName: 'HelpCircle',
     settings: { audience: 'expert', tone: 'professional', length: 'standard', format: 'wechat_zalo' }
   },
   {
     id: 'announce',
-    name: 'Thông báo (Announce)',
+    goal: 'Announce',
+    nameKey: 'preset.announce',
+    hintKey: 'preset.announce.hint',
     iconName: 'Megaphone',
     settings: { audience: 'subordinates', tone: 'professional', length: 'standard', format: 'wechat_zalo' }
   },
-  {
-    id: 'custom',
-    name: 'Tùy chỉnh (Custom)',
-    iconName: 'Settings2',
-    settings: { audience: 'cross_dept', tone: 'professional', length: 'standard', format: 'wechat_zalo' }
-  }
+  CUSTOM_PRESET
 ];
+
+/**
+ * The preset behind an id, or the custom one when the id is unknown.
+ *
+ * Every consumer needs the whole entry now that `goal` and `nameKey` live on
+ * it, so nobody should be hand-rolling a .find() with its own fallback.
+ */
+export function presetById(id: string): ComposePreset {
+  return CORE_PRESETS.find(p => p.id === id) ?? CUSTOM_PRESET;
+}

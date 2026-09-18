@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { storage } from '../services/storage';
+import { presetById } from '../constants';
 import { AIService } from '../services/ai';
 import { validateSecurity } from '../utils/security';
 import { AppState, Audience, Tone, Length, Format, Language } from '../types';
@@ -61,44 +62,61 @@ export function useComposeTab({
     const securityCheck = validateSecurity(composeReq);
     if (!securityCheck.isValid) {
       showToast(t(securityCheck.errorKey || 'SECURITY_FIREWALL_ERROR'), 'error');
-      setLoading(false);
       return;
     }
 
-    const goal = activePresetId === 'custom' ? 'Custom' : activePresetId.charAt(0).toUpperCase() + activePresetId.slice(1);
-    const cacheKey = `${composeReq}-${composeParams.lang}-${composeParams.tone}-${goal}`;
+    const { goal } = presetById(activePresetId);
 
-    if (composeCacheRef.current.has(cacheKey)) {
-      const cachedResult = composeCacheRef.current.get(cacheKey)!;
-      
-      let subject = '';
-      let body = cachedResult;
-      if (composeParams.format === 'formal_email' && cachedResult.toLowerCase().startsWith('subject:')) {
-        const lines = cachedResult.split('\n');
-        subject = lines[0].replace(/subject:/i, '').trim();
-        body = lines.slice(1).join('\n').trim();
-      }
+    // Every parameter that reaches the prompt has to be in the key. It used to
+    // track only language, tone and goal, so recomposing the same requirement
+    // as a formal email replayed the Zalo message cached a moment earlier —
+    // and each format now produces a genuinely different document, so the
+    // stale hit looks like the generator ignoring the picker. The separator is
+    // a unit separator rather than '-' because a typed requirement contains
+    // dashes, and "a-b" + "c" must not key the same as "a" + "b-c".
+    const cacheKey = [
+      composeReq,
+      composeParams.lang,
+      composeParams.audience,
+      composeParams.tone,
+      composeParams.length,
+      composeParams.format,
+      goal,
+    ].join('\u001f');
 
-      // Typewriter effect
-      for (let i = 0; i <= body.length; i += 2) {
-        await new Promise(resolve => setTimeout(resolve, 5));
-        setState(prev => ({ 
-          ...prev, 
-          lastOutputs: { ...prev.lastOutputs, generatedReply: body.substring(0, i), subject } 
-        }));
-      }
-
-      setState(prev => ({ 
-        ...prev, 
-        lastOutputs: { ...prev.lastOutputs, generatedReply: body, subject }
-      }));
-      showToast(t('replyGenerated'), 'success');
-      setLoading(false);
-      return;
-    }
-
+    // Held for the replay too, not just the request: the typewriter below runs
+    // for as long as a live stream, and with loading false the Generate button
+    // stayed enabled, so a second tap raced a second replay into the same
+    // output.
     setLoading(true);
     try {
+      const cachedResult = composeCacheRef.current.get(cacheKey);
+      if (cachedResult !== undefined) {
+        let subject = '';
+        let body = cachedResult;
+        if (composeParams.format === 'formal_email' && cachedResult.toLowerCase().startsWith('subject:')) {
+          const lines = cachedResult.split('\n');
+          subject = lines[0].replace(/subject:/i, '').trim();
+          body = lines.slice(1).join('\n').trim();
+        }
+
+        // Typewriter effect
+        for (let i = 0; i <= body.length; i += 2) {
+          await new Promise(resolve => setTimeout(resolve, 5));
+          setState(prev => ({ 
+            ...prev, 
+            lastOutputs: { ...prev.lastOutputs, generatedReply: body.substring(0, i), subject } 
+          }));
+        }
+
+        setState(prev => ({ 
+          ...prev, 
+          lastOutputs: { ...prev.lastOutputs, generatedReply: body, subject }
+        }));
+        showToast(t('replyGenerated'), 'success');
+        return;
+      }
+
       const ai = new AIService(state.settings);
 
       let fullReply = '';
@@ -116,7 +134,7 @@ export function useComposeTab({
           length: composeParams.length,
           lang: composeParams.lang,
           format: composeParams.format,
-          goal: activePresetId === 'custom' ? 'Custom' : activePresetId.charAt(0).toUpperCase() + activePresetId.slice(1)
+          goal
         }, 
         vocab,
         (chunk) => {
