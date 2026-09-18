@@ -5,7 +5,7 @@ Cyberpunk-themed AI assistant for translation and message composition.
 ## Features
 
 - **AI Translation:** Multi-language support with vocabulary integration.
-- **Smart Composition:** Generate replies based on context, audience, and tone.
+- **Smart Composition:** Write a message from a one-line requirement, shaped by a purpose preset (report, explanation, reminder, consult, announcement) plus audience, tone, length and format.
 - **Vocabulary Library:** Manage custom terms and meanings.
 - **Copy Format:** Chooses what the copy buttons put on the clipboard, so `**bold**` never
   lands in a chat box as literal asterisks.
