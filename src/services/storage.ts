@@ -3,6 +3,7 @@ import { DEFAULT_STATE } from '../constants';
 import { STORAGE_KEYS, DATA_KEYS } from '../constants/storageKeys';
 
 import { safeLocalStorage } from '../utils/safeStorage';
+import { normalizeVocabItem } from '../../shared/vocabNormalize';
 
 const adapter = {
   async get<T>(key: string): Promise<T | null> {
@@ -61,7 +62,12 @@ export const storage = {
   },
 
   async getVocab(): Promise<VocabItem[]> {
-    return (await adapter.get<VocabItem[]>(STORAGE_KEYS.VOCAB)) || [];
+    const stored = await adapter.get<VocabItem[]>(STORAGE_KEYS.VOCAB);
+    // Heals vocab saved before the importer shape fix (meaning_vi/target_en/…)
+    // that's still sitting on a returning user's device — a no-op otherwise.
+    // adapter.get() falls back to the raw string when JSON.parse fails, so
+    // guard against a corrupted, non-array value instead of throwing.
+    return Array.isArray(stored) ? stored.map(normalizeVocabItem) : [];
   },
 
   async setVocab(vocab: VocabItem[]): Promise<void> {

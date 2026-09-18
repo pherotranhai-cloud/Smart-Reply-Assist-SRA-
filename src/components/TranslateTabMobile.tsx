@@ -1,15 +1,41 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useId } from 'react';
 import { motion } from 'motion/react';
 import Markdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { Languages, Loader2, X, Camera, ClipboardCheck, Square, Volume2, Copy, Check, Share2, ChevronDown } from 'lucide-react';
+import { Languages, Loader2, X, Camera, ClipboardCheck, Square, Volume2, Copy, Check, Share2, ChevronDown, Zap } from 'lucide-react';
 import { LANGUAGES, LANGUAGE_FLAGS } from '../constants';
 import { Language, AppState, VocabItem, ConversationContext } from '../types';
 import { VoiceVisualizer } from './common/VoiceVisualizer';
 import { useTranslateTab } from '../hooks/useTranslateTab';
 
 type TranslateTabState = ReturnType<typeof useTranslateTab>;
+
+/** Mirrors the textarea's maxLength; the footer counter reads the same number. */
+const MAX_INPUT = 1500;
+
+/**
+ * The recording indicator has to read as "live" in all four palettes, so it
+ * cannot come from an accent token. Same value and the same data-theme keying
+ * as SystemSection's DANGER_TEXT — Tailwind's `dark:` is a prefers-color-scheme
+ * query and would ignore a palette the user chose by hand.
+ */
+const RECORDING_TEXT =
+  'text-red-600 [[data-theme=dark]_&]:text-red-400 [[data-theme=cyberpunk]_&]:text-red-400 [[data-theme=industrial]_&]:text-red-400';
+
+/**
+ * Colour and feedback for an icon button. Inside an .ios-toolbar the 44px box
+ * comes from the stylesheet, so nothing here restates it; elsewhere the call
+ * site adds it. No transition-* utility appears either — it would land in the
+ * utilities layer and override .ios-press's transition-transform, leaving the
+ * tap-down scale instant. `active` swaps the whole colour utility instead of
+ * appending one: two text-* utilities on the same element are resolved by
+ * stylesheet order, not by the order they were written in.
+ */
+const toolbarButton = (active = false) =>
+  `ios-press active:bg-bg-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-text ${
+    active ? 'text-accent-text' : 'text-text-muted hover:text-accent-text'
+  }`;
 
 interface TranslateTabProps {
   state: AppState;
@@ -71,7 +97,6 @@ export function TranslateTabMobile({
     isTranslating,
     isCached,
     matchedTerms,
-    getVocabTranslation,
     handleTranslate,
     handleClearInput,
     handleImageUpload,
@@ -82,12 +107,19 @@ export function TranslateTabMobile({
 
   const outputRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // The switch is a bare button; the row label is its accessible name.
+  const summaryLabelId = useId();
+
+  const output = state.lastOutputs.translatedText;
+  const charCount = translateInputWithInterim.length;
 
   useEffect(() => {
     if (state.lastOutputs.translatedText && outputRef.current) {
       outputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [state.lastOutputs.translatedText]);
+
+  const toggleSummaryMode = () => setIsSummaryMode(prev => !prev);
 
   const handleNativeShare = async (text: string, title: string) => {
     if (navigator.share) {
@@ -97,7 +129,7 @@ export function TranslateTabMobile({
           text: text,
         });
       } catch (err) {
-        console.log("Người dùng hủy chia sẻ hoặc lỗi:", err);
+        console.log('Share dismissed or failed:', err);
       }
     } else {
       await handleCopy(text);
@@ -105,217 +137,287 @@ export function TranslateTabMobile({
   };
 
   return (
-    <motion.div 
+    <motion.div
       key="translate"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="space-y-6"
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      /* --tab-bar-h is the tab bar's measured height, published on <html> by
+         LayoutMobile. LayoutMobile's <main> already pays the first 5rem of it
+         with pb-20, so only the excess is added here — a bar that outgrows
+         that (a home indicator, a larger text size) still clears, and a short
+         one costs no dead space. That height already contains
+         env(safe-area-inset-bottom) through the bar's own padding, so pb-safe
+         here would count the home indicator a second time. */
+      className="pb-[max(0px,calc(var(--tab-bar-h)-5rem))]"
     >
-      <div className="premium-card space-y-4">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <h3 className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('inputSource')}</h3>
-            <span className="text-[11px] text-slate-400 font-medium">
-              {translateInputWithInterim.length} / 1500
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setTranslateImage(null)}
-              className={`text-[10px] px-3 py-1 rounded-full border transition-all ${translateImage ? 'border-accent text-accent bg-accent/10' : 'border-border-main text-muted hover:text-text-main'}`}
-            >
-              {translateImage ? t('imageAttached') : t('textOnly')}
-            </button>
-          </div>
-        </div>
+      {/* --- Source text ---------------------------------------------------
+          One inset group: the field, then whatever it has picked up (image,
+          glossary hits, mic state), then the accessory toolbar. */}
+      <h3 className="ios-section-header">{t('inputSource')}</h3>
 
-        <div className="relative">
-          <textarea 
-            className="saas-input w-full h-40 min-h-[120px] resize-none text-base"
-            placeholder={t('inputPlaceholder')}
-            value={translateInputWithInterim}
-            onChange={e => setTranslateInput(e.target.value)}
-            onPaste={handlePaste}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleTranslate(false);
-              }
-            }}
-            maxLength={1500}
-          />
-          {isListening && (
-            <div className="absolute top-3 right-3 flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full animate-pulse">
-              <div className="w-2 h-2 bg-red-500 rounded-full" />
-              <span className="text-[10px] font-bold text-red-500 uppercase tracking-widest">{t('listening')}</span>
-            </div>
-          )}
-          <div className="absolute bottom-3 right-3 flex gap-2">
-            <button 
-              onClick={handleClearInput}
-              className="p-2 bg-transparent rounded-xl text-text-muted hover:bg-bg-input active:bg-bg-input hover:text-red-400 transition-colors"
-            >
-              <X size={18} />
-            </button>
-            <input 
-              type="file" 
-              accept="image/*" 
-              className="hidden" 
-              ref={fileInputRef} 
-              onChange={handleImageUpload} 
-            />
-            <button 
-              onClick={() => fileInputRef.current?.click()}
-              className="p-2 bg-transparent rounded-xl text-text-muted hover:bg-bg-input active:bg-bg-input hover:text-accent transition-colors"
-              title={t('uploadImage')}
-            >
-              <Camera size={18} />
-            </button>
-            <VoiceVisualizer
-              isListening={isListening}
-              onClick={handleToggleListening}
-              title={isListening ? t('listeningActive') : t('startVoice')}
-            />
-            <button 
-              onClick={handlePasteFromClipboard}
-              className="p-2 bg-transparent rounded-xl text-text-muted hover:bg-bg-input active:bg-bg-input hover:text-accent transition-colors"
-            >
-              <ClipboardCheck size={18} />
-            </button>
-          </div>
-        </div>
-
-        {matchedTerms.length > 0 && (
-          <div className="flex flex-wrap gap-2 items-center py-2 px-3 bg-accent/5 dark:bg-accent/10 rounded-2xl border border-accent/10 transition-all">
-            <span className="text-xs font-semibold text-accent flex items-center gap-1.5 shrink-0">
-              <span>🔍</span> {state.globalLanguage === 'vi' ? 'Phát hiện thuật ngữ' : 'Detected terms'}:
-            </span>
-            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-              {matchedTerms.map(item => {
-                const translationText = getVocabTranslation(item, targetLang);
-                return (
-                  <span 
-                    key={item.id} 
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/80 dark:bg-slate-800/80 text-text-main shadow-sm border border-border-main backdrop-blur-sm"
-                  >
-                    <span className="font-semibold text-accent">{item.term}</span>
-                    <span className="text-text-muted text-[10px]">&rarr;</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">{translationText}</span>
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        )}
+      <div className="ios-inset-group">
+        <textarea
+          className="ios-separator block h-40 min-h-[120px] w-full resize-none bg-transparent px-4 py-3 text-[17px] leading-relaxed text-text-main placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-text"
+          placeholder={t('inputPlaceholder')}
+          value={translateInputWithInterim}
+          onChange={e => setTranslateInput(e.target.value)}
+          onPaste={handlePaste}
+          onKeyDown={e => {
+            // isComposing: Telex and Pinyin commit a candidate with Enter, so
+            // without this the keystroke that finishes a Vietnamese or Chinese
+            // word is swallowed and translates a half-typed input instead.
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              handleTranslate();
+            }
+          }}
+          maxLength={MAX_INPUT}
+        />
 
         {translateImage && (
-          <div className="relative inline-block group">
-            <img src={translateImage} className="max-h-32 rounded-xl border border-border-main" alt="Pasted" />
-            <button 
+          <div className="ios-row ios-separator">
+            {/* Decorative: the label beside it already names the attachment. */}
+            <img
+              src={translateImage}
+              alt=""
+              aria-hidden="true"
+              className="h-11 w-11 shrink-0 rounded-lg border border-border-main object-cover"
+            />
+            <span className="min-w-0 flex-1 truncate">{t('imageAttached')}</span>
+            {/* Was hover-only, which on a touch screen meant unreachable. */}
+            <button
+              type="button"
               onClick={() => setTranslateImage(null)}
-              className="absolute -top-2 -right-2 p-1.5 bg-red-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+              aria-label={t('removeImage')}
+              title={t('removeImage')}
+              className={`${toolbarButton()} -mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full`}
             >
-              <X size={12} />
+              <X size={20} />
             </button>
           </div>
         )}
 
-        <div className="flex flex-col gap-2">
-          {/* Row 1: language selector paired with Summary Mode. The
-              "Target language" label is dropped — the flag and language name
-              already identify the control. */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="relative min-w-0 max-w-[62%]">
-              <div className="flex min-h-[44px] items-center justify-between gap-1.5 text-xs font-semibold bg-accent/10 px-3.5 rounded-xl pointer-events-none border border-border-main">
-                <span className="text-text-main truncate">{LANGUAGE_FLAGS[targetLang]} {targetLang}</span>
-                <ChevronDown size={16} className="text-muted shrink-0"/>
-              </div>
-              <select
-                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-20"
-                value={targetLang}
-                onChange={e => setTargetLang(e.target.value as Language)}
-                aria-label={t('targetLanguage')}
-              >
-                {LANGUAGES.map(l => <option key={l} value={l} className="bg-panel text-text-main">{LANGUAGE_FLAGS[l]} {l}</option>)}
-              </select>
-            </div>
-
-            <label
-              className="flex min-h-[44px] shrink-0 items-center gap-2 cursor-pointer select-none"
-              onClick={(e) => { e.preventDefault(); setIsSummaryMode(!isSummaryMode); }}
+        {matchedTerms.length > 0 && (
+          <div className="ios-separator px-4 py-2.5">
+            <p className="text-[13px] text-ios-label-secondary">{t('detectedTerms')}</p>
+            {/* The strip bleeds to the card edge while the first chip stays on
+                the 16px inset. data-no-swipe keeps a sideways drag here instead
+                of letting it change tab. */}
+            <div
+              data-no-swipe
+              className="no-scrollbar -mx-4 mt-1.5 flex gap-1.5 overflow-x-auto px-4"
             >
-              <div className={`relative inline-flex h-[18px] w-8 shrink-0 items-center rounded-full transition-colors shadow-inner ${isSummaryMode ? 'bg-accent' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                <span className={`inline-block h-3 w-3 transform rounded-full bg-panel transition-transform shadow ${isSummaryMode ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
-              </div>
-              <span className="text-[10px] font-medium tracking-widest text-slate-400 uppercase">{t('summaryMode')}</span>
-            </label>
+              {matchedTerms.map(match => (
+                <span
+                  /* One row can match twice (its VI and EN phrases both present), so the span pins the key. */
+                  key={`${match.item.id}-${match.start}`}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-ios-fill px-2.5 py-1 text-[13px]"
+                >
+                  {/* The phrase that actually matched, not item.term — that is a category label. */}
+                  <span className="font-semibold text-accent-text">{match.source}</span>
+                  <span aria-hidden="true" className="text-ios-label-secondary">&rarr;</span>
+                  <span className="font-medium text-text-main">{match.target}</span>
+                </span>
+              ))}
+            </div>
           </div>
+        )}
 
-          {/* Row 2: primary action keeps the full width and the thumb zone. */}
+        {/* A row of its own rather than a badge floating over the field: the
+            interim transcript lands in the textarea, and the badge used to sit
+            on top of the line it was writing. */}
+        {isListening && (
+          <div className={`ios-row ios-separator gap-2 text-[13px] font-semibold uppercase tracking-widest ${RECORDING_TEXT}`}>
+            <span aria-hidden="true" className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-current" />
+            <span>{t('listening')}</span>
+          </div>
+        )}
+
+        {/* Accessory toolbar, not four buttons floating over the text: at the
+            44px floor they would cover a third of the typing area, and iOS
+            never puts a control on top of the text being edited. */}
+        <div className="ios-toolbar">
           <button
-            onClick={() => handleTranslate(false)}
-            disabled={loading || isTranslating || isStreaming || (!translateInput.trim() && !translateImage)}
-            className="saas-button primary-button h-11 w-full flex items-center justify-center gap-2"
+            type="button"
+            onClick={handleClearInput}
+            aria-label={t('clearInput')}
+            title={t('clearInput')}
+            className={toolbarButton()}
           >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : <Languages size={20} />}
-            <span>{t('translate')}</span>
+            <X size={20} />
+          </button>
+          {/* Cleared on open, or picking the same photo again after removing it
+              fires no change event and silently does nothing. */}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            ref={fileInputRef}
+            onClick={e => { (e.target as HTMLInputElement).value = ''; }}
+            onChange={handleImageUpload}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            aria-label={t('uploadImage')}
+            title={t('uploadImage')}
+            className={toolbarButton()}
+          >
+            <Camera size={20} />
+          </button>
+          <VoiceVisualizer
+            isListening={isListening}
+            onClick={handleToggleListening}
+            title={isListening ? t('listeningActive') : t('startVoice')}
+          />
+          <button
+            type="button"
+            onClick={handlePasteFromClipboard}
+            aria-label={t('paste')}
+            title={t('paste')}
+            className={toolbarButton()}
+          >
+            <ClipboardCheck size={20} />
           </button>
         </div>
       </div>
 
-      <div ref={outputRef} className="premium-card flex flex-col gap-4 bg-panel">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <h3 className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('translatedOutput')}</h3>
-            {loading && (
-              <div className="flex items-center gap-1 px-2 py-0.5 bg-accent/10 rounded-full text-[9px] font-bold text-accent uppercase tracking-wider animate-pulse">
-                <Loader2 size={10} className="animate-spin" />
-                <span>{state.globalLanguage === 'vi' ? 'Dịch ngầm...' : 'Auto-translating...'}</span>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {state.lastOutputs.translatedText && (
-              <>
-                <button 
-                  onClick={() => handleSpeak(state.lastOutputs.translatedText, targetLang)}
-                  className={`p-2 transition-colors ${isSpeaking ? 'text-accent animate-pulse' : 'text-muted hover:text-accent'}`}
-                >
-                  {isSpeaking ? <Square size={18} /> : <Volume2 size={18} />}
-                </button>
-                <button 
-                  onClick={() => handleCopy(state.lastOutputs.translatedText)}
-                  className="p-2 text-muted hover:text-accent transition-colors"
-                >
-                  {isCopied ? <Check size={18} className="text-emerald-500" /> : <Copy size={18} />}
-                </button>
-                <button
-                  onClick={() => handleNativeShare(state.lastOutputs.translatedText, 'Translated Text')}
-                  className="p-2 text-muted hover:text-accent transition-colors"
-                >
-                  <Share2 size={18} />
-                </button>
-              </>
-            )}
-          </div>
+      {/* maxLength stops typing at the cap, but dictation and the clipboard
+          append past it and the over-long text is still what gets sent — so
+          the count is the only signal either way, and carries its own weight
+          from the cap upwards. */}
+      <p
+        className={`ios-section-footer text-right tabular-nums ${
+          charCount >= MAX_INPUT ? 'font-medium text-text-main' : ''
+        }`}
+      >
+        {charCount} / {MAX_INPUT}
+      </p>
+
+      {/* --- Options -------------------------------------------------------- */}
+      <h3 className="ios-section-header">{t('translationOptions')}</h3>
+
+      <div className="ios-inset-group">
+        {/* A native <select> stretched transparently over a presentation layer:
+            on iOS that is what summons the real wheel picker, which no custom
+            menu imitates. The visual layer takes no pointer events, so the tap
+            always reaches the select — and the select covers the whole row, so
+            the label is part of the target too. The ring is keyed off the
+            select's own focus-visible because an opacity-0 control cannot show
+            one itself. */}
+        <div className="ios-row ios-separator relative has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-inset has-[select:focus-visible]:ring-accent-text">
+          {/* aria-hidden: the select below is named with these same words, and
+              without this the row announces "Target Language" twice. */}
+          <span aria-hidden="true" className="min-w-0 flex-1 truncate">{t('targetLanguage')}</span>
+          {/* Capped so the value cannot push the label off a 320px screen;
+              both sides truncate rather than wrap. */}
+          <span aria-hidden="true" className="pointer-events-none flex max-w-[60%] shrink-0 items-center gap-1 text-ios-label-secondary">
+            <span className="truncate">{LANGUAGE_FLAGS[targetLang]} {targetLang}</span>
+            <ChevronDown size={18} className="shrink-0" />
+          </span>
+          <select
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            value={targetLang}
+            onChange={e => setTargetLang(e.target.value as Language)}
+            aria-label={t('targetLanguage')}
+          >
+            {LANGUAGES.map(l => <option key={l} value={l} className="bg-panel text-text-main">{LANGUAGE_FLAGS[l]} {l}</option>)}
+          </select>
         </div>
-        <div className="flex-1 min-h-[100px] text-lg leading-relaxed text-text-main whitespace-pre-wrap">
-          {state.lastOutputs.translatedText ? (
+
+        {/* The switch is the only focusable control, as on iOS; the row keeps a
+            pointer handler because the label was tappable before this and the
+            words are the easier target with a thumb. stopPropagation on the
+            switch keeps a tap on it from toggling twice. */}
+        <div className="ios-row cursor-pointer" onClick={toggleSummaryMode}>
+          <span id={summaryLabelId} className="min-w-0 flex-1 truncate">{t('summaryMode')}</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isSummaryMode}
+            aria-labelledby={summaryLabelId}
+            onClick={e => { e.stopPropagation(); toggleSummaryMode(); }}
+            className="ios-switch"
+          />
+        </div>
+      </div>
+
+      <p className="ios-section-footer">{t('summaryModeHint')}</p>
+
+      <button
+        onClick={() => handleTranslate()}
+        disabled={loading || isTranslating || isStreaming || (!translateInput.trim() && !translateImage)}
+        className="saas-button primary-button mt-6 w-full shadow-lg shadow-accent/20"
+      >
+        {loading ? <Loader2 className="animate-spin" size={20} /> : <Languages size={20} />}
+        <span>{t('translate')}</span>
+      </button>
+
+      {/* --- Output --------------------------------------------------------- */}
+      <div className="ios-section-header flex items-center gap-2">
+        <h3 className="min-w-0 truncate">{t('translatedOutput')}</h3>
+        {loading && (
+          <span className="inline-flex shrink-0 animate-pulse items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-accent-text">
+            <Loader2 size={10} className="animate-spin" aria-hidden="true" />
+            {t('translating')}
+          </span>
+        )}
+      </div>
+
+      <div ref={outputRef} className="ios-inset-group">
+        {/* pre-wrap is load-bearing: the model streams single newlines that
+            Markdown would otherwise fold into one paragraph. */}
+        <div className="ios-separator min-h-[100px] whitespace-pre-wrap px-4 py-3 text-[17px] leading-relaxed text-text-main">
+          {output ? (
             <div className="markdown-body">
-              <Markdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{state.lastOutputs.translatedText}</Markdown>
+              <Markdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{output}</Markdown>
             </div>
           ) : (
-            <span className="text-muted/40 italic">{t('translationPlaceholder')}</span>
+            <span className="italic text-text-muted">{t('translationPlaceholder')}</span>
           )}
         </div>
-        {state.lastOutputs.translatedText && isCached && (
-          <div className="flex justify-end">
-            <span className="text-[10px] uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">{t('instant')}</span>
+
+        {output && (
+          <div className="ios-toolbar justify-end">
+            <button
+              type="button"
+              onClick={() => handleSpeak(output, targetLang)}
+              aria-label={isSpeaking ? t('stopSpeaking') : t('speakText')}
+              title={isSpeaking ? t('stopSpeaking') : t('speakText')}
+              className={toolbarButton(isSpeaking)}
+            >
+              {isSpeaking ? <Square size={20} /> : <Volume2 size={20} />}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleCopy(output)}
+              aria-label={t('copy')}
+              title={t('copy')}
+              className={toolbarButton(isCopied)}
+            >
+              {isCopied ? <Check size={20} /> : <Copy size={20} />}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleNativeShare(output, t('translatedOutput'))}
+              aria-label={t('share')}
+              title={t('share')}
+              className={toolbarButton()}
+            >
+              <Share2 size={20} />
+            </button>
           </div>
         )}
       </div>
+
+      {output && isCached && (
+        <p className="ios-section-footer flex items-center gap-1.5">
+          <Zap size={13} aria-hidden="true" className="shrink-0" />
+          <span className="min-w-0 truncate">{t('instantTranslation')}</span>
+        </p>
+      )}
     </motion.div>
   );
 }

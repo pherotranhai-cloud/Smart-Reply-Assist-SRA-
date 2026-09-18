@@ -1,4 +1,5 @@
 import { AISettings, VocabItem } from '../types';
+import { matchGlossary, serializeGlossary } from './glossary';
 import axios from 'axios';
 
 export class AIService {
@@ -9,99 +10,14 @@ export class AIService {
   }
 
   /**
-   * Khôi phục logic buildGlossaryPrompt từ phiên bản cũ
-   * Tối ưu hóa cho tiếng Trung và đa ngôn ngữ
+   * The glossary payload for one request, matched against the exact text that
+   * is about to be sent. It runs here rather than in the caller so that text
+   * the caller assembled after the fact — OCR output appended to the typed
+   * input, compose's context plus requirements — is covered too, and so the
+   * chips the user sees are built from the same matchGlossary() call.
    */
-  private buildGlossaryPrompt(vocab: VocabItem[], targetLang: string, sourceText?: string): string {
-    if (!sourceText) return '';
-    
-    const rawInput = sourceText.trim();
-    const rawInputLower = rawInput.toLowerCase();
-    
-    // Helper: Remove Vietnamese tones for fuzzy matching
-    const removeVietnameseTones = (str: string) => {
-      return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
-    };
-    
-    const rawInputNoTones = removeVietnameseTones(rawInput);
-
-    let targetKey: keyof VocabItem = 'en'; 
-    const tl = targetLang.toLowerCase();
-    if (tl === 'vi' || tl === 'vietnamese') {
-      targetKey = 'vi';
-    } else if (tl === 'zh-tw' || tl === 'chinese (traditional)') {
-      targetKey = 'zh_tw';
-    } else if (tl === 'zh-cn' || tl === 'chinese (simplified)' || tl.includes('chinese')) {
-      targetKey = 'zh_cn';
-    } else if (tl === 'id' || tl === 'indonesian' || tl === 'id-id') {
-      targetKey = 'id_lang';
-    } else if (tl === 'my' || tl === 'burmese' || tl === 'my-mm') {
-      targetKey = 'my';
-    }
-
-    const matches: { term: string; translation: string }[] = [];
-    const seen = new Set<string>();
-
-    // Sort by length descending to match longest terms first (preventing sub-term overrides)
-    const sortedVocab = [...vocab].sort((a, b) => {
-      const lenA = Math.max((a.vi?.length || 0), (a.en?.length || 0), (a.zh_cn?.length || 0));
-      const lenB = Math.max((b.vi?.length || 0), (b.en?.length || 0), (b.zh_cn?.length || 0));
-      return lenB - lenA;
-    });
-
-    sortedVocab.forEach(item => {
-      // Backward compatibility: handle undefined/null as enabled (true)
-      if (item.enabled === false || String(item.enabled).toLowerCase() === 'false') return;
-      
-      const vi = item.vi ? String(item.vi).trim() : '';
-      const en = item.en ? String(item.en).trim() : '';
-      const zh_cn = item.zh_cn ? String(item.zh_cn).trim() : '';
-      const zh_tw = item.zh_tw ? String(item.zh_tw).trim() : '';
-
-      const viNorm = vi.toLowerCase();
-      const enNorm = en.toLowerCase();
-      const viNoTones = removeVietnameseTones(vi);
-
-      let matchedSource = null;
-      
-      // RULE 1: Chinese (Ideographic) - Safe to use includes
-      if (zh_cn && rawInput.includes(zh_cn)) {
-        matchedSource = zh_cn;
-      } else if (zh_tw && rawInput.includes(zh_tw)) {
-        matchedSource = zh_tw;
-      }
-      // RULE 2: English - Use Word Boundary Regex
-      else if (enNorm) {
-        try {
-          const regex = new RegExp(`\\b${enNorm}\\b`, 'i');
-          if (regex.test(rawInput)) matchedSource = en;
-        } catch (e) {
-          if (rawInputLower.includes(enNorm)) matchedSource = en; // Fallback
-        }
-      }
-      // RULE 3: Vietnamese - Scan on tone-removed string + Word Boundary
-      if (!matchedSource && viNorm) {
-        try {
-          const regex = new RegExp(`\\b${viNoTones}\\b`, 'i');
-          if (regex.test(rawInputNoTones)) matchedSource = vi;
-        } catch (e) {
-          if (rawInputNoTones.includes(viNoTones)) matchedSource = vi; // Fallback
-        }
-      }
-
-      const target = item[targetKey] ? String(item[targetKey]).trim() : '';
-      
-      if (matchedSource && target && matchedSource.toLowerCase() !== target.toLowerCase() && !seen.has(matchedSource.toLowerCase())) {
-        seen.add(matchedSource.toLowerCase());
-        const term = matchedSource;
-        matches.push({ term, translation: target });
-      }
-    });
-
-    if (matches.length === 0) return '';
-    
-    // Return raw JSON string. Backend handles the XML tags.
-    return JSON.stringify(matches);
+  private buildGlossary(sourceText: string, vocab: VocabItem[], targetLang: string): string {
+    return serializeGlossary(matchGlossary(sourceText, vocab, targetLang));
   }
 
   async extractTextFromImage(imagePayload: string): Promise<string> {
@@ -117,10 +33,9 @@ export class AIService {
     }
   }
 
-  async translate(text: string, targetLang: string, vocab: VocabItem[], image?: string, summarize: boolean = false, onChunk?: (chunk: string) => void, isAuto: boolean = false) {
+  async translate(text: string, targetLang: string, vocab: VocabItem[], image?: string, summarize: boolean = false, onChunk?: (chunk: string) => void) {
     try {
-      // Sử dụng logic so khớp mạnh mẽ vừa khôi phục
-      const glossary = this.buildGlossaryPrompt(vocab, targetLang, text);
+      const glossary = this.buildGlossary(text, vocab, targetLang);
       
       const response = await fetch('/api/translate', {
         method: 'POST',
@@ -133,7 +48,6 @@ export class AIService {
           glossary, // Gửi Prompt Glossary đã dựng sẵn sang Backend
           image,
           summarize,
-          isAuto,
           model: this.settings.openai.model
         })
       });
@@ -201,8 +115,7 @@ export class AIService {
     onChunk?: (chunk: string) => void
   ) {
     try {
-      // Khôi phục logic lấy glossary cho cả context và yêu cầu soạn thảo
-      const glossary = this.buildGlossaryPrompt(vocab, params.lang, contextText + " " + requirements);
+      const glossary = this.buildGlossary(contextText + " " + requirements, vocab, params.lang);
       
       const response = await axios.post('/api/compose', {
         contextText,

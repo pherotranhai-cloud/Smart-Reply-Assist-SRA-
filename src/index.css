@@ -349,6 +349,14 @@
     @apply px-4 pt-1.5 text-[13px] leading-snug text-ios-label-secondary;
   }
 
+  /* Accessory toolbar for a text field or an output block: iOS gives these
+     glyphs a bar of their own rather than floating them over the content.
+     Colour stays with the call site; the box of each button is settled once,
+     for every button in the bar, by the unlayered rule below this block. */
+  .ios-toolbar {
+    @apply flex items-center gap-1 px-2 py-1.5;
+  }
+
   /* Tap-down feedback. The curve is UIKit's: quick out, long settle. */
   .ios-press {
     @apply transition-transform duration-200 active:scale-[0.98];
@@ -424,6 +432,27 @@
     background-color: var(--accent-on);
     transform: translateX(20px);
   }
+}
+
+/* The 44px touch floor for the buttons in an .ios-toolbar, applied from the bar
+   so a call site cannot forget it — including for a nested control this file
+   does not own (VoiceVisualizer draws its own 40px button).
+
+   Unlayered on purpose. A cascade layer is resolved BEFORE specificity, so from
+   inside @layer components this rule would lose to that component's plain
+   `w-10 h-10 rounded-xl` utilities however specific its selector was. Same
+   reason, and the same escape hatch, as the 100svh floor further down.
+
+   The flip side: a utility on a toolbar button cannot resize it either. That is
+   the intent — the floor is not a default. */
+.ios-toolbar > button {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
 }
 
 /* The floors below are set per element (`class="pt-safe [--safe-pt:1.5rem]"`).

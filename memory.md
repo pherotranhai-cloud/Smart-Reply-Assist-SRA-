@@ -1,8 +1,15 @@
-# Session memory — iOS Settings redesign + swipe tab navigation
+# Session memory
 
-Recorded after the `/batch` run that landed PRs #5–#17 and merged them as #18
-(`617c7d0`). Everything below was found by agents that actually read or ran the
-code, so it can be trusted without re-scanning. Line numbers are as of #18.
+Two `/batch` runs are recorded here.
+
+- **§§0–6 — iOS Settings redesign + swipe tab navigation.** From the run that
+  landed PRs #5–#17 and merged them as #18 (`617c7d0`). Line numbers are as of
+  #18 and have drifted since; grep rather than trusting them.
+- **§7 — Translate upgrade.** From the run on `claude/laughing-ptolemy-b659m5`
+  (`965f0e1`…`c4cbbca`). Line numbers are as of `c4cbbca`.
+
+Everything below was found by agents that actually read or ran the code, so it
+can be trusted without re-scanning.
 
 ---
 
@@ -280,3 +287,144 @@ Things that cost time to discover.
 - Per-unit PRs that each edit the same two files do **not** merge mechanically.
   The i18n conflicts resolve by keeping both sides; the panel bodies had to be
   rewritten by hand (`6feb7fb`).
+
+---
+
+## 7. Translate upgrade — `965f0e1`…`c4cbbca`
+
+Seven commits on `claude/laughing-ptolemy-b659m5`, six planned units plus one
+fix. Everything in §7 is **done**, not a to-do list; the open items are
+collected in §7.4.
+
+### 7.1 The root cause was the data, not the algorithm
+
+The brief was "inject the glossary more accurately". The algorithm was the
+smaller half of the problem.
+
+- **Two importers disagreed on field names.** `netlify/functions/api.ts`'s
+  `/import-vocab` parsed the sheet correctly but returned
+  `{meaning_vi, target_en, target_zh_cn, …}`, while `VocabItem` and every
+  consumer read `{vi, en, zh_cn, …}`. `storage.syncWithCloud()` only calls the
+  *other* importer (`netlify/functions/import-vocab.ts`) when the hostname
+  contains `netlify.app`, so **on localhost and on Render the entire glossary
+  was silently empty** — `item.vi` was `undefined` for all 507 rows. The
+  standalone importer was broken too, from the opposite side: its
+  `transformHeader` only lowercased, so `Meaning (VI)` never became `vi` and its
+  `.filter(item => item.vi)` discarded every row.
+  Both now share `shared/vocabNormalize.ts`, which accepts either header style.
+- **`term` is a category label, not a phrase.** In `Vocabulary Library.csv` the
+  `Term` column holds `Component`, `Dept name` and similar. The chips matched on
+  it, so "detected terms" was matching category names. The source phrases are
+  `vi`/`en`/`zh_cn`/`zh_tw`; **never match against `term`.**
+- `storage.getVocab()` now heals records already stored in the broken shape, so
+  a user does not have to re-sync.
+
+### 7.2 One matcher, in `src/services/glossary.ts`
+
+There were two independent matchers — one for the chips (on `term`), one for the
+prompt (on the phrase columns) — so what the user saw was never what was
+injected. Both are gone; `matchGlossary()` is the only one.
+
+Decisions worth not re-deriving:
+
+- **No `RegExp` is ever built from library data.** Occurrences are found with
+  `indexOf` on folded strings and boundaries are decided by inspecting adjacent
+  characters. The old code interpolated unescaped terms into `new RegExp()`, so
+  a term like `C+ (A.1)` either threw or matched the wrong span. There is
+  deliberately no `escapeRegExp` helper — there is nothing left to escape.
+- **Diacritic folding preserves offsets**, by pushing the original index once
+  per folded character, so `text.slice(start, end)` is correct on the *original*
+  string.
+- **Boundaries are per-edge**, required only when that edge's character is a
+  letter/digit in a script that separates words. `\b` is ASCII-only and was
+  wrong for Han and Burmese.
+- Longest match wins, measured on the string that **actually matched** (the old
+  sort used `max(vi, en, zh_cn)` lengths), then overlapping spans are suppressed
+  so "quality" and "quality control" cannot both be injected for one span.
+- Caps at 40 matches / 4000 chars, enforced **inside `matchGlossary`**, not in
+  `serializeGlossary` — if the serializer trimmed separately the chips would
+  again show more than the prompt got.
+- Folded phrases are cached in a module-level `Map`: 3.4 ms → 0.72 ms per call,
+  and it runs on every keystroke.
+- `AIService.translate` matches internally against the text it is **about to
+  send**, so OCR-extracted image text is covered. The old
+  `matched.length > 0 ? matched : currentVocab` branch is gone — it dropped
+  entries when the client matcher hit anything and shipped all 507 when it did
+  not.
+
+### 7.3 Prompts, model config, UI
+
+- `shared/modelConfig.ts` owns `APP_ENGINE_ID`. Four routes used to hardcode
+  `'gpt-5.6-luna'` and ignore the env var, so setting `APP_ENGINE_ID`
+  redirected only two of six call sites.
+- `createChatCompletion(openai, params, tuning)` retries **once** with all
+  optional parameters stripped when a 400 names an unsupported parameter, and
+  rethrows everything else. `gpt-5.6-luna`'s tuning entry sends no optional
+  sampling parameters at all — its supported surface could not be verified from
+  here, and a guess would have 500'd the route. Retry happens before any
+  `res.write()`, or the stream could not be restarted.
+- `new OpenAI()` used to run at module load. With `OPENAI_API_KEY` unset it
+  threw at cold start and took **the whole router** down — `/health`,
+  `/admin/*`, `/import-vocab`, not just the AI routes. Now lazy via
+  `getOpenAI()`.
+- `buildTranslateSystemPrompt()` is a pure exported function so the
+  language × glossary × summarize matrix is testable without an API key. Script
+  enforcement now covers every target (only Chinese Traditional had one), and
+  summary-mode section labels follow the target language instead of always being
+  Vietnamese.
+- **The `.ios-*` classes in `src/index.css` finally have consumers.** Both
+  Translate tabs are built on them; they were written for the settings redesign
+  and then never used. `.ios-toolbar` was added here.
+- **`.ios-toolbar > button`'s 44px floor is deliberately outside
+  `@layer components`.** A cascade layer is resolved *before* specificity, so
+  from inside the layer that rule loses to a child's own plain utilities
+  (`VoiceVisualizer` ships `w-10 h-10 rounded-xl`). The cost: a utility on a
+  toolbar button cannot resize it.
+- Both textareas guard Enter with `e.nativeEvent.isComposing`. Telex and Pinyin
+  commit a candidate with Enter, so Enter-to-translate was eating the keystroke
+  that finishes a Vietnamese or Chinese word and translating half-typed input.
+- `crypto.randomUUID()` is only defined in a secure context. It was called as a
+  bare global in `shared/vocabNormalize.ts`, which ships in the browser bundle —
+  on plain http that threw out of `storage.getVocab()` and aborted the
+  `Promise.all` hydration in `App.tsx`.
+
+### 7.4 Still open
+
+- **`Auto` gets no glossary.** `matchGlossary(text, vocab, 'Auto')` returns `[]`
+  by design: there is no target column to pin, and pinning English would be
+  wrong. The prompt half is fixed (the model now detects the source and picks
+  the counterpart target; it no longer reads "Translate to Auto"), but the
+  client sends `glossary: ''` before the request leaves the browser, so **no
+  server-side change can recover this.** A real fix resolves a concrete target
+  on the client *before* matching — that changes user-visible behaviour, so it
+  was left as a decision rather than assumed.
+- **Nothing was verified in a browser or against a real model.** Verification
+  was `tsc --noEmit`, `npm run build`, and `npx tsx` scripts against the real
+  507-row CSV. `OPENAI_API_KEY` is not set in the agent environment, so the
+  rewritten prompt has never been sent to an actual model — only its 28-way
+  construction matrix was asserted. The iOS layout is correct by construction
+  and unmeasured on device, exactly as §5 says of the previous batch.
+- `zh-CN` and `zh-TW` are missing three keys `en`/`vi` have: `clearHistory`,
+  `feedbackErrorReport`, `supportFeedback`. Pre-existing, outside Translate,
+  untouched.
+
+### 7.5 Working notes that cost time
+
+- **`node_modules` is absent AND there is no shared copy to symlink to.** §6's
+  `ln -sfn …/node_modules` advice is stale — run `npm install` in the primary
+  worktree first. It also rewrites `package-lock.json`'s `version` field to
+  match `package.json`; revert that, do not commit it.
+- **Running the units sequentially in the primary directory avoided every merge
+  conflict** §6 warns about. Six units touching `useTranslateTab.ts`,
+  `ai.ts`, `api.ts` and `i18n/index.ts` produced zero conflicts because each
+  saw the previous one's commit. This is strictly better than parallel
+  worktrees when the units share files.
+- A session rate limit killed one unit after it had written the code but before
+  it committed. **The working tree survives** — finishing the remaining
+  verify-and-commit steps directly was far cheaper than respawning.
+- `grep -c` exits 1 when the count is 0, which breaks an `&&` chain even though
+  0 is the passing result. Use `;` between verification greps.
+- The i18n audit is worth scripting properly: parse the four dictionary blocks
+  by brace matching, extract `t('…')` call sites from the component, and assert
+  every key resolves in all four. Both UI units passed on the first try this
+  way, against twelve keys reaching the screen as raw identifiers last time.

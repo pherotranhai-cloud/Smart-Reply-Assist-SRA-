@@ -2,6 +2,7 @@ import { Handler } from '@netlify/functions';
 import crypto from 'crypto';
 import axios from 'axios';
 import Papa from 'papaparse';
+import { normalizeHeader, extractVocabRow, vocabHashKey, hasSourcePhrase } from '../../shared/vocabNormalize';
 
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || '16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY';
 
@@ -31,7 +32,7 @@ export const handler: Handler = async (event) => {
     const parsed = Papa.parse(response.data, {
       header: true,
       skipEmptyLines: true,
-      transformHeader: (header) => header.toLowerCase().replace(/-/g, '_').trim()
+      transformHeader: normalizeHeader
     });
 
     const rawData = parsed.data;
@@ -39,26 +40,16 @@ export const handler: Handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ message: 'No data found in Google Sheet', count: 0, data: [] }) };
     }
 
-    // 3. Sanitize and Prepare Data
-    const sanitizedData = rawData.map((item: any, index: number) => {
-      const itemData = {
-        term: String(item.term || '').trim(),
-        vi: String(item.vi || '').trim(),
-        en: String(item.en || '').trim(),
-        zh_cn: String(item.zh_cn || '').trim(),
-        zh_tw: String(item.zh_tw || '').trim(),
-        id_lang: String(item.id || '').trim(), // Internal key 'id_lang' to avoid conflict with record 'id'
-        my: String(item.my || '').trim()
-      };
-      
-      const hashInput = `${itemData.vi}-${itemData.en}-${index}`;
-      const id = crypto.createHash('md5').update(hashInput).digest('hex');
-
-      return {
-        id,
-        ...itemData
-      };
-    }).filter((item: any) => item.vi); // Filter by vi
+    // 3. Sanitize and prepare data. VocabItem's shape lives in
+    // shared/vocabNormalize.ts — kept in one place because it used to drift
+    // between this handler and api.ts's /import-vocab route.
+    const sanitizedData = (rawData as Record<string, any>[])
+      .map((item) => {
+        const fields = extractVocabRow(item);
+        const id = crypto.createHash('md5').update(vocabHashKey(fields)).digest('hex');
+        return { id, ...fields };
+      })
+      .filter(hasSourcePhrase);
 
     if (sanitizedData.length === 0) {
       return { statusCode: 200, headers, body: JSON.stringify({ message: 'No valid items found after filtering', count: 0, data: [] }) };
