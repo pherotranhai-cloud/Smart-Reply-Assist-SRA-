@@ -4,7 +4,7 @@ import { AIService } from '../services/ai';
 import { matchGlossary } from '../services/glossary';
 import { validateSecurity } from '../utils/security';
 import { generateHash } from '../utils/hash';
-import { Language, AppState, VocabItem, ConversationContext } from '../types';
+import { Language, AppState, VocabItem } from '../types';
 
 interface UseTranslateTabParams {
   state: AppState;
@@ -15,7 +15,6 @@ interface UseTranslateTabParams {
   isListening: boolean;
   interimTranscript: string;
   activeTab: string;
-  setContext: (context: ConversationContext | null) => void;
   stopSpeaking: () => void;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   setIsStreaming: React.Dispatch<React.SetStateAction<boolean>>;
@@ -32,7 +31,6 @@ export function useTranslateTab({
   isListening,
   interimTranscript,
   activeTab,
-  setContext,
   stopSpeaking,
   setLoading,
   setIsStreaming,
@@ -151,20 +149,9 @@ export function useTranslateTab({
 
       setIsStreaming(false);
 
-      const newOutputs = { ...state.lastOutputs, translatedText: result, summary: '', contextSource: 'translated' as const };
+      const newOutputs = { ...state.lastOutputs, translatedText: result, summary: '' };
       setState(prev => ({ ...prev, lastOutputs: newOutputs }));
       await storage.setLastOutputs(newOutputs);
-
-      const newContext: ConversationContext = {
-        sourceText: finalSourceText,
-        translatedText: result,
-        summaryText: '',
-        targetTranslationLanguage: targetLang,
-        lastUpdatedIso: new Date().toISOString(),
-        contextSource: 'translated'
-      };
-      setContext(newContext);
-      await storage.setContext(newContext);
 
       const historyItemToSave = {
         type: 'translate' as const,
@@ -188,7 +175,7 @@ export function useTranslateTab({
       setIsStreaming(false);
       setIsTranslating(false);
     }
-  }, [translateInput, translateImage, targetLang, state.settings, state.lastOutputs, t, showToast, isSummaryMode, isTranslating, stopSpeaking, setLoading, setIsStreaming, setState, setContext]);
+  }, [translateInput, translateImage, targetLang, state.settings, state.lastOutputs, t, showToast, isSummaryMode, isTranslating, stopSpeaking, setLoading, setIsStreaming, setState]);
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

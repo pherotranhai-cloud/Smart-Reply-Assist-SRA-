@@ -1,4 +1,4 @@
-import { VocabItem, AISettings, AppState, HistoryItem, ConversationContext, GlobalLanguage } from '../types';
+import { VocabItem, AISettings, AppState, HistoryItem, GlobalLanguage } from '../types';
 import { DEFAULT_STATE } from '../constants';
 import { STORAGE_KEYS, DATA_KEYS } from '../constants/storageKeys';
 
@@ -45,6 +45,15 @@ const adapter = {
     }
   }
 };
+
+/**
+ * Keys the link-context feature wrote. They are out of STORAGE_KEYS now, so no
+ * reset path names them any more — but an install that ran the old build is
+ * still holding a whole source-plus-translation pair under `sra_context`, and
+ * with saved wallpapers living inline in the same localStorage the quota is the
+ * realistic limit. Nothing else would ever reclaim it, so startup sweeps them.
+ */
+const RETIRED_CONTEXT_KEYS = ['sra_context', 'sra_structured_summary'];
 
 export const storage = {
   async getSettings(): Promise<AISettings> {
@@ -138,18 +147,6 @@ export const storage = {
     await adapter.set(STORAGE_KEYS.LAST_OUTPUTS, lastOutputs);
   },
 
-  async getContext(): Promise<ConversationContext | null> {
-    return await adapter.get<ConversationContext>(STORAGE_KEYS.CONTEXT);
-  },
-
-  async setContext(context: ConversationContext | null): Promise<void> {
-    if (context === null) {
-      await adapter.remove(STORAGE_KEYS.CONTEXT);
-    } else {
-      await adapter.set(STORAGE_KEYS.CONTEXT, context);
-    }
-  },
-
   async getGlobalLanguage(): Promise<GlobalLanguage> {
     return (await adapter.get<GlobalLanguage>(STORAGE_KEYS.GLOBAL_LANGUAGE)) || 'en';
   },
@@ -181,16 +178,9 @@ export const storage = {
     await adapter.multiRemove(DATA_KEYS);
   },
 
-  async getStructuredSummary(): Promise<any | null> {
-    return await adapter.get(STORAGE_KEYS.STRUCTURED_SUMMARY);
-  },
-
-  async setStructuredSummary(summary: any | null): Promise<void> {
-    if (summary === null) {
-      await adapter.remove(STORAGE_KEYS.STRUCTURED_SUMMARY);
-    } else {
-      await adapter.set(STORAGE_KEYS.STRUCTURED_SUMMARY, summary);
-    }
+  /** See RETIRED_CONTEXT_KEYS. Cheap and idempotent — safe on every launch. */
+  async dropRetiredContextKeys(): Promise<void> {
+    await adapter.multiRemove(RETIRED_CONTEXT_KEYS);
   },
 
   async getTranslationCache(): Promise<Record<string, { translatedText: string, timestamp: number }>> {

@@ -8,7 +8,7 @@ import { Loader2, PenTool, X, Square, Volume2, Copy, Check, Share2 } from 'lucid
 import { PresetGrid } from './common/PresetGrid';
 import { useTabActive } from '../hooks/useTabNavigation';
 import { VoiceVisualizer } from './common/VoiceVisualizer';
-import { AppState, ConversationContext } from '../types';
+import { AppState } from '../types';
 import { useComposeTab } from '../hooks/useComposeTab';
 
 type ComposeTabState = ReturnType<typeof useComposeTab>;
@@ -20,10 +20,8 @@ interface ComposeTabProps {
   t: (key: string) => string;
   showToast: (message: string, type?: 'info' | 'error' | 'success') => void;
   activeTab: string;
-  context: ConversationContext | null;
   stopSpeaking: () => void;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  handleExtract: (text: string, sourceLang: string, contextSource: 'original' | 'translated') => Promise<any>;
   isListening: boolean;
   interimTranscript: string;
   handleToggleListening: () => void;
@@ -44,10 +42,8 @@ export function ComposeTabMobile({
   t,
   showToast,
   activeTab,
-  context,
   stopSpeaking,
   setLoading,
-  handleExtract,
   isListening,
   interimTranscript,
   handleToggleListening,

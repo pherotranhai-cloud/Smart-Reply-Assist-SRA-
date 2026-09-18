@@ -20,7 +20,7 @@ import {
   ChevronDown, 
   X 
 } from 'lucide-react';
-import { AppState, ConversationContext, Audience, Tone, Length, Format, Language } from '../types';
+import { AppState, Audience, Tone, Length, Format, Language } from '../types';
 import { useComposeTab } from '../hooks/useComposeTab';
 
 type ComposeTabState = ReturnType<typeof useComposeTab>;
@@ -43,10 +43,8 @@ interface ComposeTabDesktopProps {
   t: (key: string) => string;
   showToast: (message: string, type?: 'info' | 'error' | 'success') => void;
   activeTab: string;
-  context: ConversationContext | null;
   stopSpeaking: () => void;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  handleExtract: (text: string, sourceLang: string, contextSource: 'original' | 'translated') => Promise<any>;
   isListening: boolean;
   interimTranscript: string;
   handleToggleListening: () => void;

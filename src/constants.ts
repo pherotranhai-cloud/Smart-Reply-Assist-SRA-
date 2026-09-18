@@ -45,9 +45,7 @@ export const DEFAULT_STATE: AppState = {
     translatedText: '',
     generatedReply: '',
     summary: '',
-    contextSource: 'translated',
   },
-  structuredSummary: undefined,
 };
 
 export const LANGUAGES = [

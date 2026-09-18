@@ -225,9 +225,4 @@ export class AIService {
       throw new Error(err.message || 'Talk sequence failed');
     }
   }
-
-  // NOTE: still a stub — returns metadata only, no extraction is performed server-side.
-  async extractStructuredSummary(text: string, sourceLang: string, contextSource: 'original' | 'translated'): Promise<any> {
-    return { meta: { sourceLanguage: sourceLang, contextSource, extractedAtIso: new Date().toISOString() } };
-  }
 }

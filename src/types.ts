@@ -29,64 +29,7 @@ export interface AISettings {
   openai: ProviderSettings;
 }
 
-export interface ConversationContext {
-  sourceText: string;
-  translatedText: string;
-  detectedLanguage?: string;
-  targetTranslationLanguage?: string;
-  summaryText?: string;
-  lastUpdatedIso: string;
-  contextSource: 'original' | 'translated';
-}
-
 export type GlobalLanguage = 'en' | 'vi' | 'zh-CN' | 'zh-TW';
-
-export interface StructuredSummary {
-  meta: {
-    sourceLanguage: string;
-    contextSource: 'translated' | 'original';
-    extractedAtIso: string;
-  };
-  people_and_roles: {
-    name: string;
-    role_title: string;
-    honorific: string;
-    organization: string;
-    confidence: number;
-  }[];
-  production_data: {
-    item: string;
-    metric: string;
-    value: string | number;
-    unit: string;
-    timeframe: string;
-    confidence: number;
-  }[];
-  metrics_highlights: string[];
-  discipline_and_ownership: {
-    discipline: string;
-    owner: string;
-    responsibility: string;
-    confidence: number;
-  }[];
-  requests_and_directions: {
-    type: 'request' | 'instruction' | 'direction' | 'decision_needed' | 'escalation';
-    content: string;
-    priority: 'P0' | 'P1' | 'P2';
-    due: string;
-    blocking: boolean;
-    confidence: number;
-  }[];
-  risks_gaps_questions: {
-    gap: string;
-    question: string;
-    priority: 'P0' | 'P1' | 'P2';
-  }[];
-  short_summary: {
-    bullets: string[];
-    items_to_respond: string[];
-  };
-}
 
 export type BackgroundEffect = 'none' | 'particles' | 'liquid' | 'aurora' | 'waves';
 
@@ -134,9 +77,7 @@ export interface AppState {
     generatedReply: string;
     summary: string;
     subject?: string;
-    contextSource?: 'original' | 'translated';
   };
-  structuredSummary?: StructuredSummary;
 }
 
 export interface HistoryItem {
