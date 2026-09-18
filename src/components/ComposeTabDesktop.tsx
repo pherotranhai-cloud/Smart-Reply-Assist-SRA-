@@ -124,9 +124,14 @@ export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
         hasBgImage ? 'bg-transparent' : 'bg-app'
       }`}
     >
-      {/* --- Left: what to write, then the controls that shape it ----------- */}
-      <div className="custom-scrollbar flex min-h-0 flex-col overflow-y-auto">
-        <h2 className="ios-section-header shrink-0 pt-0">{props.t('replyRequirements')}</h2>
+      {/* --- Left: what to write, then the controls that shape it -----------
+          The pane itself does not scroll; the section stack inside it does, so
+          Generate stays pinned to the bottom. With the whole column scrolling,
+          the preset list pushed the primary action below the fold at 1440x900
+          — the one control that must never need hunting for. */}
+      <div className="flex min-h-0 flex-col">
+        <div className="custom-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <h2 className="ios-section-header shrink-0 pt-0">{props.t('replyRequirements')}</h2>
 
         {/* Only this group flexes, so a short window shrinks the typing area
             rather than the controls. .ios-inset-group is already bg-surface,
@@ -215,6 +220,8 @@ export function ComposeTabDesktop(props: ComposeTabDesktopProps) {
             onUpdateCustomParams={params => setComposeParams(prev => ({ ...prev, ...params }))}
             t={props.t}
           />
+        </div>
+
         </div>
 
         <button
