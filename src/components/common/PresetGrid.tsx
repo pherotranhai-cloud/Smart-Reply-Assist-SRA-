@@ -1,8 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { X, FileText, FileSearch, Clock, HelpCircle, Megaphone, Settings2, ChevronDown } from 'lucide-react';
-import { CORE_PRESETS, AUDIENCES, TONES, LENGTHS, FORMATS, ComposePreset, LANGUAGES, LANGUAGE_FLAGS } from '../../constants';
+import React, { useEffect, useRef } from 'react';
+import { Check, ChevronDown, FileText, FileSearch, Clock, HelpCircle, Megaphone, Settings2 } from 'lucide-react';
+import {
+  CORE_PRESETS,
+  AUDIENCES,
+  TONES,
+  LENGTHS,
+  FORMATS,
+  LANGUAGES,
+  LANGUAGE_FLAGS,
+  ComposePreset,
+  presetById,
+} from '../../constants';
 import { Audience, Tone, Length, Format, Language } from '../../types';
-import { useLongPress } from '../../hooks/useLongPress';
 import { safeLocalStorage } from '../../utils/safeStorage';
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -11,20 +20,126 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Clock,
   HelpCircle,
   Megaphone,
-  Settings2
+  Settings2,
 };
+
+/** Unchanged from the long-press modal that used to write it: a combination
+ *  saved by an earlier build must still come back after this rebuild. */
+const STORAGE_KEY = 'sra_custom_preset';
+
+/** The five values the compose prompt is built from. */
+interface ComposeParams {
+  audience: Audience;
+  tone: Tone;
+  length: Length;
+  format: Format;
+  lang: Language;
+}
+
+/** Just the four a preset owns — `lang` is deliberately not one of them, see
+ *  the note on `setParam`. Matches ComposePreset['settings'] exactly. */
+type PresetSettings = ComposePreset['settings'];
+
+/** An option list as constants.ts declares it: a wire value plus an i18n key. */
+type LabelledOption = { value: string; labelKey: string };
+
+/**
+ * The values a stored entry is allowed to carry.
+ *
+ * Anything else reaches /api/compose as an unknown token, where it falls
+ * through to the generic branch — so a stale key from an older build, or a
+ * hand-edited storage entry, would quietly cost the user the register they
+ * picked AND leave that row's <select> matching no option, which renders as a
+ * blank value. Validating on the way in is cheaper than explaining either.
+ */
+const ALLOWED_VALUES: Record<keyof ComposeParams, readonly string[]> = {
+  audience: AUDIENCES.map(o => o.value),
+  tone: TONES.map(o => o.value),
+  length: LENGTHS.map(o => o.value),
+  format: FORMATS.map(o => o.value),
+  // Composing needs a definite output language; 'Auto' is a translate-side idea.
+  lang: LANGUAGES.filter(l => l !== 'Auto'),
+};
+
+/** The saved custom combination, with every unrecognised field dropped. */
+function readSavedCustom(): Partial<ComposeParams> | null {
+  const raw = safeLocalStorage.getItem(STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const clean: Record<string, string> = {};
+    for (const key of Object.keys(ALLOWED_VALUES) as (keyof ComposeParams)[]) {
+      const value = parsed[key];
+      if (typeof value === 'string' && ALLOWED_VALUES[key].includes(value)) clean[key] = value;
+    }
+    return Object.keys(clean).length > 0 ? (clean as Partial<ComposeParams>) : null;
+  } catch {
+    // No console.error: this runs on every mount, and a single malformed entry
+    // would then report an error for the rest of the session. Falling back to
+    // the parameters already on screen is a fine place to land.
+    return null;
+  }
+}
+
+const settingsOf = (params: ComposeParams): PresetSettings => ({
+  audience: params.audience,
+  tone: params.tone,
+  length: params.length,
+  format: params.format,
+});
+
+const optionLabel = (options: readonly LabelledOption[], value: string, t: (key: string) => string) => {
+  const found = options.find(o => o.value === value);
+  return found ? t(found.labelKey) : '';
+};
+
+/**
+ * One grouped-list row that is really a native <select> stretched
+ * transparently over a presentation layer.
+ *
+ * On iOS that is what summons the real wheel picker, which no custom menu
+ * imitates, and covering the whole row means the label is part of the target
+ * too. The visual layer takes no pointer events so the tap always reaches the
+ * select, and the ring is keyed off the select's own focus-visible because an
+ * opacity-0 control cannot show one itself. Same construction, and the same
+ * reasons, as the Target Language row in TranslateTabMobile.
+ */
+const SelectRow: React.FC<{
+  label: string;
+  value: string;
+  display: React.ReactNode;
+  onChange: (value: string) => void;
+  children: React.ReactNode;
+}> = ({ label, value, display, onChange, children }) => (
+  <div className="ios-row ios-separator relative has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-inset has-[select:focus-visible]:ring-accent-text">
+    {/* aria-hidden: the select below is named with these same words, and
+        without this every row announces its label twice. */}
+    <span aria-hidden="true" className="min-w-0 flex-1 truncate">{label}</span>
+    {/* Capped so a long value ("Subordinates / Line Workers") cannot push the
+        label off a 320px screen; both sides truncate rather than wrap. */}
+    <span
+      aria-hidden="true"
+      className="pointer-events-none flex max-w-[55%] shrink-0 items-center gap-1 text-ios-label-secondary"
+    >
+      <span className="truncate">{display}</span>
+      <ChevronDown size={18} className="shrink-0" />
+    </span>
+    <select
+      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      aria-label={label}
+    >
+      {children}
+    </select>
+  </div>
+);
 
 interface PresetGridProps {
   activePresetId: string;
   onSelectPreset: (preset: ComposePreset) => void;
-  customParams: {
-    audience: Audience;
-    tone: Tone;
-    length: Length;
-    format: Format;
-    lang: Language;
-  };
-  onUpdateCustomParams: (params: any) => void;
+  customParams: ComposeParams;
+  onUpdateCustomParams: (params: Partial<ComposeParams>) => void;
   t: (key: string) => string;
 }
 
@@ -33,171 +148,203 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
   onSelectPreset,
   customParams,
   onUpdateCustomParams,
-  t
+  t,
 }) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [localCustom, setLocalCustom] = useState(customParams);
-
+  /**
+   * Restore the saved combination once, on mount.
+   *
+   * The guard is the point: the parent hands down a fresh
+   * `onUpdateCustomParams` arrow on every render, so a dependency-complete
+   * effect would re-run constantly and keep re-applying the stored values over
+   * whatever the user had just picked. It also absorbs StrictMode's double
+   * invoke in development.
+   *
+   * Only when the active choice is still Custom — a named preset has already
+   * decided all four values, and the saved combination must not overrule it.
+   */
+  const hasRestored = useRef(false);
   useEffect(() => {
-    const saved = safeLocalStorage.getItem('sra_custom_preset');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setLocalCustom(prev => ({ ...prev, ...parsed }));
-        if (activePresetId === 'custom') {
-           onUpdateCustomParams(parsed);
-        }
-      } catch (e) {
-        console.error('Failed to parse custom preset', e);
-      }
-    }
-  }, []);
+    if (hasRestored.current) return;
+    hasRestored.current = true;
+    if (activePresetId !== 'custom') return;
+    const saved = readSavedCustom();
+    if (saved) onUpdateCustomParams(saved);
+  }, [activePresetId, onUpdateCustomParams]);
 
-  const handleSaveCustom = () => {
-    safeLocalStorage.setItem('sra_custom_preset', JSON.stringify(localCustom));
-    onUpdateCustomParams(localCustom);
-    onSelectPreset(CORE_PRESETS.find(p => p.id === 'custom')!);
-    setIsModalOpen(false);
+  /**
+   * Editing a parameter means the answer is no longer a named preset. That is
+   * the existing contract; what changed is how Custom is reached.
+   *
+   * It goes through `onSelectPreset` so the parent stays the single owner of
+   * both the id and the parameters — but with the EDITED settings in place of
+   * the Custom entry's placeholder defaults. Handing over the stock entry is
+   * what the old Save button did, and since the parent's handler applies
+   * `preset.settings`, the four values the user had just chosen were
+   * immediately overwritten with cross_dept/professional/standard/wechat_zalo.
+   * Harmless while every preset shared one default; now that each token drives
+   * a distinct register, budget and document shape, it discarded the whole
+   * choice silently.
+   */
+  const setParam = <K extends keyof ComposeParams>(key: K, value: ComposeParams[K]) => {
+    const next: ComposeParams = { ...customParams, [key]: value };
+    safeLocalStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+
+    if (key === 'lang') {
+      // A preset does not carry a language, so choosing one contradicts
+      // nothing: switching to Custom here would throw away "Urgent Report"
+      // because the user wants it written in Vietnamese.
+      onUpdateCustomParams({ lang: value as Language });
+      return;
+    }
+    onSelectPreset({ ...presetById('custom'), settings: settingsOf(next) });
   };
 
-  const activeConfig = CORE_PRESETS.find(p => p.id === activePresetId) || CORE_PRESETS[5];
-  const currentSettings = activePresetId === 'custom' ? localCustom : activeConfig.settings;
-
-  const longPressProps = useLongPress(() => {
-      setIsModalOpen(true);
-  }, () => {
-      onSelectPreset(CORE_PRESETS.find(p => p.id === 'custom')!);
-  }, { delay: 400 });
+  const handlePick = (preset: ComposePreset) => {
+    if (preset.id !== 'custom') {
+      onSelectPreset(preset);
+      return;
+    }
+    // Tapping Custom returns to the user's own combination — the saved one if
+    // there is one, otherwise the values already on screen. Passing the entry
+    // through untouched would apply its placeholder defaults and discard the
+    // very combination the row is named for. Its `lang` is not reapplied: the
+    // language is a standing preference, restored on mount and otherwise left
+    // exactly where the user put it.
+    const next: ComposeParams = { ...customParams, ...readSavedCustom() };
+    onSelectPreset({ ...preset, settings: settingsOf(next) });
+  };
 
   return (
-    <div className="space-y-4">
-      {/* Segmented Preset Control */}
-      <div className="flex bg-bg-input p-1 rounded-xl gap-1">
-        {CORE_PRESETS.map((preset) => {
+    <div>
+      {/* --- Purpose -------------------------------------------------------
+          A grouped list, not a six-way segmented control: six icons at 390px
+          gave each preset ~55px and no room for a name, so the only clue to
+          what any of them produced was a title attribute a thumb cannot
+          reach. One row per preset shows the name and its "what you get"
+          line, and the chosen one carries a checkmark. */}
+      <h3 className="ios-section-header">{t('composePurpose')}</h3>
+
+      <div className="ios-inset-group">
+        {CORE_PRESETS.map(preset => {
           const isActive = activePresetId === preset.id;
-          const isCustom = preset.id === 'custom';
           const IconComponent = ICON_MAP[preset.iconName] || FileText;
-          
-          const buttonProps = isCustom ? longPressProps : {
-              onClick: () => onSelectPreset(preset)
-          };
 
           return (
             <button
               key={preset.id}
-              {...buttonProps}
-              title={preset.name}
-              className={`flex-1 flex items-center justify-center py-2.5 rounded-lg transition-all duration-300 ${
-                isActive
-                  ? 'bg-panel shadow-sm text-accent'
-                  : 'bg-transparent text-text-muted hover:text-text-main'
-              }`}
+              type="button"
+              onClick={() => handlePick(preset)}
+              /* aria-pressed rather than role="radio": a radiogroup owes its
+                 members arrow-key navigation and a roving tabindex, and a
+                 six-row list where every row is Tab-reachable serves a
+                 keyboard better than one stop that needs arrows to explore.
+                 No transition-* utility either — it would land in the
+                 utilities layer and override .ios-press's transition-transform,
+                 leaving the tap-down scale instant. */
+              aria-pressed={isActive}
+              className="ios-row ios-separator ios-press items-start active:bg-ios-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-text"
             >
-               <IconComponent size={20} strokeWidth={isActive ? 2 : 1.5} />
+              <IconComponent
+                size={20}
+                strokeWidth={isActive ? 2.25 : 1.75}
+                aria-hidden="true"
+                /* The state swaps the whole colour utility instead of
+                   appending a second one: two text-* utilities on one element
+                   are resolved by stylesheet order, not authoring order. */
+                className={`mt-0.5 shrink-0 ${isActive ? 'text-accent-text' : 'text-ios-label-secondary'}`}
+              />
+
+              <span className="min-w-0 flex-1">
+                <span className={`block truncate ${isActive ? 'font-semibold text-accent-text' : 'font-normal'}`}>
+                  {t(preset.nameKey)}
+                </span>
+                {/* The hint is the whole reason a name alone was not enough:
+                    "Explanation" does not say that it writes a formal email
+                    with a root cause and a countermeasure in it. */}
+                <span className="mt-0.5 block text-[13px] font-normal leading-snug text-ios-label-secondary">
+                  {t(preset.hintKey)}
+                </span>
+              </span>
+
+              {/* iOS marks the chosen row with a checkmark. Without it the
+                  accent tint would be the only signal, and colour alone is
+                  not one (WCAG 1.4.1). */}
+              {isActive && <Check size={20} aria-hidden="true" className="mt-0.5 shrink-0 text-accent-text" />}
             </button>
           );
         })}
       </div>
 
-      {/* Subtext Note */}
-      <div className="text-center animate-in fade-in duration-300">
-         <p className="text-[12px] text-text-muted mt-1 font-medium tracking-wide">
-             {t(AUDIENCES.find(a => a.value === currentSettings.audience)?.labelKey || '')} &bull; {t(TONES.find(a => a.value === currentSettings.tone)?.labelKey || '')} &bull; {t(LENGTHS.find(a => a.value === currentSettings.length)?.labelKey || '')}
-         </p>
+      {/* --- Parameters ----------------------------------------------------
+          Real rows, in place of the single muted "audience • tone • length"
+          line that showed three of the five values and let none of them be
+          changed without discovering a long-press on the Custom button. With
+          every parameter visible and editable, that gesture — undiscoverable,
+          and with no keyboard equivalent — has nothing left to open, so both
+          it and its modal are gone. */}
+      <h3 className="ios-section-header">{t('composeOptions')}</h3>
+
+      <div className="ios-inset-group">
+        <SelectRow
+          label={t('audience')}
+          value={customParams.audience}
+          display={optionLabel(AUDIENCES, customParams.audience, t)}
+          onChange={value => setParam('audience', value as Audience)}
+        >
+          {AUDIENCES.map(o => (
+            <option key={o.value} value={o.value} className="bg-panel text-text-main">{t(o.labelKey)}</option>
+          ))}
+        </SelectRow>
+
+        <SelectRow
+          label={t('tone')}
+          value={customParams.tone}
+          display={optionLabel(TONES, customParams.tone, t)}
+          onChange={value => setParam('tone', value as Tone)}
+        >
+          {TONES.map(o => (
+            <option key={o.value} value={o.value} className="bg-panel text-text-main">{t(o.labelKey)}</option>
+          ))}
+        </SelectRow>
+
+        <SelectRow
+          label={t('length')}
+          value={customParams.length}
+          display={optionLabel(LENGTHS, customParams.length, t)}
+          onChange={value => setParam('length', value as Length)}
+        >
+          {LENGTHS.map(o => (
+            <option key={o.value} value={o.value} className="bg-panel text-text-main">{t(o.labelKey)}</option>
+          ))}
+        </SelectRow>
+
+        <SelectRow
+          label={t('format')}
+          value={customParams.format}
+          display={optionLabel(FORMATS, customParams.format, t)}
+          onChange={value => setParam('format', value as Format)}
+        >
+          {FORMATS.map(o => (
+            <option key={o.value} value={o.value} className="bg-panel text-text-main">{t(o.labelKey)}</option>
+          ))}
+        </SelectRow>
+
+        <SelectRow
+          label={t('language')}
+          value={customParams.lang}
+          display={`${LANGUAGE_FLAGS[customParams.lang] ?? ''} ${customParams.lang}`}
+          onChange={value => setParam('lang', value as Language)}
+        >
+          {ALLOWED_VALUES.lang.map(l => (
+            <option key={l} value={l} className="bg-panel text-text-main">{LANGUAGE_FLAGS[l]} {l}</option>
+          ))}
+        </SelectRow>
       </div>
 
-      {/* Language Selection */}
-      <div className="mt-3">
-        <label className="text-[11px] font-medium tracking-widest text-slate-400 uppercase px-1">{t('language')}</label>
-        <div className="relative inline-block w-full">
-          <div className="flex items-center gap-1 text-xs font-semibold text-accent bg-accent/10 px-4 py-3 rounded-xl pointer-events-none w-full justify-between border border-border-main">
-            <span className="text-text-main">{LANGUAGE_FLAGS[customParams.lang]} {customParams.lang}</span>
-            <ChevronDown size={16} className="text-muted"/>
-          </div>
-          <select 
-            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-20"
-            value={customParams.lang}
-            onChange={e => onUpdateCustomParams({ lang: e.target.value as Language })}
-          >
-            {LANGUAGES.filter(l => l !== 'Auto').map(l => <option key={l} value={l} className="bg-panel text-text-main">{LANGUAGE_FLAGS[l]} {l}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* Custom Parameters Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-panel border border-border-main rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center p-4 border-b border-border-main">
-              <h3 className="font-semibold text-text-main text-lg">Cấu hình Tùy chỉnh (Custom)</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-text-muted hover:text-red-500 transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="p-4 space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('audience')}</label>
-                <select 
-                  className="ios-select"
-                  value={localCustom.audience}
-                  onChange={e => setLocalCustom({ ...localCustom, audience: e.target.value as Audience })}
-                >
-                  {AUDIENCES.map(a => <option key={a.value} value={a.value}>{t(a.labelKey)}</option>)}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('tone')}</label>
-                <select 
-                  className="ios-select"
-                  value={localCustom.tone}
-                  onChange={e => setLocalCustom({ ...localCustom, tone: e.target.value as Tone })}
-                >
-                  {TONES.map(to => <option key={to.value} value={to.value}>{t(to.labelKey)}</option>)}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">Độ dài (Length)</label>
-                <select 
-                  className="ios-select"
-                  value={localCustom.length}
-                  onChange={e => setLocalCustom({ ...localCustom, length: e.target.value as Length })}
-                >
-                  {LENGTHS.map(l => <option key={l.value} value={l.value}>{t(l.labelKey)}</option>)}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-medium tracking-widest text-slate-400 uppercase">{t('format')}</label>
-                <select 
-                  className="ios-select"
-                  value={localCustom.format}
-                  onChange={e => setLocalCustom({ ...localCustom, format: e.target.value as Format })}
-                >
-                  {FORMATS.map(f => <option key={f.value} value={f.value}>{t(f.labelKey)}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div className="p-4 border-t border-border-main bg-surface/50 flex justify-end gap-3">
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-text-main hover:bg-slate-500/10 transition-colors font-medium"
-              >
-                Hủy
-              </button>
-              <button 
-                onClick={handleSaveCustom}
-                className="px-4 py-2 bg-accent text-accent-on rounded-xl hover:bg-accent/90 transition-colors font-medium shadow-md shadow-accent/20"
-              >
-                Lưu & Áp dụng
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Says out loud what the two groups do to each other, which nothing in
+          the old strip did: the preset wrote the parameters, editing one wrote
+          back "Custom", and neither direction was visible. */}
+      <p className="ios-section-footer">{t('composeOptionsHint')}</p>
     </div>
   );
 };

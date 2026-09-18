@@ -1,12 +1,14 @@
 # Session memory
 
-Two `/batch` runs are recorded here.
+Three `/batch` runs are recorded here.
 
 - **§§0–6 — iOS Settings redesign + swipe tab navigation.** From the run that
   landed PRs #5–#17 and merged them as #18 (`617c7d0`). Line numbers are as of
   #18 and have drifted since; grep rather than trusting them.
 - **§7 — Translate upgrade.** From the run on `claude/laughing-ptolemy-b659m5`
   (`965f0e1`…`c4cbbca`). Line numbers are as of `c4cbbca`.
+- **§8 — Compose upgrade.** From the run on `claude/busy-rubin-0ouq06`
+  (`61d0d40`…`6de0d7e`, PR #22). Line numbers are as of `6de0d7e`.
 
 Everything below was found by agents that actually read or ran the code, so it
 can be trusted without re-scanning.
@@ -428,3 +430,179 @@ Decisions worth not re-deriving:
   by brace matching, extract `t('…')` call sites from the component, and assert
   every key resolves in all four. Both UI units passed on the first try this
   way, against twelve keys reaching the screen as raw identifiers last time.
+
+---
+
+## 8. Compose upgrade — `61d0d40`…`6de0d7e`
+
+Nine commits on `claude/busy-rubin-0ouq06` (PR #22), seven planned units plus
+two follow-up fixes. Everything in §8 is **done**, not a to-do list; the open
+items are collected in §8.5. Line numbers are as of `6de0d7e`.
+
+The brief was three things: an iOS-standard Compose UI on both layouts, remove
+the link-context feature, and make the preset prompts produce specialized
+output.
+
+### 8.1 Link context was load-bearing for nothing
+
+The toggle pulled the last translation into the compose prompt and also sent a
+`structuredSummary`. **That summary was never populated** —
+`extractStructuredSummary` was a stub returning metadata only, and `/compose`
+did not read the field at all. So the feature's entire contribution to the
+request was `contextText`, and removing it left a chain nothing else touched:
+`context` state in App, `handleExtract`, four `storage` accessors, the
+`ConversationContext` and 90-line `StructuredSummary` types,
+`AppState.structuredSummary`, `lastOutputs.contextSource`, Translate's
+`setContext` writes, and 19 i18n keys across all four dictionaries. All gone;
+a sweep for each symbol now returns zero.
+
+Two traps that removal sprang:
+
+- Dropping `sra_context` / `sra_structured_summary` from `STORAGE_KEYS` also
+  drops them from anything that enumerates it. Reset App is a blanket
+  `localStorage.clear()` so a reset would still catch them, but nobody resets a
+  working install, and `sra_context` holds a whole source-plus-translation pair
+  in the quota saved wallpapers live inline in.
+  `storage.dropRetiredContextKeys()` sweeps both at startup, fire-and-forget.
+- `getLastOutputs` spreads what it reads into every later write, so an upgraded
+  install would have re-persisted the dead `contextSource` field forever. It is
+  dropped on read, and a value that failed to parse now reaches the default
+  instead of being spread (`adapter.get` hands back the raw string on a parse
+  failure).
+
+### 8.2 The presets had no contract, and `goal` was an accident
+
+`CORE_PRESETS` entries carried a hardcoded Vietnamese `name` and nothing else;
+the goal token on the wire was built by upper-casing the first letter of `id`
+in two separate places, which made an internal identifier the API contract.
+Entries now carry `goal: ComposeGoal`, `nameKey`, `hintKey`, and `presetById()`
+replaces two hand-rolled `.find()`s — one of which fell back to
+`CORE_PRESETS[5]`, "custom" only until somebody reordered the array.
+
+**`ComposeGoal`'s six tokens are an API contract with `/api/compose`.** The
+server matches them exactly to pick a document shape; a value that drifts
+silently downgrades the preset to the generic branch.
+
+### 8.3 One prompt for five presets
+
+`/compose` built a pseudo-XML `Industrial_Proxy_Writer` block whose only
+per-preset logic was three lines covering Remind, Consult and Announce. Report
+and Explain had none, which is why every preset came back reading the same. It
+is now `buildComposeSystemPrompt()` — exported and pure, like
+`buildTranslateSystemPrompt`, so the matrix is assertable without an API key —
+built from five independent tables: `GOAL_CONTRACTS`, `FORMAT_SHAPES`,
+`LENGTH_BUDGETS`, `AUDIENCE_REGISTERS`, `TONE_LINES`.
+
+Decisions worth not re-deriving:
+
+- **Nothing but `GOAL_CONTRACTS` reads `goal`.** The branch this replaced keyed
+  its "technical guide" layout off `goal.includes('explain')` as well as the
+  format, so picking Explain silently overrode the user's format choice. The
+  matrix asserts the `DOCUMENT SHAPE` block is byte-identical across all six
+  goals at a given format.
+- **The email branch emits a bare `Subject:` line.** `useComposeTab` peels line
+  1 off with `startsWith('subject:')` and only for `formal_email`, so the old
+  bolded `**Subject:**` never matched and was shown to the sender as body text.
+- **A table lookup must check `hasOwnProperty`.** `FORMAT_SHAPES['toString']`
+  resolves `Object.prototype.toString`, so `?? fallback` never fires and the
+  prompt ships `function toString() { [native code] }` as its document shape —
+  reachable from any unauthenticated POST, since `params` is `any`. The value
+  is re-checked too: the aliases assign one entry from another, so renaming a
+  canonical key leaves an own property worth `undefined`.
+- Lengths are 60-110 / 130-220 / 280-420 words, replacing a flat `Max 200
+  words` that applied to every combination.
+- **The alias block stays** (`AUDIENCE_REGISTERS.management`,
+  `FORMAT_SHAPES.bullet_points`, …) even though §8.4 fixed the source. This is
+  a PWA: a client cached from before that commit keeps sending the old values.
+
+### 8.4 UI, and the enum drift behind it
+
+Both layouts are on the `.ios-*` vocabulary now, and `PresetGrid` is shared
+between them rather than desktop keeping its own preset bar and modal.
+
+- **The desktop modal's `<option>` values were hand-written and `as`-cast**, so
+  `management`, `team`, `external`, `friendly`, `direct`, `diplomatic` and
+  `bullet_points` passed `tsc` while matching no entry anywhere. At the server
+  they fell through to the generic branch; in `PresetGrid`'s select rows they
+  render blank. Driving both layouts off one component is what stops this
+  recurring — there is now exactly one list of options.
+- **Six icon-only segments do not fit 390px.** Each got ~55px and no room for a
+  name, so the only clue to a preset's purpose was a `title` a thumb cannot
+  reach. One row per preset, with its hint and a checkmark (colour alone is not
+  a state signal, WCAG 1.4.1).
+- **`handleSaveCustom` discarded the user's choice.** It handed the parent the
+  stock Custom entry, whose `settings` the parent then applied over the four
+  values just chosen. Harmless while every preset shared one default; not once
+  each token drives a distinct register, budget and shape.
+- **`loading` is App-wide.** Compose's "Composing…" badge and spinner fired
+  during a *translation* in another tab. Both layouts read a per-tab
+  `isComposing`; the Generate button's disabled gate stays on the shared flag,
+  which is what it correctly describes.
+- **The desktop primary action scrolled away.** With the whole left column
+  scrolling, the preset list pushed Generate below the fold at 1440x900. The
+  pane is a flex column; only the section stack scrolls.
+- The cache key tracked language, tone and goal but not format, audience or
+  length, so recomposing as a formal email replayed the Zalo message cached a
+  moment earlier. It now joins every parameter on a unit separator — a typed
+  requirement contains dashes, and "a-b" + "c" must not key the same as
+  "a" + "b-c".
+- A 200 carrying no reply reached `result.toLowerCase()` and threw, so the user
+  saw a TypeError; `onChunk` had already appended the literal string
+  "undefined" to the output. Both guarded.
+
+### 8.5 Still open
+
+- **No prompt in this batch has been sent to a live model.** `OPENAI_API_KEY`
+  is unset AND **the egress proxy blocks `api.openai.com`** — with a dummy key
+  the route returns `403 Host not in allowlist`. So this is not "no key is
+  set": live verification is impossible in this environment *even with a real
+  key*. Whether the six contracts produce six visibly different documents is
+  asserted at the prompt level only.
+- Real iOS Safari, real touch hardware and screen readers remain unmeasured, as
+  §5 and §7.4 already say. The recording row and the mic's active state need a
+  real `SpeechRecognition` session, which headless Chromium has none of;
+  `navigator.share` falls back to copy in the harness.
+- **`#006D77` is still hardcoded in three files outside Compose**:
+  `LayoutMobile.tsx:164`, `VocabManagerMobile.tsx` (5 sites) and
+  `HistoryTabMobile.tsx:52`. They ignore all four palettes. Pre-existing and
+  out of this batch's scope.
+- Two chrome controls are under the 44px touch floor: the install banner's
+  close (18px, `InstallBanner.tsx:25`) and the toast close (24px,
+  `LayoutMobile.tsx:169`).
+- `src/App.tsx` carries `className="h-full"` on the compose `TabPage` where
+  translate has none. Tested on mobile and it does **not** reproduce a
+  clearance bug (48px clear at scroll end); left alone deliberately.
+
+### 8.6 Working notes that cost time
+
+- **`node_modules` survived a container restart; the scratchpad did too.** §6's
+  claim that the scratchpad does not survive was not true of a restart — only
+  of a new session. Commits already pushed are the only thing guaranteed safe.
+- **Commit before verifying, not after.** Three agents in this batch were
+  killed mid-verification — two by a session rate limit, one by a container
+  restart. In every case the code on disk was complete and correct; finishing
+  the verify-and-commit steps directly was far cheaper than respawning. §7.5
+  said this already; it cost time again anyway.
+- **A script outside the repo cannot resolve `playwright` by ESM name.**
+  Symlink `node_modules` beside it.
+- **Scope every Playwright locator with `:visible`.** Every tab stays mounted
+  under `display: none`, so a bare `textarea` finds Translate's and a bare
+  `.grid-cols-2` finds its pane. This wasted a run twice.
+- **Dismiss the install banner by `div.fixed.top-4.left-4.right-4`**, not by
+  `z-[9999]` — `FloatingAssistant`'s drag bubble shares that z-index, and
+  clicking it opens a full-screen overlay that swallows every nav tap. Its
+  close button is icon-only, so a label-based lookup misses it.
+- The mobile Compose nav button's accessible name is **"Smart Compose"**; the
+  desktop rail's is `button[title="Compose"]`.
+- **Seed `app_user_preferences`, not `sra_theme`**, to pick a palette — the
+  latter is the legacy key, migrated away in v2.13.
+- An i18n-audit regex must match **single-quoted, double-quoted and bare** keys;
+  the dictionaries mix all three, and matching two of them reports false
+  misses (`model.capability.*`).
+- **`--accent` is `#006D77` in both the light and dark palettes.** An assertion
+  that a tokenized button "is not rgb(0,109,119)" therefore fails on correct
+  code; assert the source has no literal, and that the fill changes across
+  palettes.
+- **Do not run `npx prettier` on this repo.** There is no prettier config, the
+  code is single-quoted, and prettier rewrites a whole file to double quotes —
+  a 10-line change became a 300-line diff.

@@ -405,99 +405,281 @@ router.post('/talk', async (req, res) => {
   }
 });
 
+/**
+ * src/constants.ts's ComposeGoal, redeclared because the server bundle
+ * imports from shared/ and never from src/. The two lists are hand-synced
+ * and the drift is silent in the worst way: `params.goal` on the wire is one
+ * of these strings verbatim, so a token added to ComposeGoal but not here
+ * fails no build — it just downgrades that preset to the Custom (shapeless)
+ * branch. The cure is to move the union into shared/, next to
+ * vocabNormalize; until someone does, add to both.
+ */
+type ComposeGoalToken = 'Report' | 'Explain' | 'Remind' | 'Consult' | 'Announce' | 'Custom';
+
+const COMPOSE_GOAL_TOKENS: ComposeGoalToken[] = ['Report', 'Explain', 'Remind', 'Consult', 'Announce', 'Custom'];
+
+/**
+ * The six goal contracts: what the message opens on, what it must carry,
+ * what it closes on, and what it must not do.
+ *
+ * Each goal gets a whole document contract because the two-token hints these
+ * replace (`IF {Goal == "Remind"} -> Start: [Urgent_Hook] | End:
+ * [Action_Deadline]`) covered only Remind, Consult and Announce — Report and
+ * Explain had no per-goal logic at all, which is why every preset came back
+ * reading the same. The shapes are deliberately non-overlapping: a Report
+ * that closes on a preventive-action owner, or a Consult that hands over its
+ * own answer, means the goal axis is not landing and the presets have
+ * collapsed back into one.
+ */
+const GOAL_CONTRACTS: Record<ComposeGoalToken, string> = {
+  Report: `GOAL — DEFECT / INCIDENT ESCALATION.
+Open the very first sentence on what is wrong and where: the production line, the model or article name, and the item code. No pleasantry before it. State the quantity affected and when it was found (date, shift or time) as facts in their own right. Close by naming the decision or the support you need from the reader — approval to hold the lot, rework manpower, a material substitution, a schedule change — so the reader knows what is being asked of them. Do NOT close on an apology. Do NOT speculate about blame: no named culprit, no guessed cause, no "probably because". Facts and the ask only.`,
+
+  Explain: `GOAL — ROOT-CAUSE ACCOUNT.
+Carry these four moves, in this order, each clearly separated: (1) what happened, stated as the reader observed it; (2) WHY it happened — the actual mechanism, such as a machine setting, a material lot, a skipped inspection step or a tooling wear limit, never the symptom restated in other words; (3) the containment already in place to stop the escape; (4) the preventive action, with a named owner and a concrete date. Do NOT minimise — "minor", "only a few pairs", "no real impact" are not available to you. Do NOT promise a guarantee, a yield figure or a delivery date that the note does not state.`,
+
+  Remind: `GOAL — FOLLOW-UP ON SOMETHING ALREADY AGREED.
+One subject only: if the note raises several open items, follow up on the single most time-critical one and drop the rest. Name the deadline and name the responsible person, by name or by role. If the note supplies neither, ask the recipient for the missing one explicitly, in a single clause — never invent a date and never guess who owns it. Do NOT re-explain the background: one short reference to what was agreed ("as agreed on Monday") is the maximum, then go straight to the ask.`,
+
+  Consult: `GOAL — REQUEST FOR EXPERT JUDGEMENT.
+Give the technical context compactly first — the process step, the material or machine, the parameters already tried and what each of them produced — then ask exactly ONE specific, answerable question. Do NOT ask an open "any advice?" or "what do you think?": a question that cannot be answered with a number, a setting or a yes/no is a failed output. You may offer your own hypothesis, but only as one option for the expert to confirm or reject — never as a settled conclusion, and never in place of the question.`,
+
+  Announce: `GOAL — DIRECTIVE TO THE FLOOR OR A DEPARTMENT.
+State what changes, the exact date or shift it takes effect from, and who it applies to — which lines, which departments, which shifts. Close on the action required of the reader and on where to raise a problem: a named person, role or channel. Do NOT write it as a request or a proposal; no "could you please", no "if possible", no asking for agreement. Do NOT leave the effective date vague — "soon", "as early as possible" and "in the coming days" are not acceptable. If the note gives no date, say the effective date will be confirmed and name who will confirm it.`,
+
+  Custom: `GOAL — none. Impose no document shape of your own: do not add an escalation, a root cause, a deadline, a question or a directive that the note did not ask for. Follow the audience, tone, length and document-shape instructions alone, and keep the note's own moves in the note's own order.`
+};
+
+/**
+ * The format axis: the message's shape, independent of the goal above.
+ *
+ * Kept strictly separate because the branch this replaces keyed the
+ * "technical guide" layout off `goal.includes('explain')` as well as off the
+ * format, so picking the Explain preset silently overrode whatever document
+ * shape the user had chosen. Goal decides the content and the moves; format
+ * decides the packaging, and nothing else may touch it.
+ *
+ * The email branch's leading subject line is load-bearing, not decoration:
+ * useComposeTab.ts peels line 1 off into its own Subject field, and only
+ * when `format === 'formal_email'`. It matches a bare `subject:` prefix, so
+ * the bolded `**Subject:**` this used to ask for never matched and the
+ * marker was shown to the sender as part of the body.
+ */
+const FORMAT_SHAPES: Record<string, string> = {
+  formal_email: `DOCUMENT SHAPE — FORMAL EMAIL.
+Line 1 of your output MUST be the subject line, in exactly this form and with nothing whatsoever before it — no bold markers, no quotes, no leading spaces:
+Subject: <a concise, specific subject in the target language>
+Then a blank line, a salutation matched to the audience, body paragraphs separated by blank lines, and a professional closing with a sign-off. The subject line and the sign-off do not count against the length budget.`,
+
+  action_list: `DOCUMENT SHAPE — ACTION LIST.
+Do NOT write a subject line, and do NOT write a salutation or a sign-off. One short framing sentence, then the content as a numbered or bulleted list: one action per item, each carrying its owner and its deadline where the note supplies them. After the last item, add nothing but the single closing line the goal contract calls for, if it calls for one.`,
+
+  wechat_zalo: `DOCUMENT SHAPE — GROUP-CHAT MESSAGE (WeChat / Zalo).
+Do NOT write a subject line, a salutation block or a sign-off. Write one message a supervisor can take in on a phone in a few seconds: at most three short paragraphs, or short bullets where the content really is a list. Prefer a line break to a long sentence.`
+};
+
+/**
+ * Word budgets per length. Every combination used to share one flat
+ * `Max 200 words` cap, which made the length control decorative — and made
+ * the detailed presets (Explain writes to a brand client) cut off mid
+ * root-cause. The three ranges do not overlap so the setting is visible in
+ * the output.
+ */
+const LENGTH_BUDGETS: Record<string, string> = {
+  short: 'LENGTH: 60-110 words. One idea per sentence. Cut every word that is not a fact, a number, a name or an instruction.',
+  standard: 'LENGTH: 130-220 words. Enough room for the full goal contract and nothing beyond it — no restating, no closing summary paragraph.',
+  detailed: 'LENGTH: 280-420 words. Spend the room on specifics — parameters, quantities, dates, named owners — never on filler, on background the reader already has, or on the same point made twice in different words.'
+};
+
+/**
+ * Register per audience. A brand client, a director, a peer department, a
+ * line worker and an outside expert are five different registers; the prompt
+ * this replaces passed the raw token through and left the model to guess,
+ * so every audience came out in the same mid-formal voice.
+ */
+const AUDIENCE_REGISTERS: Record<string, string> = {
+  brand_client: 'AUDIENCE: a brand customer outside the company (adidas and the like). Full formal register, with the honorifics the target language uses towards a customer. Speak as the factory ("we"), never as an aggrieved individual. No internal shorthand — line nicknames, internal department codes, floor slang for a defect — unless you spell it out. Never name another customer, another order or another factory, and never blame a named person inside our own organisation.',
+  top_management: 'AUDIENCE: our own senior management — a director, GM or plant head. Conclusion first, supporting facts second: they decide, they do not need the process explained to them. Respectful but compact. Numbers, dates, and the decision you need from them; no tutorial, no padding.',
+  cross_dept: 'AUDIENCE: a peer department (QA, IE, Planning, Warehouse, Purchasing). Colleague to colleague: plain "we" and "you", no deference and no commanding. Say what you need from them and what you will do on your own side.',
+  subordinates: 'AUDIENCE: line leaders and operators on the floor. Short sentences and concrete verbs. Use the shop-floor word the target language actually uses, not a management abstraction and not an untranslated English loanword. Say exactly what to do, in what order, and by when.',
+  expert: 'AUDIENCE: an outside specialist or consultant. Peer-to-peer technical register: exact parameter names with their units, no explanation of basics they already know, no sales or PR gloss, and no deference so thick it buries the question.'
+};
+
+const TONE_LINES: Record<string, string> = {
+  professional: 'TONE: neutral and professional. Factual, with no emotional colouring in either direction.',
+  strict_urgent: 'TONE: strict and urgent. The time pressure must be audible in the first sentence. No hedging ("maybe", "a bit", "when convenient") and no softening of the deadline. Firm, but never rude and never accusatory.',
+  collaborative: 'TONE: collaborative. Frame it as a shared problem with a shared fix: acknowledge the other side\'s constraint in one clause, then state your part and theirs.',
+  persuasive: 'TONE: persuasive. Lead with the reason this reader should care — their risk, their cost, their delivery date — and back every claim with a fact taken from the note, never with pressure or flattery.',
+  humble: 'TONE: humble and deferential. Modest phrasing and the target language\'s polite forms — but do not go vague with it: the facts, the numbers and the ask stay exactly as concrete as they would be in any other tone.'
+};
+
+/**
+ * The desktop custom-settings modal's <select> values are cast
+ * `as Audience` / `as Tone` / `as Format` (src/components/ComposeTabDesktop.tsx),
+ * so seven spellings that match no enum in src/types.ts reach this route and
+ * would drop straight through to the fallbacks. Aliased onto the nearest
+ * real entry because the fallbacks are actively wrong here: unmapped,
+ * 'management' drew the peer-department register ("colleague to colleague,
+ * no deference") for a message to the plant head, and 'bullet_points' made
+ * the action-list shape unreachable from desktop altogether. The modal's own
+ * values are what want fixing — this keeps the wire honest meanwhile.
+ */
+AUDIENCE_REGISTERS.management = AUDIENCE_REGISTERS.top_management;
+AUDIENCE_REGISTERS.team = AUDIENCE_REGISTERS.subordinates;
+AUDIENCE_REGISTERS.external = AUDIENCE_REGISTERS.brand_client;
+TONE_LINES.friendly = TONE_LINES.collaborative;
+TONE_LINES.direct = TONE_LINES.professional;
+TONE_LINES.diplomatic = TONE_LINES.humble;
+FORMAT_SHAPES.bullet_points = FORMAT_SHAPES.action_list;
+
+/**
+ * A table lookup that counts only the table's own keys as a hit.
+ * `FORMAT_SHAPES['toString']` resolves Object.prototype.toString rather than
+ * undefined, so a plain `?? fallback` never fires for it and the prompt goes
+ * out with "function toString() { [native code] }" as its document shape.
+ * Every key here arrives on `req.body.params`, which is `any` on an
+ * unauthenticated route, so 'constructor' and '__proto__' are reachable too.
+ * The value is re-checked as well as the key, because the aliases above
+ * assign one entry from another: rename a canonical key and the alias holds
+ * an own property worth `undefined`, which passes a key-only guard and
+ * interpolates the word "undefined" into the prompt.
+ */
+function pickInstruction(table: Record<string, string>, key: unknown, fallback: string): string {
+  const k = String(key ?? '').trim();
+  const hit = Object.prototype.hasOwnProperty.call(table, k) ? table[k] : undefined;
+  return typeof hit === 'string' && hit.length > 0 ? hit : fallback;
+}
+
+/** What the Compose tab puts on the wire, one field per control (src/constants.ts). */
+export interface ComposePromptInput {
+  /**
+   * A ComposeGoal token ('Report' … 'Custom'). Matched case-insensitively
+   * and falling back to Custom, because a client cached from before the goal
+   * tokens existed sends the lower-cased preset id — or, older still,
+   * nothing at all — and an unmatched goal must degrade to "no shape
+   * imposed" rather than to an empty branch.
+   */
+  goal?: string;
+  audience?: string;
+  tone?: string;
+  length?: string;
+  format?: string;
+  lang: string;
+  /** The client's pre-built `[{term, translation}]` JSON string, or '' / undefined for none — see src/services/glossary.ts. */
+  glossary?: string;
+}
+
+/**
+ * Builds /compose's system prompt. Pure and exported for the same reason
+ * buildTranslateSystemPrompt above is: the goal x format x language x length
+ * matrix has to be assertable without an OPENAI_API_KEY or an HTTP request
+ * (see repo memory.md §6).
+ *
+ * Prose to a model rather than the pseudo-XML block it replaces
+ * (`ROLE: Industrial_Proxy_Writer`, `<transformation_logic>`,
+ * `<mandatory_workflow>`): the tag soup read as a schema the model was meant
+ * to fill rather than as instructions, and its `<execution_flow>` still told
+ * the model to detect intent from "Context + Requirements" long after the
+ * context plumbing was removed — an instruction to weigh something that is
+ * never sent, next to a constraint forbidding it to ask about it.
+ */
+export function buildComposeSystemPrompt(input: ComposePromptInput): string {
+  // Defensive rather than trusting the declared types: every field here comes
+  // straight off `req.body.params`, which is `any`, and an old client can
+  // omit any of them. Falling back to the Custom preset's own defaults keeps
+  // a partial body producing a sane message instead of "Write in undefined".
+  const { mappedLang, scriptRule } = resolveLanguage(String(input.lang ?? '').trim() || 'English');
+
+  const goalKey = String(input.goal ?? '').trim().toLowerCase();
+  const goal = COMPOSE_GOAL_TOKENS.find(token => token.toLowerCase() === goalKey) ?? 'Custom';
+
+  const formatShape = pickInstruction(FORMAT_SHAPES, input.format, FORMAT_SHAPES.wechat_zalo);
+  const lengthBudget = pickInstruction(LENGTH_BUDGETS, input.length, LENGTH_BUDGETS.standard);
+  const audienceRegister = pickInstruction(AUDIENCE_REGISTERS, input.audience, AUDIENCE_REGISTERS.cross_dept);
+  const toneLine = pickInstruction(TONE_LINES, input.tone, TONE_LINES.professional);
+
+  // Omitted entirely when empty, not stubbed with "No specific glossary
+  // provided.": a placeholder still reads as a section the model should
+  // reason about, and '[]' is what the client sends when nothing matched.
+  const glossaryText = (input.glossary ?? '').trim();
+  const hasGlossary = glossaryText.length > 0 && glossaryText !== '[]';
+  const glossarySection = hasGlossary
+    ? `\n\nGLOSSARY — mandatory term overrides (JSON array of {term, translation} pairs matched against the sender's note):
+${glossaryText}
+These translations are REQUIRED and override your own default wording. A \`term\` still applies when it appears inflected, pluralised, capitalised differently, or embedded inside a longer compound word or phrase — recognise it in any of those forms and use the paired \`translation\` verbatim. Do not substitute a synonym, and do not skip a term because its surface form does not match the entry exactly.`
+    : '';
+
+  // The glossary rule is dropped, not left pointing at nothing, when no
+  // glossary came through: a numbered rule citing a section that is absent
+  // from the prompt invites the model to reconstruct one, which is the same
+  // failure as the "No specific glossary provided." stub above but harder to
+  // spot. Numbering is derived so the list stays contiguous either way.
+  const rules = [
+    'You are the sender, writing in their first person. The output IS the message, addressed to the reader described under AUDIENCE. Never address the sender, never acknowledge or restate their note, never offer them variants or ask them to choose. Where a goal contract tells you to ask for a missing fact, that question is addressed to the recipient, inside the message.',
+    'Model numbers, article and item codes, machine and mould IDs, brand names and "@name" mentions are copied exactly as written — never translated, transliterated or reformatted. Numeric measurements and their units (mm, kg, %, pairs, pcs, °C, times) are copied exactly; only the quantifier words around them are written in the target language.',
+    'Invent nothing. No quantity, date, person, cause, root cause or commitment that the note does not contain. Where a goal contract needs a fact the note does not supply, either ask the recipient for it or leave a visible blank for the sender to fill — never fill it yourself with a plausible-looking value.',
+    ...(hasGlossary ? ['Any term matching a GLOSSARY entry is mandatory-overridden by that entry (see GLOSSARY below for the full contract, including inflected and compound forms).'] : []),
+    'Use bold (`**...**`) only on the load-bearing details a reader must not miss — line numbers, item codes, quantities, deadlines, the person responsible. Bolding a whole paragraph bolds nothing.'
+  ];
+  const rulesBlock = rules.map((rule, i) => `${i + 1}. ${rule}`).join('\n');
+
+  return `ROLE: You are the ghostwriter for a production and quality manager at a Vietnamese footwear factory. They hand you a rough note — typed in a hurry, in whatever language came to hand — and you return the finished message they will send. It goes out as-is, with no editing.
+
+TARGET LANGUAGE: Write the entire message in ${mappedLang}. Zero leakage of the language the note happens to be written in: no stray source-language word, no parenthetical original, no bilingual gloss.${scriptRule ? `\n${scriptRule}` : ''}
+
+${audienceRegister}
+
+${toneLine}
+
+${lengthBudget}
+
+${GOAL_CONTRACTS[goal]}
+
+${formatShape}
+
+RULES (in order; each governs its own, non-overlapping category):
+${rulesBlock}${glossarySection}
+
+OUTPUT CONTRACT: Return ONLY the finished message in ${mappedLang}, ready to paste as-is. No preamble, no sign of your reasoning, no alternatives, no labels beyond the ones DOCUMENT SHAPE requires, and no markdown code fences.`;
+}
+
 router.post('/compose', async (req, res) => {
   if (!OPENAI_API_KEY) {
     console.error("Missing OPENAI_API_KEY in environment.");
     return res.status(500).json({ error: "Server Configuration Error" });
   }
 
-  const { contextText, requirements, params, glossary } = req.body;
+  const { requirements, params, glossary } = req.body;
+
+  // Requirements are the whole user turn now that the conversation context is
+  // gone, so an empty one would send the model a system prompt and nothing to
+  // rewrite. A client cached from before that change can still post a
+  // context-only compose, which used to be legal.
+  if (!requirements || !String(requirements).trim()) {
+    return res.status(400).json({ error: "Missing requirements" });
+  }
+
   try {
-    // Same resolveLanguage() /translate uses below, rather than a second copy
-    // of this if-chain: this route used to have its own, and it disagreed
-    // with /translate's about which languages got script enforcement at all
-    // (Indonesian, Burmese and Vietnamese got none here).
-    const { mappedLang, scriptRule } = resolveLanguage(params.lang);
+    // One normalisation of the language for both the prompt and the log row.
+    // resolveLanguage() is the same one /translate uses above rather than a
+    // second copy of that if-chain: this route used to have its own and it
+    // disagreed with /translate's about which languages got script
+    // enforcement at all (Indonesian, Burmese and Vietnamese got none here).
+    // Only the display name is wanted out here — buildComposeSystemPrompt
+    // resolves the script rule it needs itself.
+    const lang = String(params?.lang ?? '').trim() || 'English';
+    const { mappedLang } = resolveLanguage(lang);
 
-    const scriptEnforcement = scriptRule ? `\n  SCRIPT_ENFORCEMENT: ${scriptRule}` : '';
+    const systemPrompt = buildComposeSystemPrompt({
+      goal: params?.goal,
+      audience: params?.audience,
+      tone: params?.tone,
+      length: params?.length,
+      format: params?.format,
+      lang,
+      glossary
+    });
 
-    let structureInstruction = '';
-    const formatStr = (params.format || '').toLowerCase();
-    const goalStr = (params.goal || '').toLowerCase();
-
-    if (formatStr.includes('email')) {
-      structureInstruction = `
-<structure_instruction>
-  You MUST format the output as a Formal Email using Markdown. DO NOT wrap the output in \`\`\`markdown ... \`\`\` code blocks:
-  1. Subject Line: Must start with a clear, bolded subject line (e.g., **Subject:** [Concise, professional title in Target Language]).
-  2. Salutation: Include a formal opening greeting appropriate for the audience (e.g., Supervisor, Partner, Board of Directors).
-  3. Body paragraphs: Separate ideas clearly with line breaks. Use bold text (**...**) for key information (metrics, deadlines, item codes) and bullet points (- ) for specific actions/SOPs.
-  4. Sign-off: Conclude with a professional closing and sign-off (e.g., Best regards, / 祝好, / Trân trọng,).
-</structure_instruction>`;
-    } else if (goalStr.includes('explain') || goalStr.includes('guide') || formatStr.includes('action_list') || goalStr.includes('technical')) {
-      structureInstruction = `
-<structure_instruction>
-  You MUST format the output as a Technical Guide/Explanation using Markdown. DO NOT wrap the output in \`\`\`markdown ... \`\`\` code blocks:
-  1. Divide the layout using small headers (e.g., ### 📌 Vấn đề kỹ thuật, ### 🛠️ Giải pháp thực hiện).
-  2. Use bold (**...**) for core technical specifications and metrics.
-  3. Keep the layout organized and structured for factory floor scanning.
-</structure_instruction>`;
-    } else {
-      structureInstruction = `
-<structure_instruction>
-  You MUST format the output as a concise Internal Message using Markdown. DO NOT wrap the output in \`\`\`markdown ... \`\`\` code blocks:
-  1. Use clear line breaks for readability.
-  2. Use bullet points (- ) for lists or action items.
-  3. Bold (**...**) critical information such as error codes, line numbers, or Person-In-Charge (PIC) names so they can be grasped in 3 seconds.
-</structure_instruction>`;
-    }
-
-    const systemPrompt = `<system_context>
-  ROLE: Industrial_Proxy_Writer
-  DOMAIN: Factory_Operations
-  MODE: Ghostwriting (1st_person_perspective)
-</system_context>
-
-<constraints>
-  STRICT_LANG: ${mappedLang} !!IMPORTANT: 0% source language leakage.
-  NO_REPLY: Never respond to user. Rewrite ONLY.
-  FORMAT: Clean_text_only. No explanations.${scriptEnforcement}
-</constraints>
-
-<transformation_logic>
-  IF {Goal == "Remind"} -> Start: [Urgent_Hook] | End: [Action_Deadline]
-  IF {Goal == "Consult"} -> Style: [Inquiry] | End: [Specific_Question_For_Feedback]
-  IF {Goal == "Announce"} -> Style: [Formal_Directive] | End: [Strict_Implementation_Order]
-</transformation_logic>
-
-<parameters>
-  TARGET: ${mappedLang}
-  AUDIENCE: ${params.audience}
-  TONE: ${params.tone}
-  LENGTH: ${params.length}
-  FORMAT: ${params.format}
-  GOAL: ${params.goal || 'Custom'}
-</parameters>
-
-<glossary_injection>
-  ${glossary || 'No specific glossary provided.'}
-</glossary_injection>
-
-<mandatory_workflow>
-  STEP_1: IDENTIFY [Target_Language] (${mappedLang})
-  STEP_2: TRANSLATE user_intent 100% into [Target_Language]
-  STEP_3: APPLY [Goal] and [Tone] logic using ONLY [Target_Language]
-  !CRITICAL: If [Target_Language] is ${mappedLang}, every single word in Output must be ${mappedLang}.
-</mandatory_workflow>
-
-<execution_flow>
-  1. Detect [Input_Intent] (Context + Requirements)
-  2. Follow <mandatory_workflow>
-  3. Apply [Tone] & [Audience] honorifics
-  4. Return Final_Message (Max 200 words. No filler.)
-</execution_flow>
-${structureInstruction}`;
-    
     const targetModel = req.body.model || APP_ENGINE_ID;
     const response = await createChatCompletion(
       getOpenAI(),
@@ -505,7 +687,7 @@ ${structureInstruction}`;
         model: targetModel,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `${contextText}\n${requirements}` }
+          { role: 'user', content: requirements }
         ],
       },
       tuningFor(targetModel, 'compose')
@@ -516,7 +698,7 @@ ${structureInstruction}`;
     // Non-blocking log to Supabase
     logToSupabase({
       task_type: 'compose',
-      input_text: `${contextText}\n${requirements}`,
+      input_text: requirements,
       output_text: outputText,
       from_lang: 'auto',
       to_lang: mappedLang,

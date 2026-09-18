@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { storage } from '../services/storage';
+import { presetById } from '../constants';
 import { AIService } from '../services/ai';
 import { validateSecurity } from '../utils/security';
-import { AppState, ConversationContext, Audience, Tone, Length, Format, Language } from '../types';
+import { AppState, Audience, Tone, Length, Format, Language } from '../types';
 
 interface UseComposeTabParams {
   state: AppState;
@@ -11,10 +12,8 @@ interface UseComposeTabParams {
   t: (key: string) => string;
   showToast: (message: string, type?: 'info' | 'error' | 'success') => void;
   activeTab: string;
-  context: ConversationContext | null;
   stopSpeaking: () => void;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  handleExtract: (text: string, sourceLang: string, contextSource: 'original' | 'translated') => Promise<any>;
   transcript: string;
   setTranscript: React.Dispatch<React.SetStateAction<string>>;
 }
@@ -26,10 +25,8 @@ export function useComposeTab({
   t,
   showToast,
   activeTab,
-  context,
   stopSpeaking,
   setLoading,
-  handleExtract,
   transcript,
   setTranscript,
 }: UseComposeTabParams) {
@@ -42,7 +39,14 @@ export function useComposeTab({
     lang: 'English' as Language,
     format: 'wechat_zalo' as Format
   });
-  const [useContextInCompose, setUseContextInCompose] = useState(false);
+
+  /**
+   * This tab's own in-flight flag. `loading` is raised by App for any request,
+   * so a translation running in another tab lit Compose's "Composing…" badge
+   * and spinner. Both are still set — `loading` is what gates the shared
+   * Generate button — but only this one describes what Compose is doing.
+   */
+  const [isComposing, setIsComposing] = useState(false);
 
   const composeCacheRef = useRef<Map<string, string>>(new Map());
 
@@ -57,10 +61,8 @@ export function useComposeTab({
 
   const handleCompose = useCallback(async () => {
     stopSpeaking();
-    const currentContext = useContextInCompose ? context : null;
-    const hasContext = currentContext && (currentContext.sourceText || currentContext.translatedText);
 
-    if (!composeReq.trim() && !hasContext) {
+    if (!composeReq.trim()) {
       showToast(t('provideRequirements'), 'error');
       return;
     }
@@ -68,63 +70,63 @@ export function useComposeTab({
     const securityCheck = validateSecurity(composeReq);
     if (!securityCheck.isValid) {
       showToast(t(securityCheck.errorKey || 'SECURITY_FIREWALL_ERROR'), 'error');
-      setLoading(false);
       return;
     }
 
-    const goal = activePresetId === 'custom' ? 'Custom' : activePresetId.charAt(0).toUpperCase() + activePresetId.slice(1);
-    const cacheKey = `${composeReq}-${composeParams.lang}-${composeParams.tone}-${goal}`;
+    const { goal } = presetById(activePresetId);
 
-    if (composeCacheRef.current.has(cacheKey)) {
-      const cachedResult = composeCacheRef.current.get(cacheKey)!;
-      
-      let subject = '';
-      let body = cachedResult;
-      if (composeParams.format === 'formal_email' && cachedResult.toLowerCase().startsWith('subject:')) {
-        const lines = cachedResult.split('\n');
-        subject = lines[0].replace(/subject:/i, '').trim();
-        body = lines.slice(1).join('\n').trim();
-      }
+    // Every parameter that reaches the prompt has to be in the key. It used to
+    // track only language, tone and goal, so recomposing the same requirement
+    // as a formal email replayed the Zalo message cached a moment earlier —
+    // and each format now produces a genuinely different document, so the
+    // stale hit looks like the generator ignoring the picker. The separator is
+    // a unit separator rather than '-' because a typed requirement contains
+    // dashes, and "a-b" + "c" must not key the same as "a" + "b-c".
+    const cacheKey = [
+      composeReq,
+      composeParams.lang,
+      composeParams.audience,
+      composeParams.tone,
+      composeParams.length,
+      composeParams.format,
+      goal,
+    ].join('\u001f');
 
-      // Typewriter effect
-      for (let i = 0; i <= body.length; i += 2) {
-        await new Promise(resolve => setTimeout(resolve, 5));
+    // Held for the replay too, not just the request: the typewriter below runs
+    // for as long as a live stream, and with loading false the Generate button
+    // stayed enabled, so a second tap raced a second replay into the same
+    // output.
+    setLoading(true);
+    setIsComposing(true);
+    try {
+      const cachedResult = composeCacheRef.current.get(cacheKey);
+      if (cachedResult !== undefined) {
+        let subject = '';
+        let body = cachedResult;
+        if (composeParams.format === 'formal_email' && cachedResult.toLowerCase().startsWith('subject:')) {
+          const lines = cachedResult.split('\n');
+          subject = lines[0].replace(/subject:/i, '').trim();
+          body = lines.slice(1).join('\n').trim();
+        }
+
+        // Typewriter effect
+        for (let i = 0; i <= body.length; i += 2) {
+          await new Promise(resolve => setTimeout(resolve, 5));
+          setState(prev => ({ 
+            ...prev, 
+            lastOutputs: { ...prev.lastOutputs, generatedReply: body.substring(0, i), subject } 
+          }));
+        }
+
         setState(prev => ({ 
           ...prev, 
-          lastOutputs: { ...prev.lastOutputs, generatedReply: body.substring(0, i), subject } 
+          lastOutputs: { ...prev.lastOutputs, generatedReply: body, subject }
         }));
+        showToast(t('replyGenerated'), 'success');
+        return;
       }
 
-      setState(prev => ({ 
-        ...prev, 
-        lastOutputs: { ...prev.lastOutputs, generatedReply: body, subject }
-      }));
-      showToast(t('replyGenerated'), 'success');
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
       const ai = new AIService(state.settings);
-      
-      let contextText = '';
-      let currentStructuredSummary = null;
-
-      if (currentContext && (currentContext.sourceText || currentContext.translatedText)) {
-        contextText = state.lastOutputs.contextSource === 'original' 
-          ? currentContext.sourceText 
-          : currentContext.translatedText;
-        
-        currentStructuredSummary = state.structuredSummary;
-        const isStale = !currentStructuredSummary || 
-          new Date(currentContext.lastUpdatedIso) > new Date(currentStructuredSummary.meta.extractedAtIso);
-        
-        if (isStale) {
-          const sourceLang = currentContext.targetTranslationLanguage || 'Auto';
-          currentStructuredSummary = await handleExtract(contextText, sourceLang, state.lastOutputs.contextSource || 'translated');
-        }
-      }
 
       let fullReply = '';
       
@@ -134,19 +136,20 @@ export function useComposeTab({
       }));
 
       const result = await ai.compose(
-        contextText,
-        composeReq, 
+        composeReq,
         {
           audience: composeParams.audience,
           tone: composeParams.tone,
           length: composeParams.length,
           lang: composeParams.lang,
           format: composeParams.format,
-          goal: activePresetId === 'custom' ? 'Custom' : activePresetId.charAt(0).toUpperCase() + activePresetId.slice(1)
+          goal
         }, 
         vocab,
-        currentStructuredSummary || undefined,
         (chunk) => {
+          // ai.ts hands the whole reply through here in one call, so a missing
+          // one would append the literal string "undefined" to the output.
+          if (typeof chunk !== 'string') return;
           fullReply += chunk;
           
           let subject = '';
@@ -163,6 +166,13 @@ export function useComposeTab({
           }));
         }
       );
+
+      // A 200 with no reply in it is a failure, not an empty success: without
+      // this, toLowerCase() throws and the user is told whatever the TypeError
+      // says instead of that the model returned nothing.
+      if (typeof result !== 'string' || !result.trim()) {
+        throw new Error(t('composeFailed'));
+      }
 
       let subject = '';
       let body = result;
@@ -197,8 +207,9 @@ export function useComposeTab({
       showToast(err.message, 'error');
     } finally {
       setLoading(false);
+      setIsComposing(false);
     }
-  }, [composeReq, composeParams, context, useContextInCompose, state.settings, state.lastOutputs, state.structuredSummary, vocab, handleExtract, t, showToast, activePresetId, setLoading, setState, stopSpeaking]);
+  }, [composeReq, composeParams, state.settings, state.lastOutputs, vocab, t, showToast, activePresetId, setLoading, setState, stopSpeaking]);
 
   return {
     composeReq,
@@ -207,8 +218,7 @@ export function useComposeTab({
     setActivePresetId,
     composeParams,
     setComposeParams,
-    useContextInCompose,
-    setUseContextInCompose,
+    isComposing,
     handleCompose,
   };
 }

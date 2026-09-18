@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { motion, AnimatePresence, MotionConfig, useReducedMotion, type Variants } from 'motion/react';
 import 'katex/dist/katex.min.css';
 import { storage } from './services/storage';
-import { AIService } from './services/ai';
 import { resolveUiTheme, isDarkPalette, watchSystemThemeChanges } from './utils/theme';
 import { copyFormattedText } from './utils/clipboard';
 import { safeLocalStorage } from './utils/safeStorage';
@@ -14,7 +13,6 @@ import { VoiceModal } from './components/common/VoiceModal';
 import {
   VocabItem,
   AppState,
-  ConversationContext,
   HistoryItem,
   Language,
   Tone,
@@ -144,7 +142,6 @@ export default function App() {
   // the tab ends the admin session and nothing is left on disk to be found.
   const [adminKey, setAdminKey] = useState<string | null>(null);
 
-  const [context, setContext] = useState<ConversationContext | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(true);
   const [isIosPromptVisible, setIsIosPromptVisible] = useState(false);
@@ -286,14 +283,16 @@ export default function App() {
   useEffect(() => {
     const init = async () => {
       try {
-        const [settings, lang, localVocab, outputs, ctx, summary] = await Promise.all([
+        const [settings, lang, localVocab, outputs] = await Promise.all([
           storage.getSettings(),
           storage.getGlobalLanguage(),
           storage.getVocab(),
-          storage.getLastOutputs(),
-          storage.getContext(),
-          storage.getStructuredSummary()
+          storage.getLastOutputs()
         ]);
+
+        // Reclaims what the retired link-context feature left on this device.
+        // Fire-and-forget: hydration must not wait on a housekeeping delete.
+        storage.dropRetiredContextKeys().catch(console.error);
 
         let v = localVocab;
 
@@ -309,11 +308,9 @@ export default function App() {
           ...prev, 
           settings, 
           globalLanguage: lang, 
-          lastOutputs: outputs, 
-          structuredSummary: summary || undefined 
+          lastOutputs: outputs 
         }));
         setVocab(v);
-        setContext(ctx);
 
       } catch (err) {
         console.error('Hydration failed:', err);
@@ -414,20 +411,6 @@ export default function App() {
     }
   };
 
-  const handleExtract = async (text: string, sourceLang: string, contextSource: 'original' | 'translated') => {
-    try {
-      const ai = new AIService(state.settings);
-      const summary = await ai.extractStructuredSummary(text, sourceLang, contextSource);
-      setState(prev => ({ ...prev, structuredSummary: summary }));
-      await storage.setStructuredSummary(summary);
-      return summary;
-    } catch (err: any) {
-      showToast(t('extractPrioritiesError'), 'error');
-      return null;
-    }
-  };
-
-
   // Translate/Compose state lives here, not inside the tab components.
   // App stays mounted for the whole session, so switching tabs or crossing the
   // desktop breakpoint (which swaps <TabMobile/> for <TabDesktop/>) no longer
@@ -441,7 +424,6 @@ export default function App() {
     isListening,
     interimTranscript,
     activeTab,
-    setContext,
     stopSpeaking,
     setLoading,
     setIsStreaming,
@@ -456,10 +438,8 @@ export default function App() {
     t,
     showToast,
     activeTab,
-    context,
     stopSpeaking,
     setLoading,
-    handleExtract,
     transcript,
     setTranscript,
   });
@@ -605,7 +585,6 @@ export default function App() {
               isListening={isListening}
               interimTranscript={interimTranscript}
               activeTab={activeTab}
-              setContext={setContext}
               stopSpeaking={stopSpeaking}
               setLoading={setLoading}
               isStreaming={isStreaming}
@@ -633,10 +612,8 @@ export default function App() {
               t={t}
               showToast={showToast}
               activeTab={activeTab}
-              context={context}
               stopSpeaking={stopSpeaking}
               setLoading={setLoading}
-              handleExtract={handleExtract}
               isListening={isListening}
               interimTranscript={interimTranscript}
               handleToggleListening={handleToggleListening}

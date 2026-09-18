@@ -5,7 +5,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Languages, Loader2, X, Camera, ClipboardCheck, Square, Volume2, Copy, Check, Share2, ChevronDown, Zap } from 'lucide-react';
 import { LANGUAGES, LANGUAGE_FLAGS } from '../constants';
-import { Language, AppState, VocabItem, ConversationContext } from '../types';
+import { Language, AppState, VocabItem } from '../types';
 import { VoiceVisualizer } from './common/VoiceVisualizer';
 import { useTranslateTab } from '../hooks/useTranslateTab';
 
@@ -46,7 +46,6 @@ interface TranslateTabProps {
   isListening: boolean;
   interimTranscript: string;
   activeTab: string;
-  setContext: (context: ConversationContext | null) => void;
   stopSpeaking: () => void;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   isStreaming: boolean;
@@ -72,7 +71,6 @@ export function TranslateTabMobile({
   isListening,
   interimTranscript,
   activeTab,
-  setContext,
   stopSpeaking,
   setLoading,
   isStreaming,

@@ -1,4 +1,4 @@
-import { VocabItem, AISettings, AppState, HistoryItem, ConversationContext, GlobalLanguage } from '../types';
+import { VocabItem, AISettings, AppState, HistoryItem, GlobalLanguage } from '../types';
 import { DEFAULT_STATE } from '../constants';
 import { STORAGE_KEYS, DATA_KEYS } from '../constants/storageKeys';
 
@@ -45,6 +45,15 @@ const adapter = {
     }
   }
 };
+
+/**
+ * Keys the link-context feature wrote, now gone from STORAGE_KEYS. Reset App is
+ * a blanket localStorage.clear(), so a reset would still catch them — but
+ * nobody resets a working install, and `sra_context` holds a whole
+ * source-plus-translation pair in the same quota saved wallpapers live inline
+ * in. Startup sweeps them rather than waiting for a reset that never comes.
+ */
+const RETIRED_CONTEXT_KEYS = ['sra_context', 'sra_structured_summary'];
 
 export const storage = {
   async getSettings(): Promise<AISettings> {
@@ -131,23 +140,19 @@ export const storage = {
   },
 
   async getLastOutputs(): Promise<AppState['lastOutputs']> {
-    return (await adapter.get<AppState['lastOutputs']>(STORAGE_KEYS.LAST_OUTPUTS)) || DEFAULT_STATE.lastOutputs;
+    const stored = await adapter.get<AppState['lastOutputs'] & { contextSource?: string }>(STORAGE_KEYS.LAST_OUTPUTS);
+    // adapter.get() hands back the raw string when JSON.parse fails, so a
+    // corrupted value has to reach the default instead of being spread.
+    if (!stored || typeof stored !== 'object') return DEFAULT_STATE.lastOutputs;
+    // `contextSource` left AppState with the link-context feature. What is read
+    // here is spread into every subsequent write, so without this an upgraded
+    // install would keep re-persisting the dead field for good.
+    const { contextSource: _retired, ...outputs } = stored;
+    return outputs;
   },
 
   async setLastOutputs(lastOutputs: AppState['lastOutputs']): Promise<void> {
     await adapter.set(STORAGE_KEYS.LAST_OUTPUTS, lastOutputs);
-  },
-
-  async getContext(): Promise<ConversationContext | null> {
-    return await adapter.get<ConversationContext>(STORAGE_KEYS.CONTEXT);
-  },
-
-  async setContext(context: ConversationContext | null): Promise<void> {
-    if (context === null) {
-      await adapter.remove(STORAGE_KEYS.CONTEXT);
-    } else {
-      await adapter.set(STORAGE_KEYS.CONTEXT, context);
-    }
   },
 
   async getGlobalLanguage(): Promise<GlobalLanguage> {
@@ -181,16 +186,9 @@ export const storage = {
     await adapter.multiRemove(DATA_KEYS);
   },
 
-  async getStructuredSummary(): Promise<any | null> {
-    return await adapter.get(STORAGE_KEYS.STRUCTURED_SUMMARY);
-  },
-
-  async setStructuredSummary(summary: any | null): Promise<void> {
-    if (summary === null) {
-      await adapter.remove(STORAGE_KEYS.STRUCTURED_SUMMARY);
-    } else {
-      await adapter.set(STORAGE_KEYS.STRUCTURED_SUMMARY, summary);
-    }
+  /** See RETIRED_CONTEXT_KEYS. Cheap and idempotent — safe on every launch. */
+  async dropRetiredContextKeys(): Promise<void> {
+    await adapter.multiRemove(RETIRED_CONTEXT_KEYS);
   },
 
   async getTranslationCache(): Promise<Record<string, { translatedText: string, timestamp: number }>> {
