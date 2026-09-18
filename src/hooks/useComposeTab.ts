@@ -40,6 +40,14 @@ export function useComposeTab({
     format: 'wechat_zalo' as Format
   });
 
+  /**
+   * This tab's own in-flight flag. `loading` is raised by App for any request,
+   * so a translation running in another tab lit Compose's "Composing…" badge
+   * and spinner. Both are still set — `loading` is what gates the shared
+   * Generate button — but only this one describes what Compose is doing.
+   */
+  const [isComposing, setIsComposing] = useState(false);
+
   const composeCacheRef = useRef<Map<string, string>>(new Map());
 
   // See the matching note in useTranslateTab: owned by the hook so the mobile
@@ -89,6 +97,7 @@ export function useComposeTab({
     // stayed enabled, so a second tap raced a second replay into the same
     // output.
     setLoading(true);
+    setIsComposing(true);
     try {
       const cachedResult = composeCacheRef.current.get(cacheKey);
       if (cachedResult !== undefined) {
@@ -138,6 +147,9 @@ export function useComposeTab({
         }, 
         vocab,
         (chunk) => {
+          // ai.ts hands the whole reply through here in one call, so a missing
+          // one would append the literal string "undefined" to the output.
+          if (typeof chunk !== 'string') return;
           fullReply += chunk;
           
           let subject = '';
@@ -154,6 +166,13 @@ export function useComposeTab({
           }));
         }
       );
+
+      // A 200 with no reply in it is a failure, not an empty success: without
+      // this, toLowerCase() throws and the user is told whatever the TypeError
+      // says instead of that the model returned nothing.
+      if (typeof result !== 'string' || !result.trim()) {
+        throw new Error(t('composeFailed'));
+      }
 
       let subject = '';
       let body = result;
@@ -188,6 +207,7 @@ export function useComposeTab({
       showToast(err.message, 'error');
     } finally {
       setLoading(false);
+      setIsComposing(false);
     }
   }, [composeReq, composeParams, state.settings, state.lastOutputs, vocab, t, showToast, activePresetId, setLoading, setState, stopSpeaking]);
 
@@ -198,6 +218,7 @@ export function useComposeTab({
     setActivePresetId,
     composeParams,
     setComposeParams,
+    isComposing,
     handleCompose,
   };
 }

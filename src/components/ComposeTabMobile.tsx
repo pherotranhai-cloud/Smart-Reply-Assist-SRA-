@@ -83,6 +83,7 @@ export function ComposeTabMobile({
     setActivePresetId,
     composeParams,
     setComposeParams,
+    isComposing,
     handleCompose,
   } = compose;
 
@@ -225,7 +226,7 @@ export function ComposeTabMobile({
       {/* --- Output --------------------------------------------------------- */}
       <div className="ios-section-header flex items-center gap-2">
         <h3 className="min-w-0 truncate">{t('generatedOutput')}</h3>
-        {loading && (
+        {isComposing && (
           <span className="inline-flex shrink-0 animate-pulse items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-accent-text">
             <Loader2 size={10} className="animate-spin" aria-hidden="true" />
             {t('generating')}
@@ -311,7 +312,7 @@ export function ComposeTabMobile({
               disabled={loading || !composeReq.trim()}
               className="saas-button primary-button w-full shadow-lg shadow-accent/20"
             >
-              {loading ? <Loader2 className="animate-spin" size={20} /> : <PenTool size={20} />}
+              {isComposing ? <Loader2 className="animate-spin" size={20} /> : <PenTool size={20} />}
               <span>{t('generateReply')}</span>
             </button>
           </div>
