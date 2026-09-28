@@ -23,7 +23,9 @@ export type ChatTask =
   | 'talk'
   | 'compose'
   | 'expert-search'
-  | 'security-analyze';
+  | 'security-analyze'
+  | 'rag-chat'
+  | 'rag-report';
 
 /**
  * Optional, model-tunable knobs layered onto a chat completion request.
@@ -75,14 +77,24 @@ export const MODEL_TUNING: Record<string, Partial<Record<ChatTask, ChatTuning>>>
   'gpt-5.6-luna': {
     talk: TALK_LATENCY_CAP,
     'security-analyze': JSON_OBJECT_RESPONSE,
+    // response_format is already proven safe for this model (security-analyze
+    // above uses the same knob). `temperature` is deliberately left unset for
+    // rag-chat: it is not proven supported by this model's unverified
+    // parameter surface, and sending it unconditionally is what caused
+    // POST /admin/rag/chat to 500 in production.
+    'rag-report': JSON_OBJECT_RESPONSE,
   },
   'gpt-4o': {
     talk: TALK_SAMPLING_KNOBS,
     'security-analyze': JSON_OBJECT_RESPONSE,
+    'rag-chat': { temperature: 0.2 },
+    'rag-report': JSON_OBJECT_RESPONSE,
   },
   'gpt-3.5-turbo': {
     talk: TALK_SAMPLING_KNOBS,
     'security-analyze': JSON_OBJECT_RESPONSE,
+    'rag-chat': { temperature: 0.2 },
+    'rag-report': JSON_OBJECT_RESPONSE,
   },
 };
 

@@ -29,6 +29,18 @@ export interface RagConfig {
   maxLogsPerRun: number;
   /** Page size when paging through app_logs during ingestion. */
   ingestionPageSize: number;
+  /**
+   * Max rows per `log_embeddings` upsert statement. Supabase's PostgREST
+   * role has an 8s statement_timeout, and HNSW index maintenance cost per
+   * inserted row grows with index size — a single upsert covering a whole
+   * ingestion page (hundreds of vector(1536) rows) starts timing out once
+   * the index holds several thousand vectors. Kept small and sub-batched
+   * (shared/rag/ingestion.ts) so one statement always finishes well under
+   * the limit regardless of how large the index has grown.
+   */
+  upsertBatchSize: number;
+  /** Max previously-failed logs (embedding_job_errors, unresolved) retried per run, before scanning new logs. */
+  reprocessBatchSize: number;
   /** Default number of chunks retrieved per semantic search call. */
   searchTopK: number;
   /** How often (ms) the in-process scheduler checks whether a daily run is due. */
@@ -49,6 +61,8 @@ export function loadRagConfig(): RagConfig {
     chunkOverlapChars: num('RAG_CHUNK_OVERLAP_CHARS', 400),
     maxLogsPerRun: num('RAG_MAX_LOGS_PER_RUN', 2000),
     ingestionPageSize: num('RAG_INGESTION_PAGE_SIZE', 200),
+    upsertBatchSize: num('RAG_UPSERT_BATCH_SIZE', 20),
+    reprocessBatchSize: num('RAG_REPROCESS_BATCH_SIZE', 200),
     searchTopK: num('RAG_SEARCH_TOP_K', 8),
     schedulerCheckIntervalMs: num('RAG_SCHEDULER_CHECK_INTERVAL_MS', 60 * 60 * 1000),
     schedulerRunIntervalMs: num('RAG_SCHEDULER_RUN_INTERVAL_MS', 24 * 60 * 60 * 1000),

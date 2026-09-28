@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type OpenAI from 'openai';
+import { createChatCompletion, tuningFor } from '../modelConfig';
 import { RagConfig } from './config';
 import { averageSimilarity, scoreToLevel, toSourceRefs } from './confidence';
 import { getReportTemplate } from './reportTemplates';
@@ -74,14 +75,17 @@ async function generateReportBody(
     .map((s, i) => `${i + 1}. "${s.heading}": ${s.instruction}`)
     .join('\n')}`;
 
-  const response = await openai.chat.completions.create({
-    model: config.chatModel,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    response_format: { type: 'json_object' },
-  } as any);
+  const response = await createChatCompletion(
+    openai,
+    {
+      model: config.chatModel,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+    },
+    tuningFor(config.chatModel, 'rag-report')
+  );
 
   const raw = response.choices[0]?.message?.content ?? '{}';
   let parsed: LlmReportBody;
