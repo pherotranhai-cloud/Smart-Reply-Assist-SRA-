@@ -14,6 +14,34 @@ export interface ReportTemplateDef {
   sections: ReportSectionSpec[];
 }
 
+/**
+ * Section shape modeled on the org's own internal efficiency reports (e.g.
+ * "Key Issue of Current Efficiency Supported by Data"): each finding is a
+ * numbered issue with an explicit Cause and Impact, grounded in concrete
+ * counts and named specifics (module, timestamp, quoted phrase) rather than
+ * general prose — the same discipline that report uses for production
+ * lines/models, applied here to log modules/timestamps/excerpts.
+ */
+const KEY_ISSUES_FORMAT = `Format this section as a numbered list of distinct issues, in the exact Markdown style below — do not write free-form prose instead:
+
+1. [Short, specific issue title]
+**Cause:** [what the SOURCE EXCERPTS show caused it — quote or closely paraphrase the excerpt, naming the exact module and timestamp]
+**Impact:** [the concrete, quantified effect — a count from STATS, a number of affected logs, or another figure actually present in the evidence; never a vague phrase like "may affect users"]
+
+Repeat for every distinct issue the evidence supports (do not pad to reach a target count, and do not invent an issue that isn't backed by an excerpt or a STATS number).`;
+
+const OVERALL_RESULT_SECTION: ReportSectionSpec = {
+  heading: 'Overall Result',
+  instruction:
+    'One short paragraph, in the style of a closing "Overall Performance Result" line: state the total logs reviewed and the headline finding as a concrete before/after or proportion (e.g. "X of Y logs in module Z were flagged, Q% of total volume"), using only numbers from the STATS block. No new claims — this section only rolls up figures already given above.',
+};
+
+const RECOMMENDATIONS_SECTION: ReportSectionSpec = {
+  heading: 'Recommendations',
+  instruction:
+    '2-4 concrete, actionable recommendations, each tied to one of the numbered issues above by name. If the evidence is too sparse for a confident recommendation, say so instead of guessing.',
+};
+
 export const REPORT_TEMPLATES: Record<ReportTemplateId, ReportTemplateDef> = {
   'performance-impact': {
     id: 'performance-impact',
@@ -28,18 +56,14 @@ export const REPORT_TEMPLATES: Record<ReportTemplateId, ReportTemplateDef> = {
       {
         heading: 'Volume & Throughput',
         instruction:
-          'Summarize request volume by module using the STATS block only (do not invent numbers). Note which modules carry the most traffic.',
+          'Summarize request volume by module using the STATS block only (do not invent numbers). Name the busiest module and its exact count, and any module whose failure/truncation counts are large relative to its own volume (a rate, not just a raw count).',
       },
       {
-        heading: 'Failure & Latency Signals',
-        instruction:
-          'From the SOURCE EXCERPTS, cite concrete instances of failed, empty, or unusually short/truncated responses. For each, name the module and timestamp exactly as given in the excerpt.',
+        heading: 'Key Issues (Cause & Impact)',
+        instruction: `Cover failed, empty, or unusually slow/truncated responses found in the SOURCE EXCERPTS. ${KEY_ISSUES_FORMAT}`,
       },
-      {
-        heading: 'Recommendations',
-        instruction:
-          '2-4 concrete, actionable recommendations grounded only in the evidence above. If the evidence is too sparse for a confident recommendation, say so instead of guessing.',
-      },
+      OVERALL_RESULT_SECTION,
+      RECOMMENDATIONS_SECTION,
     ],
   },
   'quality-impact': {
@@ -53,20 +77,16 @@ export const REPORT_TEMPLATES: Record<ReportTemplateId, ReportTemplateDef> = {
     ],
     sections: [
       {
-        heading: 'Quality Concerns Found',
-        instruction:
-          'List concrete quality issues found in the SOURCE EXCERPTS, each with its timestamp, module, and a short quote of the problematic text. Do not describe an issue that is not actually present in an excerpt.',
+        heading: 'Key Issues (Cause & Impact)',
+        instruction: `Cover mistranslation, truncation, and terminology-mismatch concerns found in the SOURCE EXCERPTS — do not describe an issue that is not actually present in an excerpt. ${KEY_ISSUES_FORMAT}`,
       },
       {
         heading: 'Affected Modules & Languages',
         instruction:
-          'Using the STATS block and the excerpts, summarize which modules and language pairs are most represented among the concerns.',
+          'Using the STATS block and the excerpts, name which modules and language pairs are most represented among the concerns, with their exact counts.',
       },
-      {
-        heading: 'Recommendations',
-        instruction:
-          '2-4 concrete, actionable recommendations grounded only in the evidence above. If the evidence is too sparse for a confident recommendation, say so instead of guessing.',
-      },
+      OVERALL_RESULT_SECTION,
+      RECOMMENDATIONS_SECTION,
     ],
   },
   'standards-issues': {
@@ -80,20 +100,16 @@ export const REPORT_TEMPLATES: Record<ReportTemplateId, ReportTemplateDef> = {
     ],
     sections: [
       {
-        heading: 'Issues Identified',
-        instruction:
-          'List each distinct issue found in the SOURCE EXCERPTS with its timestamp, module, and flagged issue type if one is present in the excerpt text.',
+        heading: 'Key Issues (Cause & Impact)',
+        instruction: `Cover each distinct deviation found in the SOURCE EXCERPTS, naming its flagged issue type where one is present in the excerpt text. ${KEY_ISSUES_FORMAT}`,
       },
       {
         heading: 'Severity Breakdown',
         instruction:
-          'Using the STATS block, summarize how many logs fall into each severity/issue-type bucket. Do not invent a bucket that is not in STATS.',
+          'Using the STATS block, give the exact count for each severity/issue-type bucket. Do not invent a bucket that is not in STATS.',
       },
-      {
-        heading: 'Recommendations',
-        instruction:
-          '2-4 concrete, actionable recommendations grounded only in the evidence above. If the evidence is too sparse for a confident recommendation, say so instead of guessing.',
-      },
+      OVERALL_RESULT_SECTION,
+      RECOMMENDATIONS_SECTION,
     ],
   },
 };

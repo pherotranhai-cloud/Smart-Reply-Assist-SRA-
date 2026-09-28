@@ -37,7 +37,12 @@ the handful of most relevant chunks through semantic search.
   (Performance Impact, Quality Impact, Standards and Issues) defines a few retrieval angles and
   section prompts; the generator computes grouped counts via the `log_embedding_stats` RPC,
   retrieves and merges relevant excerpts, and asks the model to write each section strictly from
-  that context.
+  that context. The "Key Issues" section format (numbered issue → **Cause:** / **Impact:** →
+  closing "Overall Result" roll-up) is modeled on this org's own internal efficiency reports, so a
+  generated report reads like a factory-floor findings report rather than generic prose — every
+  sentence is expected to anchor to a specific module/timestamp/excerpt or a STATS count, not a
+  vague magnitude. `shared/rag/docxExport.ts` renders `**bold**` spans and numbered issue titles
+  so the exported `.docx` keeps that structure visually, not just as literal asterisks.
 - **Export** (`shared/rag/docxExport.ts`): turns an already-generated report into a `.docx` buffer
   — never re-runs retrieval or calls the LLM again.
 - **API** (`shared/ragRoutes.ts`): all routes are mounted under `/admin/rag` and require the
@@ -101,6 +106,8 @@ RAG_CHUNK_CHAR_SIZE=3200
 RAG_CHUNK_OVERLAP_CHARS=400
 RAG_MAX_LOGS_PER_RUN=2000
 RAG_INGESTION_PAGE_SIZE=200
+RAG_UPSERT_BATCH_SIZE=20                     # rows per log_embeddings statement — see "Statement timeouts" below
+RAG_REPROCESS_BATCH_SIZE=200                 # previously-failed logs retried per run, before scanning new ones
 RAG_SEARCH_TOP_K=8
 RAG_SCHEDULER_CHECK_INTERVAL_MS=3600000       # 1h — how often the in-process scheduler checks
 RAG_SCHEDULER_RUN_INTERVAL_MS=86400000        # 24h — minimum time between runs
@@ -146,11 +153,32 @@ Repeat until `GET /api/admin/rag/embeddings/status` reports `pendingLogs: 0`. Ra
 - **Retries**: each embeddings API call retries with exponential backoff
   (`RAG_EMBEDDING_MAX_RETRIES`); a batch that still fails is retried chunk-by-chunk so one bad
   chunk doesn't take the rest of the batch down with it.
+- **Statement timeouts**: Supabase's PostgREST role (`authenticator`) enforces an 8s
+  `statement_timeout`, and HNSW index-maintenance cost per inserted row grows with the index's
+  size. Writing an entire ingestion page (hundreds of `vector(1536)` rows) in one `upsert` call
+  will eventually exceed that timeout as `log_embeddings` grows — this is what caused the bulk of
+  `embedding_job_errors` in early testing (all `"canceling statement due to statement timeout"`).
+  `shared/rag/ingestion.ts` now writes in sub-batches of `RAG_UPSERT_BATCH_SIZE` rows (default 20),
+  falling back to one-row-at-a-time on a batch failure; lower it further if the table grows very
+  large and timeouts return.
+- **Backlog reprocessing**: every run first retries up to `RAG_REPROCESS_BATCH_SIZE` logs already
+  recorded in `embedding_job_errors` (unresolved), before scanning new ones — the cursor has
+  already passed a previously-failed log, so nothing else would ever revisit it. A log that
+  succeeds on retry has its error rows marked `resolved`; one that fails again gets its existing
+  row refreshed rather than duplicated.
 - **Processing status**: every run is a row in `embedding_job_runs`
   (`status`: `completed` / `completed_with_errors` / `failed` / `noop`), visible in the dashboard's
   "Embedding index" widget along with total/embedded/pending counts.
 - **Error logging**: a chunk that fails all retries is recorded in `embedding_job_errors` with the
   log id and error message, without blocking the rest of the run.
+- **Chat/report model calls** go through `shared/modelConfig.ts`'s `createChatCompletion` (the
+  same wrapper `/translate`, `/compose`, etc. use), not a raw `openai.chat.completions.create`
+  call. That wrapper degrades and retries once if the configured model rejects an optional
+  parameter — relevant because `APP_ENGINE_ID` can point at a custom/gateway model (e.g.
+  `gpt-5.6-luna`) whose supported parameter surface isn't fully known; sending an unproven
+  parameter like `temperature` unconditionally is what caused `POST /admin/rag/chat` to 500 in
+  production. Per-model tuning for the `rag-chat` / `rag-report` tasks lives in
+  `shared/modelConfig.ts`'s `MODEL_TUNING` table.
 - Server logs (`console.error`/`console.warn`) are prefixed `[rag/ingestion]`, `[rag/scheduler]`,
   `[ragRoutes]` for easy filtering.
 

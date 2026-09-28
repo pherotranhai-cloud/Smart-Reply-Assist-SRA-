@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type OpenAI from 'openai';
+import { createChatCompletion, tuningFor } from '../modelConfig';
 import { RagConfig } from './config';
 import { averageSimilarity, scoreToLevel, toSourceRefs } from './confidence';
 import { ChatAnswer, SearchFilters } from './types';
@@ -49,14 +50,17 @@ export async function answerChatQuestion(
     .map((r, i) => `[${i + 1}] module=${r.module ?? 'n/a'} timestamp=${r.logCreatedAt ?? 'n/a'} similarity=${r.similarity.toFixed(2)}\n${r.content}`)
     .join('\n\n');
 
-  const response = await openai.chat.completions.create({
-    model: config.chatModel,
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: `QUESTION: ${trimmed}\n\nRETRIEVED LOG EXCERPTS:\n${excerptsText}` },
-    ],
-    temperature: 0.2,
-  } as any);
+  const response = await createChatCompletion(
+    openai,
+    {
+      model: config.chatModel,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: `QUESTION: ${trimmed}\n\nRETRIEVED LOG EXCERPTS:\n${excerptsText}` },
+      ],
+    },
+    tuningFor(config.chatModel, 'rag-chat')
+  );
 
   const answer = response.choices[0]?.message?.content?.trim() || '(no answer generated)';
   const score = averageSimilarity(results);

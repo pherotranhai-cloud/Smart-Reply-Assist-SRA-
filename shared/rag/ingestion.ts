@@ -90,6 +90,53 @@ async function recordChunkError(
   }
 }
 
+/** Distinct log ids with at least one unresolved error, oldest first — the backlog runs retry before scanning new logs. */
+async function fetchUnresolvedFailedLogIds(supabase: SupabaseClient, limit: number): Promise<number[]> {
+  const { data, error } = await (supabase as any)
+    .from('embedding_job_errors')
+    .select('log_id')
+    .eq('resolved', false)
+    .order('log_id', { ascending: true })
+    .limit(limit * 4); // several error rows can share a log_id across runs; over-fetch before de-duplicating
+  if (error) throw new Error(`Failed to fetch unresolved embedding_job_errors: ${error.message}`);
+  const seen = new Set<number>();
+  for (const row of data || []) seen.add(row.log_id);
+  return Array.from(seen).slice(0, limit);
+}
+
+async function fetchLogsByIds(supabase: SupabaseClient, ids: number[]): Promise<LogRow[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await (supabase as any)
+    .from('app_logs')
+    .select('id, created_at, task_type, input_text, output_text, from_lang, to_lang')
+    .in('id', ids);
+  if (error) throw new Error(`Failed to fetch app_logs by id: ${error.message}`);
+  return (data || []) as LogRow[];
+}
+
+/** Marks every unresolved error for `logId` resolved once it has successfully embedded. */
+async function resolveErrorsForLog(supabase: SupabaseClient, logId: number): Promise<void> {
+  await (supabase as any)
+    .from('embedding_job_errors')
+    .update({ resolved: true })
+    .eq('log_id', logId)
+    .eq('resolved', false);
+}
+
+/**
+ * A retry attempt failed again: refreshes the existing unresolved row(s)
+ * rather than growing the table with a duplicate insert per run.
+ * attempt_count is left as-is (informational only) — PostgREST has no
+ * atomic increment, and a fetch-then-write round trip isn't worth it here.
+ */
+async function bumpErrorsForLog(supabase: SupabaseClient, logId: number, errorMessage: string): Promise<void> {
+  await (supabase as any)
+    .from('embedding_job_errors')
+    .update({ last_attempted_at: new Date().toISOString(), error_message: errorMessage.slice(0, 2000) })
+    .eq('log_id', logId)
+    .eq('resolved', false);
+}
+
 interface EmbeddedChunk {
   chunk: LogChunk;
   embedding: number[];
@@ -139,14 +186,126 @@ async function embedChunksWithFallback(
 }
 
 /**
+ * Upserts `rows` in small sub-batches rather than one statement. Supabase's
+ * PostgREST role has an 8s statement_timeout, and HNSW index-maintenance
+ * cost per inserted row grows with index size — a single upsert covering an
+ * entire ingestion page (hundreds of vector(1536) rows) is what was timing
+ * out in production once the index passed a few thousand vectors. A batch
+ * that still fails is retried row-by-row so one slow/oversized row can't
+ * take the rest of the batch down with it.
+ */
+async function upsertEmbeddingRowsInBatches(
+  supabase: SupabaseClient,
+  rows: Record<string, unknown>[],
+  batchSize: number
+): Promise<{ succeededCount: number; failed: { logId: number; error: string }[] }> {
+  let succeededCount = 0;
+  const failed: { logId: number; error: string }[] = [];
+
+  for (let i = 0; i < rows.length; i += batchSize) {
+    const batch = rows.slice(i, i + batchSize);
+    const { error } = await (supabase as any)
+      .from('log_embeddings')
+      .upsert(batch, { onConflict: 'log_id,chunk_index' });
+
+    if (!error) {
+      succeededCount += batch.length;
+      continue;
+    }
+
+    for (const row of batch) {
+      const { error: singleError } = await (supabase as any)
+        .from('log_embeddings')
+        .upsert([row], { onConflict: 'log_id,chunk_index' });
+      if (singleError) failed.push({ logId: row.log_id as number, error: singleError.message });
+      else succeededCount += 1;
+    }
+  }
+
+  return { succeededCount, failed };
+}
+
+interface ProcessLogsResult {
+  embeddedLogIds: Set<number>;
+  failedLogIds: Set<number>;
+  chunksCreated: number;
+}
+
+/**
+ * Classifies, chunks, embeds and upserts one batch of log rows — the single
+ * pipeline shared by both the cursor-based scan of new logs and the
+ * reprocessing pass over previously-failed ones, so the two can never drift
+ * apart on how a log is turned into embeddings.
+ */
+async function processLogs(
+  supabase: SupabaseClient,
+  openai: OpenAI,
+  config: RagConfig,
+  runId: number | null,
+  logs: LogRow[]
+): Promise<ProcessLogsResult> {
+  const chunksByLog = new Map<number, LogChunk[]>();
+  for (const log of logs) {
+    const classification = classifyLog(log);
+    const chunks = chunkLog(log, classification, {
+      chunkCharSize: config.chunkCharSize,
+      chunkOverlapChars: config.chunkOverlapChars,
+    });
+    chunksByLog.set(log.id, chunks);
+  }
+
+  const allChunks = Array.from(chunksByLog.values()).flat();
+  const { embedded, failed: embedFailed } = await embedChunksWithFallback(openai, allChunks, config);
+
+  const failedLogIds = new Set(embedFailed.map((f) => f.chunk.logId));
+  for (const { chunk, error } of embedFailed) {
+    await recordChunkError(supabase, runId, chunk.logId, error.message);
+  }
+
+  let chunksCreated = 0;
+  if (embedded.length > 0) {
+    const rows = embedded.map(({ chunk, embedding }) => ({
+      log_id: chunk.logId,
+      chunk_index: chunk.chunkIndex,
+      content: chunk.content,
+      content_hash: chunk.contentHash,
+      embedding,
+      module: chunk.module,
+      severity: chunk.severity,
+      issue_type: chunk.issueType,
+      from_lang: chunk.fromLang,
+      to_lang: chunk.toLang,
+      log_created_at: chunk.logCreatedAt,
+      token_estimate: chunk.tokenEstimate,
+    }));
+
+    const { succeededCount, failed: upsertFailed } = await upsertEmbeddingRowsInBatches(
+      supabase,
+      rows,
+      config.upsertBatchSize
+    );
+    chunksCreated += succeededCount;
+
+    for (const f of upsertFailed) {
+      await recordChunkError(supabase, runId, f.logId, `Upsert failed: ${f.error}`);
+      failedLogIds.add(f.logId);
+    }
+  }
+
+  const embeddedLogIds = new Set(logs.map((l) => l.id).filter((id) => !failedLogIds.has(id)));
+  return { embeddedLogIds, failedLogIds, chunksCreated };
+}
+
+/**
  * Scans app_logs for rows after the stored cursor, chunks and embeds them,
  * and upserts the result into log_embeddings — the daily job and the manual
  * "run now" admin action both call this. Incremental by construction: the
  * cursor only advances past a log once this run has attempted it, so a
  * re-run (the next scheduled tick, or a manual retry) never re-embeds a log
  * that already succeeded. A log whose embedding ultimately fails still lets
- * the cursor pass it — it is recorded in embedding_job_errors for visibility
- * instead of retried forever and blocking every log after it.
+ * the cursor pass it — it is recorded in embedding_job_errors and retried by
+ * this same run's reprocessing pass on a future run, rather than retried
+ * forever in place and blocking every log after it.
  */
 export async function runIncrementalEmbeddingJob(
   supabase: SupabaseClient,
@@ -179,66 +338,36 @@ export async function runIncrementalEmbeddingJob(
   let fatalError: string | undefined;
 
   try {
+    // Reprocess the backlog first: logs that failed on a previous run (most
+    // commonly the upsert-timeout bug this pass exists to recover from) are
+    // retried here instead of being stuck forever — the cursor already
+    // passed them, so nothing else will ever revisit them otherwise.
+    if (config.reprocessBatchSize > 0) {
+      const failedIds = await fetchUnresolvedFailedLogIds(supabase, config.reprocessBatchSize);
+      if (failedIds.length > 0) {
+        const logs = await fetchLogsByIds(supabase, failedIds);
+        const result = await processLogs(supabase, openai, config, runId, logs);
+
+        for (const id of result.embeddedLogIds) await resolveErrorsForLog(supabase, id);
+        for (const id of result.failedLogIds) await bumpErrorsForLog(supabase, id, 'Retried and failed again — see embedding_job_errors for the latest cause.');
+
+        logsScanned += logs.length;
+        logsEmbedded += result.embeddedLogIds.size;
+        logsFailed += result.failedLogIds.size;
+        chunksCreated += result.chunksCreated;
+      }
+    }
+
     while (logsScanned < config.maxLogsPerRun) {
       const pageLimit = Math.min(config.ingestionPageSize, config.maxLogsPerRun - logsScanned);
       const page = await fetchLogsPage(supabase, cursor, pageLimit);
       if (page.length === 0) break;
 
-      const chunksByLog = new Map<number, LogChunk[]>();
-      for (const log of page) {
-        const classification = classifyLog(log);
-        const chunks = chunkLog(log, classification, {
-          chunkCharSize: config.chunkCharSize,
-          chunkOverlapChars: config.chunkOverlapChars,
-        });
-        chunksByLog.set(log.id, chunks);
-      }
+      const result = await processLogs(supabase, openai, config, runId, page);
 
-      const allChunks = Array.from(chunksByLog.values()).flat();
-      const { embedded, failed } = await embedChunksWithFallback(openai, allChunks, config);
-
-      const failedLogIds = new Set(failed.map((f) => f.chunk.logId));
-      for (const { chunk, error } of failed) {
-        await recordChunkError(supabase, runId, chunk.logId, error.message);
-      }
-
-      if (embedded.length > 0) {
-        const rows = embedded.map(({ chunk, embedding }) => ({
-          log_id: chunk.logId,
-          chunk_index: chunk.chunkIndex,
-          content: chunk.content,
-          content_hash: chunk.contentHash,
-          embedding,
-          module: chunk.module,
-          severity: chunk.severity,
-          issue_type: chunk.issueType,
-          from_lang: chunk.fromLang,
-          to_lang: chunk.toLang,
-          log_created_at: chunk.logCreatedAt,
-          token_estimate: chunk.tokenEstimate,
-        }));
-
-        const { error: upsertError } = await (supabase as any)
-          .from('log_embeddings')
-          .upsert(rows, { onConflict: 'log_id,chunk_index' });
-
-        if (upsertError) {
-          // The whole batch's DB write failed (not an embedding failure) — every
-          // log in this page is unresolved; record each one and let the cursor
-          // still advance past the page so a single bad page can't wedge the job.
-          for (const log of page) {
-            await recordChunkError(supabase, runId, log.id, `Upsert failed: ${upsertError.message}`);
-            failedLogIds.add(log.id);
-          }
-        } else {
-          chunksCreated += rows.length;
-        }
-      }
-
-      for (const log of page) {
-        if (failedLogIds.has(log.id)) logsFailed += 1;
-        else logsEmbedded += 1;
-      }
+      logsEmbedded += result.embeddedLogIds.size;
+      logsFailed += result.failedLogIds.size;
+      chunksCreated += result.chunksCreated;
       logsScanned += page.length;
 
       cursor = page[page.length - 1].id;
