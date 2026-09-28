@@ -122,3 +122,17 @@ GOOGLE_SHEET_ID=your_sheet_id
 
 For production builds, ensure these are set in your deployment environment. `ADMIN_API_KEY` has
 to be set on every host that serves `/api` — both the Render server and the Netlify function.
+
+## AI Log Assistant (RAG admin chatbot)
+
+The Admin Dashboard includes an AI assistant that answers questions about `app_logs` — the
+translate/compose/OCR/talk/expert-search history — and generates three preset reports
+(Performance Impact, Quality Impact, Standards and Issues), each exportable to `.docx`. It never
+sends the whole `app_logs` table to the model: a daily job embeds new/changed logs into a
+`pgvector` column in Supabase, and every question or report only pulls the handful of most
+relevant chunks via semantic search (optionally narrowed by module/severity/issue type/date).
+
+See `docs/rag-admin-assistant.md` for architecture, the migration in `supabase/migrations/`,
+required environment variables (`RAG_*`, reusing the existing `OPENAI_API_KEY` and Supabase
+service-role credentials), how to run the first backfill, and how the daily job is scheduled on
+Render vs. Netlify.

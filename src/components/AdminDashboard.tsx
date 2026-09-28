@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { X, ShieldAlert, Users, Activity, MessageSquareText, RefreshCw, ChevronDown } from 'lucide-react';
+import { RagAssistant } from './admin/RagAssistant';
 
 const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || '';
 
@@ -299,6 +300,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, adminKe
               </div>
             )}
           </section>
+
+          {/* Phân khu 3: AI Log Assistant — chatbot + preset reports over app_logs (RAG, shared/rag/*). */}
+          <RagAssistant adminKey={adminKey} />
         </div>
       </motion.div>
     </div>

@@ -17,6 +17,7 @@ import { requireAdmin, warnIfAdminAuthUnconfigured } from '../../shared/adminAut
 import { countOnline, recordHeartbeat } from '../../shared/presence';
 import { normalizeHeader, extractVocabRow, vocabHashKey, hasSourcePhrase } from '../../shared/vocabNormalize';
 import { APP_ENGINE_ID, tuningFor, createChatCompletion } from '../../shared/modelConfig';
+import { createRagRouter } from '../../shared/ragRoutes';
 
 dotenv.config();
 
@@ -795,6 +796,11 @@ router.get('/admin/responses', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch recent responses' });
   }
 });
+
+// AI log assistant: chat + preset reports over app_logs via pgvector semantic
+// search (shared/rag/*). Mounted here so server.ts inherits it for free
+// through its "Netlify fallback routes" dynamic import — see server.ts.
+router.use('/admin/rag', createRagRouter(supabase, getOpenAI));
 
 router.all('*', (req, res) => {
   res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
