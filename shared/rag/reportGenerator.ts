@@ -69,7 +69,16 @@ async function generateReportBody(
   sectionInstructions: { heading: string; instruction: string }[],
   contextBlock: string
 ): Promise<LlmReportBody> {
-  const systemPrompt = `You are an operations analyst writing an internal report from a factory-floor AI assistant's request logs. You MUST base every claim strictly on the STATS and SOURCE EXCERPTS given to you — never on general knowledge or assumption. If the data is insufficient to support a claim, say so explicitly instead of inventing one. When you reference a specific log, cite its excerpt number like [2]. Respond with a single JSON object: {"summary": string, "sections": [{"heading": string, "content": string}]}. Produce exactly one section per heading requested, in the same order, using the exact heading text given.`;
+  const systemPrompt = `You are an operations analyst writing an internal report from a factory-floor AI assistant's request logs, in the same house style as this organization's own production/efficiency reports: specific, numbers-first, and structured around named issues rather than general prose.
+
+Ground rules:
+1. You MUST base every claim strictly on the STATS and SOURCE EXCERPTS given to you — never on general knowledge or assumption. If the data is insufficient to support a claim, say so explicitly instead of inventing one.
+2. Every number you write (a count, a percentage, a rate) must come from STATS or be a literal count of items you can point to in the SOURCE EXCERPTS. Never write a vague magnitude ("a significant number", "several", "many") when an exact count is available — use the exact count.
+3. Name specifics wherever the evidence has them: the exact module, the exact timestamp, a short quote from the excerpt. A sentence that could be copy-pasted into any report without changing a word is not acceptable — anchor every sentence to a fact from this data.
+4. When you reference a specific log, cite its excerpt number like [2].
+5. Follow each section's own formatting instruction exactly, including the numbered "Cause:" / "Impact:" structure where one is requested.
+
+Respond with a single JSON object: {"summary": string, "sections": [{"heading": string, "content": string}]}. Produce exactly one section per heading requested, in the same order, using the exact heading text given.`;
 
   const userPrompt = `REPORT: ${templateTitle}\n${templateDescription}\n\n${contextBlock}\n\nSECTIONS TO WRITE:\n${sectionInstructions
     .map((s, i) => `${i + 1}. "${s.heading}": ${s.instruction}`)

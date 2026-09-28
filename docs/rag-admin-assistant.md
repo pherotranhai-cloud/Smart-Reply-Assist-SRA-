@@ -37,7 +37,12 @@ the handful of most relevant chunks through semantic search.
   (Performance Impact, Quality Impact, Standards and Issues) defines a few retrieval angles and
   section prompts; the generator computes grouped counts via the `log_embedding_stats` RPC,
   retrieves and merges relevant excerpts, and asks the model to write each section strictly from
-  that context.
+  that context. The "Key Issues" section format (numbered issue → **Cause:** / **Impact:** →
+  closing "Overall Result" roll-up) is modeled on this org's own internal efficiency reports, so a
+  generated report reads like a factory-floor findings report rather than generic prose — every
+  sentence is expected to anchor to a specific module/timestamp/excerpt or a STATS count, not a
+  vague magnitude. `shared/rag/docxExport.ts` renders `**bold**` spans and numbered issue titles
+  so the exported `.docx` keeps that structure visually, not just as literal asterisks.
 - **Export** (`shared/rag/docxExport.ts`): turns an already-generated report into a `.docx` buffer
   — never re-runs retrieval or calls the LLM again.
 - **API** (`shared/ragRoutes.ts`): all routes are mounted under `/admin/rag` and require the

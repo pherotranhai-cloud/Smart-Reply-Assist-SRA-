@@ -12,11 +12,40 @@ import {
 } from 'docx';
 import { Report } from './types';
 
+/** Splits `**bold**` markdown spans out of one line into alternating plain/bold TextRuns. Exported for unit testing. */
+export function parseInlineRuns(text: string): TextRun[] {
+  const runs: TextRun[] = [];
+  const boldSpan = /\*\*(.+?)\*\*/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = boldSpan.exec(text)) !== null) {
+    if (match.index > lastIndex) runs.push(new TextRun({ text: text.slice(lastIndex, match.index) }));
+    runs.push(new TextRun({ text: match[1], bold: true }));
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) runs.push(new TextRun({ text: text.slice(lastIndex) }));
+
+  return runs.length > 0 ? runs : [new TextRun({ text })];
+}
+
+/** A numbered issue title line ("1. Non-SOP Operations") — bolded even if the model didn't wrap it in `**`, so each issue reads as its own entry rather than a run-on paragraph. */
+const NUMBERED_ISSUE_TITLE = /^\d+\.\s+\S/;
+
 function textParagraphs(content: string): Paragraph[] {
   return content
     .split(/\n+/)
     .filter((line) => line.trim().length > 0)
-    .map((line) => new Paragraph({ text: line, spacing: { after: 120 } }));
+    .map((line) => {
+      const trimmed = line.trim();
+      if (NUMBERED_ISSUE_TITLE.test(trimmed) && !trimmed.includes('**')) {
+        return new Paragraph({
+          children: [new TextRun({ text: trimmed, bold: true })],
+          spacing: { before: 160, after: 60 },
+        });
+      }
+      return new Paragraph({ children: parseInlineRuns(line), spacing: { after: 120 } });
+    });
 }
 
 function headerCell(text: string): TableCell {
