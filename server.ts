@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import OpenAI from 'openai';
 import pkg from './package.json';
 import {
   createSupabaseClient,
@@ -9,12 +10,22 @@ import {
 } from './shared/adminService';
 import { requireAdmin, warnIfAdminAuthUnconfigured } from './shared/adminAuth';
 import { countOnline, recordHeartbeat } from './shared/presence';
+import { isRagConfigured } from './shared/rag/config';
+import { startEmbeddingScheduler } from './shared/rag/scheduler';
 
 dotenv.config();
 
 const supabase = createSupabaseClient();
 
 warnIfAdminAuthUnconfigured('server.ts');
+
+// Built lazily, same reasoning as netlify/functions/api.ts's getOpenAI(): a
+// missing OPENAI_API_KEY must not crash routes that never touch OpenAI.
+let openaiClient: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!openaiClient) openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return openaiClient;
+}
 
 async function startServer() {
   const app = express();
@@ -200,6 +211,16 @@ async function startServer() {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[Server] Running on http://0.0.0.0:${PORT}`);
   });
+
+  // Daily embedding job for the RAG admin assistant. Only meaningful here:
+  // this Express process stays up on Render, unlike the stateless Netlify
+  // function, which relies on an external cron hitting POST
+  // /api/admin/rag/embeddings/run instead (see docs/rag-admin-assistant.md).
+  if (supabase && isRagConfigured()) {
+    startEmbeddingScheduler(supabase, getOpenAI());
+  } else {
+    console.warn('[Server] RAG embedding scheduler not started: Supabase and/or OPENAI_API_KEY not configured.');
+  }
 }
 
 startServer().catch(err => {

@@ -1,7 +1,7 @@
 {
   "name": "ai-smart-reply-assist",
   "private": true,
-  "version": "2.12.20",
+  "version": "2.12.21",
   "type": "module",
   "scripts": {
     "start": "node dist/server.cjs",
@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
+    "test": "vitest run",
     "version:bump": "node scripts/bump-version.mjs",
     "prepare": "git config core.hooksPath .githooks || true"
   },
@@ -19,6 +20,7 @@
     "@vitejs/plugin-react": "^5.0.4",
     "axios": "^1.13.6",
     "cors": "^2.8.6",
+    "docx": "^9.5.1",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "katex": "^0.16.45",
@@ -45,7 +47,8 @@
     "esbuild": "^0.28.1",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
-    "typescript": "~5.8.2"
+    "typescript": "~5.8.2",
+    "vitest": "^3.2.4"
   },
   "overrides": {
     "serialize-javascript": "^6.0.2"

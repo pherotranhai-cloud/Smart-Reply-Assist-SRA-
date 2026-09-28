@@ -23,8 +23,13 @@ import type { Request, Response, NextFunction } from 'express';
 
 export const ADMIN_KEY_HEADER = 'x-admin-key';
 
-/** Length-independent compare, so a wrong key leaks nothing through timing. */
-function secretsMatch(provided: string, expected: string): boolean {
+/**
+ * Length-independent compare, so a wrong key leaks nothing through timing.
+ * Exported for other server-only secret checks (e.g. shared/ragRoutes.ts'
+ * cron-secret alternative to the human admin key) that want the same
+ * fail-closed comparison rather than a second copy of it.
+ */
+export function secretsMatch(provided: string, expected: string): boolean {
   const a = Buffer.from(provided, 'utf8');
   const b = Buffer.from(expected, 'utf8');
   // timingSafeEqual throws on a length mismatch, so compare lengths separately.
