@@ -88,18 +88,20 @@ write them; no anon/authenticated policy exists on them at all.
 ## Environment variables
 
 Everything below is optional — the feature works with just the variables the app already
-requires (`OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_API_KEY`).
+requires (`ANTHROPIC_API_KEY` for chat/report answers, `OPENAI_API_KEY` for embeddings,
+`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_API_KEY`).
 
 ```env
 # Reused from the rest of the app — no new required variables.
-OPENAI_API_KEY=...
+ANTHROPIC_API_KEY=...   # chat answers + report synthesis (Claude)
+OPENAI_API_KEY=...      # embeddings only (Claude has no embeddings endpoint)
 SUPABASE_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...
 ADMIN_API_KEY=...
 
 # Optional tuning (defaults shown):
 RAG_EMBEDDING_MODEL=text-embedding-3-small   # must stay 1536-dim to match the schema
-RAG_CHAT_MODEL=                              # falls back to APP_ENGINE_ID, then gpt-5.6-luna
+RAG_CHAT_MODEL=                              # Claude model id; falls back to APP_ENGINE_ID, then claude-sonnet-5-5
 RAG_EMBEDDING_BATCH_SIZE=64
 RAG_EMBEDDING_MAX_RETRIES=3
 RAG_CHUNK_CHAR_SIZE=3200
@@ -171,14 +173,12 @@ Repeat until `GET /api/admin/rag/embeddings/status` reports `pendingLogs: 0`. Ra
   "Embedding index" widget along with total/embedded/pending counts.
 - **Error logging**: a chunk that fails all retries is recorded in `embedding_job_errors` with the
   log id and error message, without blocking the rest of the run.
-- **Chat/report model calls** go through `shared/modelConfig.ts`'s `createChatCompletion` (the
-  same wrapper `/translate`, `/compose`, etc. use), not a raw `openai.chat.completions.create`
-  call. That wrapper degrades and retries once if the configured model rejects an optional
-  parameter — relevant because `APP_ENGINE_ID` can point at a custom/gateway model (e.g.
-  `gpt-5.6-luna`) whose supported parameter surface isn't fully known; sending an unproven
-  parameter like `temperature` unconditionally is what caused `POST /admin/rag/chat` to 500 in
-  production. Per-model tuning for the `rag-chat` / `rag-report` tasks lives in
-  `shared/modelConfig.ts`'s `MODEL_TUNING` table.
+- **Chat/report model calls** go to Claude (`claude-sonnet-5-5` by default) through
+  `shared/modelConfig.ts`'s `createMessage` (the same helper `/translate`, `/compose`, etc. use).
+  Per-task settings (`max_tokens`, thinking mode, effort) live in its `TASK_CONFIG` table; no
+  sampling parameters are sent, since Claude Sonnet 5.5 rejects non-default `temperature`/`top_p`.
+  Reports use structured output (`output_config.format` with a JSON schema), so the
+  `{summary, sections}` body always parses.
 - Server logs (`console.error`/`console.warn`) are prefixed `[rag/ingestion]`, `[rag/scheduler]`,
   `[ragRoutes]` for easy filtering.
 

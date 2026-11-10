@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type Anthropic from '@anthropic-ai/sdk';
 import type OpenAI from 'openai';
-import { createChatCompletion, tuningFor } from '../modelConfig';
+import { createMessage, extractText } from '../modelConfig';
 import { RagConfig } from './config';
 import { averageSimilarity, scoreToLevel, toSourceRefs } from './confidence';
 import { getReportTemplate } from './reportTemplates';
@@ -61,8 +62,26 @@ interface LlmReportBody {
   sections: { heading: string; content: string }[];
 }
 
+const REPORT_BODY_SCHEMA = {
+  type: 'object',
+  properties: {
+    summary: { type: 'string' },
+    sections: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { heading: { type: 'string' }, content: { type: 'string' } },
+        required: ['heading', 'content'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['summary', 'sections'],
+  additionalProperties: false,
+};
+
 async function generateReportBody(
-  openai: OpenAI,
+  anthropic: Anthropic,
   config: RagConfig,
   templateTitle: string,
   templateDescription: string,
@@ -84,19 +103,14 @@ Respond with a single JSON object: {"summary": string, "sections": [{"heading": 
     .map((s, i) => `${i + 1}. "${s.heading}": ${s.instruction}`)
     .join('\n')}`;
 
-  const response = await createChatCompletion(
-    openai,
-    {
-      model: config.chatModel,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-    },
-    tuningFor(config.chatModel, 'rag-report')
-  );
+  const response = await createMessage(anthropic, 'rag-report', {
+    model: config.chatModel,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userPrompt }],
+    jsonSchema: REPORT_BODY_SCHEMA,
+  });
 
-  const raw = response.choices[0]?.message?.content ?? '{}';
+  const raw = extractText(response) || '{}';
   let parsed: LlmReportBody;
   try {
     parsed = JSON.parse(raw);
@@ -117,6 +131,7 @@ Respond with a single JSON object: {"summary": string, "sections": [{"heading": 
 export async function generateReport(
   supabase: SupabaseClient,
   openai: OpenAI,
+  anthropic: Anthropic,
   config: RagConfig,
   templateId: ReportTemplateId,
   filters: SearchFilters = {}
@@ -130,7 +145,7 @@ export async function generateReport(
 
   const contextBlock = buildContextBlock(stats, sources);
   const body = await generateReportBody(
-    openai,
+    anthropic,
     config,
     template.title,
     template.description,

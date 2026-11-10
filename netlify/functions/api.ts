@@ -16,7 +16,16 @@ import {
 import { requireAdmin, warnIfAdminAuthUnconfigured } from '../../shared/adminAuth';
 import { countOnline, recordHeartbeat } from '../../shared/presence';
 import { normalizeHeader, extractVocabRow, vocabHashKey, hasSourcePhrase } from '../../shared/vocabNormalize';
-import { APP_ENGINE_ID, tuningFor, createChatCompletion } from '../../shared/modelConfig';
+import {
+  APP_ENGINE_ID,
+  resolveModel,
+  getAnthropic,
+  createMessage,
+  streamText,
+  extractText,
+  extractUrlCitations,
+  imageBlock,
+} from '../../shared/modelConfig';
 import { createRagRouter } from '../../shared/ragRoutes';
 
 dotenv.config();
@@ -24,6 +33,7 @@ dotenv.config();
 warnIfAdminAuthUnconfigured('netlify/functions/api.ts');
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || '16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY';
 
 const supabase = createSupabaseClient();
@@ -54,9 +64,9 @@ const logToSupabase = async (payload: any) => {
 };
 
 // Built lazily rather than at module load: `new OpenAI({apiKey: undefined})`
-// throws immediately, which used to take the whole cold start down with it
-// (every route — /health, /admin/*, /import-vocab, not just the OpenAI-backed
-// ones, which already guard on OPENAI_API_KEY before touching this client).
+// throws immediately, which used to take the whole cold start down with it.
+// OpenAI is now only used for RAG embeddings (Claude has no embeddings
+// endpoint); every chat route goes to Claude via shared/modelConfig.ts.
 let openaiClient: OpenAI | null = null;
 function getOpenAI(): OpenAI {
   if (!openaiClient) openaiClient = new OpenAI({ apiKey: OPENAI_API_KEY });
@@ -176,8 +186,8 @@ export interface TranslatePromptInput {
 
 /**
  * Builds /translate's system prompt. Pure and exported so the language x
- * glossary x summarize matrix can be exercised without booting an OpenAI
- * client or an HTTP request (OPENAI_API_KEY is not available in every
+ * glossary x summarize matrix can be exercised without booting a Claude
+ * client or an HTTP request (ANTHROPIC_API_KEY is not available in every
  * environment this runs in — see repo memory.md §6).
  *
  * 'Auto' (LANGUAGES in src/constants.ts) is handled entirely in the prompt,
@@ -229,18 +239,14 @@ ${outputContract}`;
 }
 
 router.post('/translate', async (req, res) => {
-  if (!OPENAI_API_KEY) {
-    console.error("Missing OPENAI_API_KEY in environment.");
+  if (!ANTHROPIC_API_KEY) {
+    console.error("Missing ANTHROPIC_API_KEY in environment.");
     return res.status(500).json({ error: "Server Configuration Error" });
   }
 
   const { text, targetLang, glossary, image, summarize } = req.body;
   try {
     const systemPrompt = buildTranslateSystemPrompt({ targetLang, glossary, summarize });
-
-    const messages: any[] = [
-      { role: 'system', content: systemPrompt }
-    ];
 
     // 2. Build a single unified user content array
     const userContent: any[] = [];
@@ -258,19 +264,15 @@ router.post('/translate', async (req, res) => {
         : "[IMAGE INSTRUCTION]: Extract and translate all visible text in this image. Preserve the original layout, bullet points, and line breaks. Strictly follow the System Rules and Glossary above for the translation.";
       
       userContent.push({ type: 'text', text: imageInstruction });
-      userContent.push({ type: 'image_url', image_url: { url: image } });
+      userContent.push(imageBlock(image));
     }
 
-    // 4. Push the unified content as a single user message
-    messages.push({ role: 'user', content: userContent });
-
-    const targetModel = req.body.model || APP_ENGINE_ID;
-
-    const stream = await createChatCompletion(
-      getOpenAI(),
-      { model: targetModel, messages, stream: true },
-      tuningFor(targetModel, 'translate')
-    );
+    // 4. Send the unified content as a single user message
+    const stream = await streamText(getAnthropic(), 'translate', {
+      model: resolveModel(req.body.model || APP_ENGINE_ID),
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userContent }],
+    });
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -278,8 +280,7 @@ router.post('/translate', async (req, res) => {
 
     let outputText = '';
     
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content || '';
+    for await (const content of stream) {
       if (content) {
         outputText += content;
         res.write(content);
@@ -298,6 +299,8 @@ router.post('/translate', async (req, res) => {
     });
   } catch (error: any) {
     console.error('Translation error:', error.response?.data || error.message);
+    // A failure mid-stream arrives after the SSE headers went out; just close.
+    if (res.headersSent) return res.end();
     res.status(500).json({ error: 'Translation failed', details: error.message });
   }
 });
@@ -316,8 +319,8 @@ router.post('/log', async (req, res) => {
 });
 
 router.post('/ocr', async (req, res) => {
-  if (!OPENAI_API_KEY) {
-    console.error("Missing OPENAI_API_KEY in environment.");
+  if (!ANTHROPIC_API_KEY) {
+    console.error("Missing ANTHROPIC_API_KEY in environment.");
     return res.status(500).json({ error: "Server Configuration Error" });
   }
 
@@ -329,22 +332,13 @@ router.post('/ocr', async (req, res) => {
   try {
     const systemPrompt = "Bạn là một máy nhận diện ký tự quang học siêu tốc. Hãy bóc tách chính xác toàn bộ văn bản có trong hình ảnh này thành chuỗi ký tự thô. Tuyệt đối không mô tả ảnh, không giải thích ngữ cảnh, trả về duy nhất chữ tìm được để tối ưu hóa Latency tối đa.";
 
-    const messages: any[] = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: [
-          { type: 'image_url', image_url: { url: image } }
-        ]
-      }
-    ];
+    const response = await createMessage(getAnthropic(), 'ocr', {
+      model: resolveModel(req.body.model || APP_ENGINE_ID),
+      system: systemPrompt,
+      messages: [{ role: 'user', content: [imageBlock(image)] }],
+    });
 
-    const targetModel = req.body.model || APP_ENGINE_ID;
-    const response = await createChatCompletion(
-      getOpenAI(),
-      { model: targetModel, messages },
-      tuningFor(targetModel, 'ocr')
-    );
-
-    res.json({ extractedText: response.choices[0].message.content });
+    res.json({ extractedText: extractText(response) });
   } catch (error: any) {
     console.error('OCR error:', error.response?.data || error.message);
     res.status(500).json({ error: 'OCR extraction failed', details: error.message });
@@ -352,8 +346,8 @@ router.post('/ocr', async (req, res) => {
 });
 
 router.post('/talk', async (req, res) => {
-  if (!OPENAI_API_KEY) {
-    console.error("Missing OPENAI_API_KEY in environment.");
+  if (!ANTHROPIC_API_KEY) {
+    console.error("Missing ANTHROPIC_API_KEY in environment.");
     return res.status(500).json({ error: "Server Configuration Error" });
   }
 
@@ -372,28 +366,22 @@ router.post('/talk', async (req, res) => {
 - Format: Plain_String only.
 - Target Lang: ${targetLang}`;
 
+    const stream = await streamText(getAnthropic(), 'talk', {
+      model: resolveModel(req.body.model || APP_ENGINE_ID),
+      system: systemPrompt,
+      messages: [{ role: 'user', content: text }],
+    });
+
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    const targetModel = req.body.model || APP_ENGINE_ID;
-    const stream = await createChatCompletion(
-      getOpenAI(),
-      {
-        model: targetModel,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: text }
-        ],
-        stream: true,
-      },
-      tuningFor(targetModel, 'talk')
-    );
-
-    for await (const chunk of stream) {
-      if (chunk.choices[0]?.delta?.content) {
-        // Mock SSE format
-        res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+    for await (const content of stream) {
+      if (content) {
+        // Kept in the {choices:[{delta:{content}}]} chunk shape the client
+        // (src/services/ai.ts) already parses, so a cached older frontend
+        // keeps working against this server.
+        res.write(`data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`);
       }
     }
     
@@ -402,13 +390,14 @@ router.post('/talk', async (req, res) => {
 
   } catch (error: any) {
     console.error('Talk error:', error.message);
+    if (res.headersSent) return res.end();
     res.status(500).json({ error: 'Talk failed', details: error.message });
   }
 });
 
 router.post('/compose', async (req, res) => {
-  if (!OPENAI_API_KEY) {
-    console.error("Missing OPENAI_API_KEY in environment.");
+  if (!ANTHROPIC_API_KEY) {
+    console.error("Missing ANTHROPIC_API_KEY in environment.");
     return res.status(500).json({ error: "Server Configuration Error" });
   }
 
@@ -499,20 +488,13 @@ router.post('/compose', async (req, res) => {
 </execution_flow>
 ${structureInstruction}`;
     
-    const targetModel = req.body.model || APP_ENGINE_ID;
-    const response = await createChatCompletion(
-      getOpenAI(),
-      {
-        model: targetModel,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `${contextText}\n${requirements}` }
-        ],
-      },
-      tuningFor(targetModel, 'compose')
-    );
+    const response = await createMessage(getAnthropic(), 'compose', {
+      model: resolveModel(req.body.model || APP_ENGINE_ID),
+      system: systemPrompt,
+      messages: [{ role: 'user', content: `${contextText}\n${requirements}` }],
+    });
 
-    const outputText = response.choices[0].message.content;
+    const outputText = extractText(response);
 
     // Non-blocking log to Supabase
     logToSupabase({
@@ -635,42 +617,43 @@ router.post('/expert-search', async (req, res) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
+    if (!ANTHROPIC_API_KEY) {
+      console.error("Missing ANTHROPIC_API_KEY in environment.");
+      return res.status(500).json({ error: "Server Configuration Error" });
+    }
+
     const systemPrompt = "Bạn là một chuyên gia kỹ thuật lão làng với 30 năm kinh nghiệm trong ngành sản xuất giày da, am hiểu sâu sắc về Lean, cơ lý vật liệu, hóa chất ngành giày (Keo, xử lý bề mặt Outsole/Upper), tiêu chuẩn SOP, thử nghiệm chất lượng (SATRA, ISO) và các điểm kiểm soát CTQ.";
-    const targetModel = req.body.model || APP_ENGINE_ID;
-    const searchMessages = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: message }
-    ];
+
+    const searchRequest = {
+      model: resolveModel(req.body.model || APP_ENGINE_ID),
+      system: systemPrompt,
+      messages: [{ role: 'user' as const, content: message }],
+    };
 
     let response;
     try {
-      response = await createChatCompletion(
-        getOpenAI(),
-        { model: targetModel, messages: searchMessages, tools: [{ type: "web_search" }] as any },
-        tuningFor(targetModel, 'expert-search')
-      );
+      response = await createMessage(getAnthropic(), 'expert-search', {
+        ...searchRequest,
+        tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 5 }],
+      });
     } catch (searchError: any) {
       console.warn("Web search failed or quota exceeded. Falling back to offline knowledge.", searchError.message);
-      response = await createChatCompletion(
-        getOpenAI(),
-        { model: targetModel, messages: searchMessages },
-        tuningFor(targetModel, 'expert-search')
-      );
+      response = await createMessage(getAnthropic(), 'expert-search', searchRequest);
     }
 
-    const responseMessage = response.choices[0].message;
+    const replyText = extractText(response);
     
     // Non-blocking log to Supabase
     logToSupabase({
       task_type: 'expert_search',
       input_text: message,
-      output_text: responseMessage.content,
+      output_text: replyText,
       from_lang: 'auto',
       to_lang: 'vi',
       ip_address: (req as any).clientIp
     });
 
-    res.json({ reply: responseMessage.content, annotations: (responseMessage as any).annotations || [] });
+    res.json({ reply: replyText, annotations: extractUrlCitations(response) });
   } catch (error: any) {
     console.error('Expert search error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Expert search failed', details: error.message });
@@ -702,23 +685,19 @@ router.post('/security-analyze', async (req, res) => {
   if (!text) return res.status(400).json({ error: 'Missing text' });
 
   try {
-    const targetModel = req.body.model || APP_ENGINE_ID;
-    const response = await createChatCompletion(
-      getOpenAI(),
-      {
-        model: targetModel,
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a security AI. Analyze the following spam/attack text. Return a JSON object with {"keywords": ["keyword1", "keyword2"]} that are most indicative of this spam.'
-          },
-          { role: 'user', content: text }
-        ],
+    const response = await createMessage(getAnthropic(), 'security-analyze', {
+      model: resolveModel(req.body.model || APP_ENGINE_ID),
+      system: 'You are a security AI. Analyze the following spam/attack text. Return a JSON object with {"keywords": ["keyword1", "keyword2"]} that are most indicative of this spam.',
+      messages: [{ role: 'user', content: text }],
+      jsonSchema: {
+        type: 'object',
+        properties: { keywords: { type: 'array', items: { type: 'string' } } },
+        required: ['keywords'],
+        additionalProperties: false,
       },
-      tuningFor(targetModel, 'security-analyze')
-    );
+    });
 
-    const result = JSON.parse(response.choices[0].message.content || '{"keywords":[]}');
+    const result = JSON.parse(extractText(response) || '{"keywords":[]}');
     
     if (supabase && result.keywords && result.keywords.length > 0) {
       try {
@@ -800,7 +779,7 @@ router.get('/admin/responses', requireAdmin, async (req, res) => {
 // AI log assistant: chat + preset reports over app_logs via pgvector semantic
 // search (shared/rag/*). Mounted here so server.ts inherits it for free
 // through its "Netlify fallback routes" dynamic import — see server.ts.
-router.use('/admin/rag', createRagRouter(supabase, getOpenAI));
+router.use('/admin/rag', createRagRouter(supabase, getOpenAI, getAnthropic));
 
 router.all('*', (req, res) => {
   res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });

@@ -354,6 +354,10 @@ Decisions worth not re-deriving:
 
 ### 7.3 Prompts, model config, UI
 
+- **Superseded:** chat calls moved from OpenAI to the Claude API
+  (`claude-sonnet-5-5`); `createChatCompletion`/`MODEL_TUNING` were replaced by
+  `createMessage`/`streamText`/`TASK_CONFIG`. The notes below describe the
+  OpenAI-era design and are kept for history.
 - `shared/modelConfig.ts` owns `APP_ENGINE_ID`. Four routes used to hardcode
   `'gpt-5.6-luna'` and ignore the env var, so setting `APP_ENGINE_ID`
   redirected only two of six call sites.

@@ -10,7 +10,7 @@ import {
 } from './shared/adminService';
 import { requireAdmin, warnIfAdminAuthUnconfigured } from './shared/adminAuth';
 import { countOnline, recordHeartbeat } from './shared/presence';
-import { isRagConfigured } from './shared/rag/config';
+import { isEmbeddingConfigured } from './shared/rag/config';
 import { startEmbeddingScheduler } from './shared/rag/scheduler';
 
 dotenv.config();
@@ -21,6 +21,8 @@ warnIfAdminAuthUnconfigured('server.ts');
 
 // Built lazily, same reasoning as netlify/functions/api.ts's getOpenAI(): a
 // missing OPENAI_API_KEY must not crash routes that never touch OpenAI.
+// OpenAI is only used here for the realtime voice-translation token and the
+// RAG embedding scheduler; every chat call goes to Claude (shared/modelConfig.ts).
 let openaiClient: OpenAI | null = null;
 function getOpenAI(): OpenAI {
   if (!openaiClient) openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -216,7 +218,7 @@ async function startServer() {
   // this Express process stays up on Render, unlike the stateless Netlify
   // function, which relies on an external cron hitting POST
   // /api/admin/rag/embeddings/run instead (see docs/rag-admin-assistant.md).
-  if (supabase && isRagConfigured()) {
+  if (supabase && isEmbeddingConfigured()) {
     startEmbeddingScheduler(supabase, getOpenAI());
   } else {
     console.warn('[Server] RAG embedding scheduler not started: Supabase and/or OPENAI_API_KEY not configured.');

@@ -1,9 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type Anthropic from '@anthropic-ai/sdk';
 import type OpenAI from 'openai';
 import { requireAdmin, secretsMatch } from './adminAuth';
 import { answerChatQuestion } from './rag/chatService';
-import { loadRagConfig, isRagConfigured } from './rag/config';
+import { loadRagConfig, isRagConfigured, missingRagKeys } from './rag/config';
 import { reportToDocxBuffer } from './rag/docxExport';
 import { runIncrementalEmbeddingJob } from './rag/ingestion';
 import { generateReport } from './rag/reportGenerator';
@@ -45,18 +46,23 @@ function requireAdminOrCronSecret(config: ReturnType<typeof loadRagConfig>) {
 
 /**
  * Admin-only RAG endpoints, mounted at /admin/rag by both server.ts (via its
- * Netlify-fallback import) and netlify/functions/api.ts. `getOpenAI` is a
- * factory rather than a client so it can lazily build the client the same
+ * Netlify-fallback import) and netlify/functions/api.ts. `getOpenAI`
+ * (embeddings) and `getAnthropic` (chat/report answers) are factories rather
+ * than clients so it can lazily build the client the same
  * way the rest of this codebase does (see netlify/functions/api.ts) instead
  * of constructing one eagerly at module load with a possibly-missing key.
  */
-export function createRagRouter(supabase: SupabaseClient | null, getOpenAI: () => OpenAI): Router {
+export function createRagRouter(
+  supabase: SupabaseClient | null,
+  getOpenAI: () => OpenAI,
+  getAnthropic: () => Anthropic
+): Router {
   const router = Router();
   const config = loadRagConfig();
 
   router.use((req, res, next) => {
     if (!isRagConfigured()) {
-      return res.status(503).json({ error: 'RAG assistant is not configured: OPENAI_API_KEY is missing on the server.' });
+      return res.status(503).json({ error: `RAG assistant is not configured: ${missingRagKeys().join(' and ')} missing on the server.` });
     }
     if (!supabase) {
       return res.status(503).json({ error: 'RAG assistant is not configured: Supabase is not configured on the server.' });
@@ -96,7 +102,7 @@ export function createRagRouter(supabase: SupabaseClient | null, getOpenAI: () =
       return res.status(400).json({ error: 'Missing question' });
     }
     try {
-      const answer = await answerChatQuestion(supabase as SupabaseClient, getOpenAI(), config, question, parseFilters(filters));
+      const answer = await answerChatQuestion(supabase as SupabaseClient, getOpenAI(), getAnthropic(), config, question, parseFilters(filters));
       res.json(answer);
     } catch (err: any) {
       console.error('[ragRoutes] Chat failed:', err);
@@ -113,6 +119,7 @@ export function createRagRouter(supabase: SupabaseClient | null, getOpenAI: () =
       const report = await generateReport(
         supabase as SupabaseClient,
         getOpenAI(),
+        getAnthropic(),
         config,
         templateId as ReportTemplateId,
         parseFilters(filters)

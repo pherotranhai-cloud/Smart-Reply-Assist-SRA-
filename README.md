@@ -105,13 +105,21 @@ The project is built as a full-stack application using Express and Vite:
   `useTabActive` and render nothing while its tab is away: a portal lands in `<body>`, where the
   tab's `display: none` cannot reach it, and it used to disappear only because the tab unmounted.
   The Settings header bar and Compose's action bar both do this.
-- **AI Integration:** Backend proxies requests to AI providers using secure environment variables.
+- **AI Integration:** Backend proxies requests using secure environment variables. Every chat task
+  (translate, OCR, compose, talk, expert search, security analysis, RAG chat/reports) calls the
+  Claude API with `claude-sonnet-5-5` (`shared/modelConfig.ts`). OpenAI is still used for the two
+  things Claude has no endpoint for: RAG embeddings and the realtime voice-translation session.
 - **Usage Logging:** Completed translate/compose requests are forwarded to `POST /api/public/log` and stored in Supabase.
 
 ## Environment Variables
 
 Create a `.env` file with your API keys:
 ```env
+# Claude API key: every chat/translate/compose/OCR/talk/expert-search call.
+ANTHROPIC_API_KEY=your_anthropic_key
+# Optional: another Claude model id; non-Claude ids fall back to claude-sonnet-5-5.
+# APP_ENGINE_ID=claude-sonnet-5-5
+# OpenAI is still needed for RAG embeddings and realtime voice translation.
 OPENAI_API_KEY=your_openai_key
 # Server-only. No VITE_ prefix: anything prefixed VITE_ is compiled into the
 # client bundle and is therefore public. Unset means /api/admin/* rejects
@@ -133,6 +141,6 @@ sends the whole `app_logs` table to the model: a daily job embeds new/changed lo
 relevant chunks via semantic search (optionally narrowed by module/severity/issue type/date).
 
 See `docs/rag-admin-assistant.md` for architecture, the migration in `supabase/migrations/`,
-required environment variables (`RAG_*`, reusing the existing `OPENAI_API_KEY` and Supabase
-service-role credentials), how to run the first backfill, and how the daily job is scheduled on
+required environment variables (`RAG_*`, reusing the existing `ANTHROPIC_API_KEY` for answers,
+`OPENAI_API_KEY` for embeddings, and Supabase service-role credentials), how to run the first backfill, and how the daily job is scheduled on
 Render vs. Netlify.

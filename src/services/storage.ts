@@ -1,5 +1,5 @@
 import { VocabItem, AISettings, AppState, HistoryItem, ConversationContext, GlobalLanguage } from '../types';
-import { DEFAULT_STATE } from '../constants';
+import { DEFAULT_AI_MODEL, DEFAULT_STATE, SUPPORTED_MODELS } from '../constants';
 import { STORAGE_KEYS, DATA_KEYS } from '../constants/storageKeys';
 
 import { safeLocalStorage } from '../utils/safeStorage';
@@ -53,6 +53,12 @@ export const storage = {
     // Migration: if settings is in old format, convert to new format
     if (!(settings as any).activeProvider) {
       return DEFAULT_STATE.settings;
+    }
+    // Migration: a model saved before the switch to Claude (gpt-5.6-luna,
+    // gpt-4o, ...) is no longer offered; move it to the default model so the
+    // picker shows a selection and the server isn't sent a stale id.
+    if (!settings.openai || !SUPPORTED_MODELS.includes(settings.openai.model)) {
+      return { ...settings, openai: { ...DEFAULT_STATE.settings.openai, ...settings.openai, model: DEFAULT_AI_MODEL } };
     }
     return settings;
   },

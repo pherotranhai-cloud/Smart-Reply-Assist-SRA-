@@ -1,8 +1,11 @@
+import { APP_ENGINE_ID, isClaudeConfigured, resolveModel } from '../modelConfig';
+
 /**
  * Env-driven configuration for the RAG admin assistant. Every knob has a
- * sane default so the feature works with only OPENAI_API_KEY and the
- * existing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (shared/adminService.ts)
- * already set — nothing new is required to get a working deploy.
+ * sane default so the feature works with only ANTHROPIC_API_KEY (chat and
+ * report synthesis via Claude), OPENAI_API_KEY (embeddings — Claude has no
+ * embeddings endpoint) and the existing SUPABASE_URL /
+ * SUPABASE_SERVICE_ROLE_KEY (shared/adminService.ts) already set.
  */
 
 function num(name: string, fallback: number): number {
@@ -15,7 +18,7 @@ function num(name: string, fallback: number): number {
 export interface RagConfig {
   /** OpenAI embedding model. 1536 dimensions — must match the vector(1536) column in log_embeddings. */
   embeddingModel: string;
-  /** Chat model used for the chatbot and report synthesis. Falls back to the app's own APP_ENGINE_ID. */
+  /** Claude model used for the chatbot and report synthesis. Falls back to the app's own APP_ENGINE_ID. */
   chatModel: string;
   /** Max chunk texts sent per OpenAI embeddings.create call. */
   embeddingBatchSize: number;
@@ -54,7 +57,7 @@ export interface RagConfig {
 export function loadRagConfig(): RagConfig {
   return {
     embeddingModel: process.env.RAG_EMBEDDING_MODEL || 'text-embedding-3-small',
-    chatModel: process.env.RAG_CHAT_MODEL || process.env.APP_ENGINE_ID || 'gpt-5.6-luna',
+    chatModel: resolveModel(process.env.RAG_CHAT_MODEL || APP_ENGINE_ID),
     embeddingBatchSize: num('RAG_EMBEDDING_BATCH_SIZE', 64),
     embeddingMaxRetries: num('RAG_EMBEDDING_MAX_RETRIES', 3),
     chunkCharSize: num('RAG_CHUNK_CHAR_SIZE', 3200),
@@ -70,6 +73,20 @@ export function loadRagConfig(): RagConfig {
   };
 }
 
-export function isRagConfigured(): boolean {
+/** Embeddings (ingestion, semantic search) only need the OpenAI key. */
+export function isEmbeddingConfigured(): boolean {
   return !!process.env.OPENAI_API_KEY;
+}
+
+/** Chat and reports need both: OpenAI for retrieval embeddings, Claude for the answer. */
+export function isRagConfigured(): boolean {
+  return isEmbeddingConfigured() && isClaudeConfigured();
+}
+
+/** Human-readable list of the API keys the RAG assistant is still missing. */
+export function missingRagKeys(): string[] {
+  const missing: string[] = [];
+  if (!isEmbeddingConfigured()) missing.push('OPENAI_API_KEY');
+  if (!isClaudeConfigured()) missing.push('ANTHROPIC_API_KEY');
+  return missing;
 }
