@@ -117,6 +117,13 @@ export function useTranslateTab({
       const ai = new AIService(state.settings);
       let finalSourceText = translateInput;
 
+      // Two model calls on purpose: OCR first, then translate the extracted
+      // text. Do not merge them into one call that sends the image straight to
+      // /api/translate. The factory glossary is matched on the client against
+      // the source *text* (AIService.translate → matchGlossary), so text that
+      // only exists inside the image can get its mandatory term translations
+      // only once OCR has turned it into text. A single image call would
+      // translate those terms without the glossary.
       if (translateImage) {
         showToast(t('readingImage'), 'info');
         const extractedText = await ai.extractTextFromImage(translateImage);
