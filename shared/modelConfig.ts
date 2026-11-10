@@ -101,21 +101,50 @@ export interface ClaudeRequest {
 }
 
 /** Builds the full request body for `task` — exported so tests can check its shape without a network call. */
+/**
+ * Where models differ in request shape. TASK_CONFIG is written for the default
+ * model (Claude Sonnet 5.5); a request for another Claude model is adjusted
+ * here rather than sent as-is and rejected with a 400.
+ */
+export function modelCapabilities(model: string): {
+  /** How a "thinking off" task (between_tools in TASK_CONFIG) is sent. */
+  thinkingOff: Anthropic.Beta.BetaThinkingConfigParam;
+  /** Whether the server-side refusal fallback (`fallbacks: 'default'`) may be sent. */
+  serverFallbacks: boolean;
+} {
+  if (model.startsWith('claude-sonnet-5-5')) {
+    // Sonnet 5.5 rejects {type:'disabled'}; between_tools is its thinking-off mode.
+    return { thinkingOff: { type: 'between_tools' }, serverFallbacks: true };
+  }
+  if (model.startsWith('claude-haiku-5-5')) {
+    // Haiku 5.5 does not accept between_tools (Sonnet 5.5 only) but accepts
+    // disabled at effort high or below, and its refusals have no server-side fallback.
+    return { thinkingOff: { type: 'disabled' }, serverFallbacks: false };
+  }
+  // Opus 5.5 / Fable cannot turn thinking off at all; adaptive is valid everywhere.
+  const fallbacks = /^claude-(opus-5|fable-5)/.test(model);
+  return { thinkingOff: { type: 'adaptive' }, serverFallbacks: fallbacks };
+}
+
 export function buildRequest(task: ChatTask, req: ClaudeRequest): Anthropic.Beta.MessageCreateParamsNonStreaming {
   const cfg = TASK_CONFIG[task];
+  const model = resolveModel(req.model);
+  const caps = modelCapabilities(model);
   const outputConfig: Anthropic.Beta.BetaOutputConfig = { effort: cfg.effort };
   if (req.jsonSchema) outputConfig.format = { type: 'json_schema', schema: req.jsonSchema };
 
   const params: Anthropic.Beta.MessageCreateParamsNonStreaming = {
-    model: resolveModel(req.model),
+    model,
     max_tokens: cfg.max_tokens,
     system: req.system,
     messages: req.messages,
-    thinking: cfg.thinking,
+    thinking: cfg.thinking.type === 'between_tools' ? caps.thinkingOff : cfg.thinking,
     output_config: outputConfig,
-    betas: [FALLBACK_BETA],
-    fallbacks: 'default',
   };
+  if (caps.serverFallbacks) {
+    params.betas = [FALLBACK_BETA];
+    params.fallbacks = 'default';
+  }
   if (req.tools && req.tools.length > 0) params.tools = req.tools;
   return params;
 }

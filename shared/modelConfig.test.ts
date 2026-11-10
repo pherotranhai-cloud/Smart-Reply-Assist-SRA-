@@ -66,6 +66,36 @@ describe('buildRequest', () => {
   });
 });
 
+describe('per-model request shape', () => {
+  const base = { system: 'sys', messages: [{ role: 'user' as const, content: 'hi' }] };
+
+  it('Haiku 5.5: thinking off is "disabled" (no between_tools) and no server-side fallback', () => {
+    const req = buildRequest('translate', { ...base, model: 'claude-haiku-5-5' }) as Record<string, any>;
+    expect(req.model).toBe('claude-haiku-5-5');
+    expect(req.thinking).toEqual({ type: 'disabled' });
+    expect(['low', 'medium', 'high']).toContain(req.output_config.effort); // disabled needs effort <= high
+    expect(req.fallbacks).toBeUndefined();
+    expect(req.betas).toBeUndefined();
+  });
+
+  it('Haiku 5.5 keeps adaptive thinking where the task asks for it', () => {
+    const req = buildRequest('expert-search', { ...base, model: 'claude-haiku-5-5' }) as Record<string, any>;
+    expect(req.thinking).toEqual({ type: 'adaptive' });
+  });
+
+  it('Sonnet 5.5 (default) is unchanged', () => {
+    const req = buildRequest('translate', { ...base, model: 'claude-sonnet-5-5' }) as Record<string, any>;
+    expect(req.thinking).toEqual({ type: 'between_tools' });
+    expect(req.fallbacks).toBe('default');
+  });
+
+  it('Opus 5.5 never sends a thinking-off mode it rejects', () => {
+    const req = buildRequest('translate', { ...base, model: 'claude-opus-5-5' }) as Record<string, any>;
+    expect(req.thinking).toEqual({ type: 'adaptive' });
+    expect(req.fallbacks).toBe('default');
+  });
+});
+
 describe('imageBlock', () => {
   it('turns a data URL into a base64 image block', () => {
     expect(imageBlock('data:image/jpeg;base64,QUJD')).toEqual({
