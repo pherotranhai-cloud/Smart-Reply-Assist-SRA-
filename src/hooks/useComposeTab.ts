@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { storage } from '../services/storage';
 import { AIService } from '../services/ai';
 import { validateSecurity } from '../utils/security';
+import { splitEmailSubject } from '../../shared/emailSubject';
 import { AppState, ConversationContext, Audience, Tone, Length, Format, Language } from '../types';
 
 interface UseComposeTabParams {
@@ -86,13 +87,9 @@ export function useComposeTab({
     if (composeCacheRef.current.has(cacheKey)) {
       const cachedResult = composeCacheRef.current.get(cacheKey)!;
       
-      let subject = '';
-      let body = cachedResult;
-      if (composeParams.format === 'formal_email' && cachedResult.toLowerCase().startsWith('subject:')) {
-        const lines = cachedResult.split('\n');
-        subject = lines[0].replace(/subject:/i, '').trim();
-        body = lines.slice(1).join('\n').trim();
-      }
+      const { subject, body } = composeParams.format === 'formal_email'
+        ? splitEmailSubject(cachedResult)
+        : { subject: '', body: cachedResult };
 
       // Typewriter effect
       for (let i = 0; i <= body.length; i += 2) {
@@ -157,13 +154,9 @@ export function useComposeTab({
         (chunk) => {
           fullReply += chunk;
           
-          let subject = '';
-          let body = fullReply;
-          if (composeParams.format === 'formal_email' && fullReply.toLowerCase().startsWith('subject:')) {
-            const lines = fullReply.split('\n');
-            subject = lines[0].replace(/subject:/i, '').trim();
-            body = lines.slice(1).join('\n').trim();
-          }
+          const { subject, body } = composeParams.format === 'formal_email'
+            ? splitEmailSubject(fullReply)
+            : { subject: '', body: fullReply };
 
           setState(prev => ({ 
             ...prev, 
@@ -172,13 +165,9 @@ export function useComposeTab({
         }
       );
 
-      let subject = '';
-      let body = result;
-      if (composeParams.format === 'formal_email' && result.toLowerCase().startsWith('subject:')) {
-        const lines = result.split('\n');
-        subject = lines[0].replace(/subject:/i, '').trim();
-        body = lines.slice(1).join('\n').trim();
-      }
+      const { subject, body } = composeParams.format === 'formal_email'
+        ? splitEmailSubject(result)
+        : { subject: '', body: result };
 
       const newOutputs = { 
         ...state.lastOutputs, 
