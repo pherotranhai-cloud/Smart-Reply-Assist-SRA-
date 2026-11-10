@@ -718,6 +718,23 @@ module.exports = {
         { id: 'tablet', title: 'Tablet 768px', category: 'viewport', context: { viewport: { width: 768, height: 1024 }, isMobile: true, hasTouch: true }, run: async ({ page, assert }) => {
           await boot(page); assert(await noHorizontalScroll(page), 'overflow');
         } },
+        { id: 'splash-no-overlap', title: 'Popup cập nhật và nút trợ lý không đè splash', category: 'state', run: async ({ page, assert }) => {
+          await page.goto('/'); await page.waitForSelector('.ly-splash', { timeout: 10000 }); await page.waitForTimeout(800);
+          assert.equal(await page.locator('.fixed.inset-0.z-\\[9999\\]').count(), 0, 'changelog shown over the splash');
+          assert.equal(await page.locator('button.pointer-events-auto').count(), 0, 'assistant button shown over the splash');
+          await page.waitForSelector('.ly-splash', { state: 'detached', timeout: 15000 }); await seeText(page, 'Mới Cập Nhật', 5000);
+        } },
+        { id: 'splash-full-then-quick', title: 'Lần đầu hiệu ứng đầy đủ, mở lại trong 30 phút chỉ 0,6 s', category: 'persistence', run: async ({ page, assert }) => {
+          await boot(page); assert(true);
+          await page.reload(); await page.waitForSelector('.ly-splash', { timeout: 10000 });
+          assert.includes(await page.getAttribute('.ly-splash', 'class'), 'ly-splash--quick', 'second launch should be quick');
+          const t0 = Date.now(); await page.waitForSelector('.ly-splash', { state: 'detached', timeout: 10000 });
+          assert(Date.now() - t0 < 1600, 'quick splash should leave within ~1.1 s, took ' + (Date.now() - t0));
+        } },
+        { id: 'splash-first-full', title: 'Lần mở đầu tiên chạy hiệu ứng đầy đủ', category: 'happy-path', run: async ({ page, assert }) => {
+          await page.goto('/'); await page.waitForSelector('.ly-splash', { timeout: 10000 });
+          assert.includes(await page.getAttribute('.ly-splash', 'class'), 'ly-splash--full', 'first launch should animate');
+        } },
         { id: 'deep-link', title: 'Mở đường dẫn con (SPA fallback)', category: 'navigation', run: async ({ page }) => {
           await boot(page, { path: '/some/deep/route' });
         } },
