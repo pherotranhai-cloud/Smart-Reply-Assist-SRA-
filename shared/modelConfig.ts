@@ -1,17 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 /**
- * The one place every chat call this app makes is shaped and sent to Claude,
- * shared by server.ts (Express) and netlify/functions/api.ts (which server.ts
- * also dynamically imports as its "Netlify fallback router"), plus the RAG
- * chat/report services under shared/rag/.
- *
- * Embeddings (shared/rag/embeddings.ts) and the realtime voice-translation
- * session (server.ts /api/translation-token) are NOT routed through here:
- * Claude has no embeddings or realtime-audio endpoint, so both stay on
- * OpenAI and still need OPENAI_API_KEY.
- *
- * Never bundled for the browser (nothing in src/ imports it).
+ * The one place every AI call this app makes is shaped and sent to Claude,
+ * used by netlify/functions/api.ts (which server.ts also mounts as its API
+ * router). Server-only: nothing in src/ imports it, and ANTHROPIC_API_KEY is
+ * read here from process.env, never from the client bundle.
  */
 
 /** The model every chat route uses unless a request or env var picks another Claude model. */
@@ -37,12 +30,9 @@ export const APP_ENGINE_ID = resolveModel(process.env.APP_ENGINE_ID);
 export type ChatTask =
   | 'translate'
   | 'ocr'
-  | 'talk'
   | 'compose'
   | 'expert-search'
-  | 'security-analyze'
-  | 'rag-chat'
-  | 'rag-report';
+  | 'security-analyze';
 
 type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
@@ -58,22 +48,17 @@ export interface TaskConfig {
 }
 
 /**
- * Per-task settings. Latency-critical, single-shot tasks (live talk, OCR,
- * translation, compose, keyword extraction) run with thinking off; the tasks
- * that reason over retrieved evidence or web results keep adaptive thinking.
+ * Per-task settings. Latency-critical, single-shot tasks (OCR, translation,
+ * compose, keyword extraction) run with thinking off; expert search, which
+ * reasons over web results, keeps adaptive thinking.
  * No temperature/top_p: Claude Sonnet 5.5 rejects non-default sampling values.
  */
 export const TASK_CONFIG: Record<ChatTask, TaskConfig> = {
   translate: { max_tokens: 16000, thinking: { type: 'between_tools' }, effort: 'medium' },
   ocr: { max_tokens: 8000, thinking: { type: 'between_tools' }, effort: 'low' },
-  // A spoken one-liner; the cap bounds latency the same way the old 80-token
-  // cap did, with headroom for Claude's tokenizer on CJK/Vietnamese text.
-  talk: { max_tokens: 200, thinking: { type: 'between_tools' }, effort: 'low' },
   compose: { max_tokens: 4000, thinking: { type: 'between_tools' }, effort: 'medium' },
   'expert-search': { max_tokens: 16000, thinking: { type: 'adaptive' }, effort: 'medium' },
   'security-analyze': { max_tokens: 1024, thinking: { type: 'between_tools' }, effort: 'low' },
-  'rag-chat': { max_tokens: 8000, thinking: { type: 'adaptive' }, effort: 'low' },
-  'rag-report': { max_tokens: 16000, thinking: { type: 'adaptive' }, effort: 'medium' },
 };
 
 export function taskConfig(task: ChatTask): TaskConfig {
@@ -91,7 +76,7 @@ let anthropicClient: Anthropic | null = null;
 
 /**
  * Built lazily so a missing ANTHROPIC_API_KEY doesn't crash routes that never
- * call Claude (/health, /admin/*, /import-vocab, ...).
+ * call Claude (/health, /import-vocab, ...).
  */
 export function getAnthropic(): Anthropic {
   if (!anthropicClient) anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });

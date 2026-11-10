@@ -1,13 +1,11 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig, loadEnv} from 'vite';
+import {defineConfig} from 'vite';
 import pkg from './package.json';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
-
+export default defineConfig(() => {
   const plugins = [
     react(),
     tailwindcss(),
@@ -45,7 +43,6 @@ export default defineConfig(({mode}) => {
   return {
     plugins,
     define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       // package.json is the single source of truth for the app version.
       __APP_VERSION__: JSON.stringify(pkg.version),
     },

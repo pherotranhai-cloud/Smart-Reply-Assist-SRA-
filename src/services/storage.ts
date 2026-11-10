@@ -49,18 +49,14 @@ const adapter = {
 export const storage = {
   async getSettings(): Promise<AISettings> {
     const settings = await adapter.get<AISettings>(STORAGE_KEYS.SETTINGS);
-    if (!settings) return DEFAULT_STATE.settings;
-    // Migration: if settings is in old format, convert to new format
-    if (!(settings as any).activeProvider) {
+    // Migration: anything saved before the switch to Claude — the old
+    // {activeProvider, openai: {baseUrl, model}} shape, or a model id that is
+    // no longer offered (gpt-5.6-luna, gpt-4o, ...) — resets to the default,
+    // so the picker shows a selection and the server isn't sent a stale id.
+    if (!settings || typeof settings.model !== 'string' || !SUPPORTED_MODELS.includes(settings.model)) {
       return DEFAULT_STATE.settings;
     }
-    // Migration: a model saved before the switch to Claude (gpt-5.6-luna,
-    // gpt-4o, ...) is no longer offered; move it to the default model so the
-    // picker shows a selection and the server isn't sent a stale id.
-    if (!settings.openai || !SUPPORTED_MODELS.includes(settings.openai.model)) {
-      return { ...settings, openai: { ...DEFAULT_STATE.settings.openai, ...settings.openai, model: DEFAULT_AI_MODEL } };
-    }
-    return settings;
+    return { model: settings.model };
   },
 
   async setSettings(settings: AISettings): Promise<void> {

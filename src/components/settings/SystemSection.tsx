@@ -222,7 +222,7 @@ export const SystemSection: React.FC<SystemSectionProps> = ({ t, handleResetApp,
         {t('system')}
       </h3>
       {/* bg-surface is already theme- and wallpaper-correct, so no hasBgImage
-          branch is needed — see the same note in TalkTabDesktop. */}
+          branch is needed. */}
       <div className="rounded-xl overflow-hidden shadow-sm border border-border-main bg-surface backdrop-blur-xl">
         {ROWS.map((row, idx) => {
           const TileIcon = row.icon;

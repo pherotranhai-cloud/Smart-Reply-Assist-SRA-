@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Languages, PenTool, BookOpen, Settings, CheckCircle2, AlertCircle, X, History, Mic } from 'lucide-react';
+import { Languages, PenTool, BookOpen, Settings, CheckCircle2, AlertCircle, X, History } from 'lucide-react';
 import { UserPreferences } from '../types';
 import { TabType } from '../hooks/useTabNavigation';
 import { useSwipeTabs } from '../hooks/useSwipeTabs';
@@ -106,13 +106,6 @@ export const LayoutMobile: React.FC<LayoutProps> = ({
             ariaLabel={t('translate')}
             active={activeTab === 'translate'}
             onClick={() => handleTabClick('translate')}
-          />
-          <NavItem
-            icon={<Mic className="w-6 h-6" />}
-            label={t('nav_talk')}
-            ariaLabel={t('live_translate')}
-            active={activeTab === 'talk'}
-            onClick={() => handleTabClick('talk')}
           />
           <NavItem
             icon={<PenTool className="w-6 h-6" />}

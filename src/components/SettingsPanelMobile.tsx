@@ -26,7 +26,6 @@ export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
   settings,
   onSaveSettings,
   t,
-  onOpenAdmin,
   userPreferences,
   onUserPreferencesChange
 }) => {
@@ -42,7 +41,7 @@ export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
     uiThemeOptions,
     addWallpaperFiles,
     languageOptions
-  } = useSettingsPanel({ settings, onSaveSettings, globalLanguage, t, onOpenAdmin });
+  } = useSettingsPanel({ settings, onSaveSettings, globalLanguage, t });
 
   return (
     <div className="font-sans space-y-9 pb-[calc(6rem_+_env(safe-area-inset-bottom))]">
@@ -81,7 +80,7 @@ export const SettingsPanelMobile: React.FC<SettingsPanelProps> = ({
       />
 
       <ModelSection
-        model={localSettings.openai.model}
+        model={localSettings.model}
         onSelectModel={(model) => updateCurrent({ model })}
         t={t}
       />

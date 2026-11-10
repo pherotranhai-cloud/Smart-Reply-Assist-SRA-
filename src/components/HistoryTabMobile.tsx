@@ -63,7 +63,7 @@ export const HistoryTabMobile: React.FC<HistoryTabProps> = ({ t, showToast, onRe
     }
   };
 
-  type FilterType = 'all' | 'translate' | 'compose' | 'talk';
+  type FilterType = 'all' | 'translate' | 'compose';
 
   return (
     <motion.div 
@@ -82,7 +82,7 @@ export const HistoryTabMobile: React.FC<HistoryTabProps> = ({ t, showToast, onRe
         
         {/* Filters */}
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {(['all', 'translate', 'compose', 'talk'] as FilterType[]).map((f) => (
+          {(['all', 'translate', 'compose'] as FilterType[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}

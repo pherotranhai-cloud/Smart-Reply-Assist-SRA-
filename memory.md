@@ -432,3 +432,21 @@ Decisions worth not re-deriving:
   by brace matching, extract `t('…')` call sites from the component, and assert
   every key resolves in all four. Both UI units passed on the first try this
   way, against twelve keys reaching the screen as raw identifiers last time.
+
+## Removed: Talk tab, admin dashboard, RAG, OpenAI
+
+- The Talk tab (OpenAI realtime voice translation + `/api/talk`), the admin
+  dashboard (`/api/admin/*`, `ADMIN_API_KEY`, presence heartbeat), the RAG log
+  assistant (`shared/rag/*`, embeddings, `supabase/migrations/*rag*`) and the
+  `openai` dependency are gone. Claude (`shared/modelConfig.ts`) is the only AI
+  provider.
+- The frontend reads no environment variables: no `import.meta.env`, no
+  `VITE_*`, no `define` of secrets in `vite.config.ts` (it used to inline
+  `GEMINI_API_KEY` into the bundle). It calls same-origin `/api/*` only;
+  usage logging happens server-side inside the AI routes.
+- Client settings are now `{ model }`; the old `{activeProvider, openai}` shape
+  resets to the default on load (`storage.getSettings`).
+- The Supabase tables the RAG feature created (`log_embeddings`,
+  `embedding_sync_state`, `embedding_job_runs`, `embedding_job_errors`,
+  `match_log_embeddings`, `log_embedding_stats`) were not dropped by this
+  change — that is a manual database decision.

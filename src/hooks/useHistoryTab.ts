@@ -3,7 +3,7 @@ import { storage } from '../services/storage';
 import { CopyFormat, HistoryItem } from '../types';
 import { copyFormattedText } from '../utils/clipboard';
 
-type FilterType = 'all' | 'translate' | 'compose' | 'talk';
+type FilterType = 'all' | 'translate' | 'compose';
 
 /**
  * The History tab stays mounted once it has been opened, so this list is no

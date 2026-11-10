@@ -4,7 +4,7 @@ import { Check, Cpu } from 'lucide-react';
 import { MODEL_REGISTRY, SUPPORTED_MODELS } from '../../constants';
 
 interface ModelSectionProps {
-  /** Currently selected model id, from localSettings.openai.model. */
+  /** Currently selected model id, from localSettings.model. */
   model: string;
   /** Writes through useSettingsPanel's updateCurrent — Settings auto-saves, no Save button. */
   onSelectModel: (model: string) => void;
@@ -55,7 +55,7 @@ export const ModelSection: React.FC<ModelSectionProps> = ({ model, onSelectModel
         {t('model')}
       </h3>
       {/* bg-surface is already theme- and wallpaper-correct, so no hasBgImage
-          branch is needed — see the same note in TalkTabDesktop. */}
+          branch is needed. */}
       <div
         role="radiogroup"
         aria-labelledby={headingId}

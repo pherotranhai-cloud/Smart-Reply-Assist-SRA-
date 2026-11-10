@@ -7,14 +7,7 @@ import cors from 'cors';
 import crypto from 'crypto';
 import axios from 'axios';
 import Papa from 'papaparse';
-import OpenAI from 'openai';
-import {
-  createSupabaseClient,
-  countTotalRequests,
-  fetchRecentResponses
-} from '../../shared/adminService';
-import { requireAdmin, warnIfAdminAuthUnconfigured } from '../../shared/adminAuth';
-import { countOnline, recordHeartbeat } from '../../shared/presence';
+import { createSupabaseClient } from '../../shared/supabase';
 import { normalizeHeader, extractVocabRow, vocabHashKey, hasSourcePhrase } from '../../shared/vocabNormalize';
 import {
   APP_ENGINE_ID,
@@ -26,13 +19,9 @@ import {
   extractUrlCitations,
   imageBlock,
 } from '../../shared/modelConfig';
-import { createRagRouter } from '../../shared/ragRoutes';
 
 dotenv.config();
 
-warnIfAdminAuthUnconfigured('netlify/functions/api.ts');
-
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || '16IdWFaUWoGjhljq-fDOwneB7cxnUXAG22EdjtGM1DXY';
 
@@ -62,16 +51,6 @@ const logToSupabase = async (payload: any) => {
     console.error('Supabase logging exception:', err);
   }
 };
-
-// Built lazily rather than at module load: `new OpenAI({apiKey: undefined})`
-// throws immediately, which used to take the whole cold start down with it.
-// OpenAI is now only used for RAG embeddings (Claude has no embeddings
-// endpoint); every chat route goes to Claude via shared/modelConfig.ts.
-let openaiClient: OpenAI | null = null;
-function getOpenAI(): OpenAI {
-  if (!openaiClient) openaiClient = new OpenAI({ apiKey: OPENAI_API_KEY });
-  return openaiClient;
-}
 
 const app = express();
 export const router = Router();
@@ -305,19 +284,6 @@ router.post('/translate', async (req, res) => {
   }
 });
 
-router.post('/log', async (req, res) => {
-  const { task_type, input_text, output_text, from_lang, to_lang } = req.body;
-  logToSupabase({
-    task_type,
-    input_text,
-    output_text,
-    from_lang,
-    to_lang,
-    ip_address: (req as any).clientIp
-  });
-  res.json({ success: true });
-});
-
 router.post('/ocr', async (req, res) => {
   if (!ANTHROPIC_API_KEY) {
     console.error("Missing ANTHROPIC_API_KEY in environment.");
@@ -342,56 +308,6 @@ router.post('/ocr', async (req, res) => {
   } catch (error: any) {
     console.error('OCR error:', error.response?.data || error.message);
     res.status(500).json({ error: 'OCR extraction failed', details: error.message });
-  }
-});
-
-router.post('/talk', async (req, res) => {
-  if (!ANTHROPIC_API_KEY) {
-    console.error("Missing ANTHROPIC_API_KEY in environment.");
-    return res.status(500).json({ error: "Server Configuration Error" });
-  }
-
-  const { text, targetLang } = req.body;
-  if (!text || !targetLang) {
-    return res.status(400).json({ error: "Missing text or targetLang" });
-  }
-
-  try {
-    const systemPrompt = `# ROLE: Direct_Interpreter
-# LOGIC: Translate [Input] to [Target_Lang] instantly.
-# RULES: 
-- Keep names/codes as-is.
-- Use natural/spoken factory tone.
-- NO explanations. NO intro. 0% Filler.
-- Format: Plain_String only.
-- Target Lang: ${targetLang}`;
-
-    const stream = await streamText(getAnthropic(), 'talk', {
-      model: resolveModel(req.body.model || APP_ENGINE_ID),
-      system: systemPrompt,
-      messages: [{ role: 'user', content: text }],
-    });
-
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-
-    for await (const content of stream) {
-      if (content) {
-        // Kept in the {choices:[{delta:{content}}]} chunk shape the client
-        // (src/services/ai.ts) already parses, so a cached older frontend
-        // keeps working against this server.
-        res.write(`data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`);
-      }
-    }
-    
-    res.write('data: [DONE]\n\n');
-    res.end();
-
-  } catch (error: any) {
-    console.error('Talk error:', error.message);
-    if (res.headersSent) return res.end();
-    res.status(500).json({ error: 'Talk failed', details: error.message });
   }
 });
 
@@ -736,50 +652,6 @@ router.post('/security-analyze', async (req, res) => {
 router.get('/vocab', (req, res) => {
   res.status(410).json({ error: 'Database removed. Please use client-side localStorage and /api/import-vocab to sync.' });
 });
-
-// LƯU Ý: presence được giữ trong RAM của tiến trình. Netlify Functions là
-// stateless (mỗi cold start bắt đầu lại từ 0, nhiều instance không chia sẻ
-// Map), nên số người online chỉ chính xác trên Render server chạy liên tục.
-// Các route dưới đây tồn tại để dashboard vẫn hoạt động khi
-// VITE_RENDER_SERVER_URL trống và app chạy thuần trên Netlify.
-
-router.post('/presence/ping', (req, res) => {
-  const { sessionId } = req.body || {};
-  if (typeof sessionId !== 'string' || sessionId.trim() === '') {
-    return res.status(400).json({ error: 'Missing or invalid sessionId' });
-  }
-  res.json({ online: recordHeartbeat(sessionId.trim()) });
-});
-
-// requireAdmin gates this and /admin/responses: the latter returns real user
-// text out of app_logs, and both used to answer anyone who knew the URL.
-router.get('/admin/metrics', requireAdmin, async (req, res) => {
-  const online = countOnline();
-  if (!supabase) {
-    return res.json({ online, totalRequests: 0, supabaseConfigured: false });
-  }
-  try {
-    res.json({ online, totalRequests: await countTotalRequests(supabase), supabaseConfigured: true });
-  } catch (error: any) {
-    console.error('Failed to fetch admin metrics:', error);
-    res.json({ online, totalRequests: 0, supabaseConfigured: true });
-  }
-});
-
-router.get('/admin/responses', requireAdmin, async (req, res) => {
-  if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
-  try {
-    res.json({ responses: await fetchRecentResponses(supabase, req.query.limit) });
-  } catch (error: any) {
-    console.error('Failed to fetch recent responses:', error);
-    res.status(500).json({ error: 'Failed to fetch recent responses' });
-  }
-});
-
-// AI log assistant: chat + preset reports over app_logs via pgvector semantic
-// search (shared/rag/*). Mounted here so server.ts inherits it for free
-// through its "Netlify fallback routes" dynamic import — see server.ts.
-router.use('/admin/rag', createRagRouter(supabase, getOpenAI, getAnthropic));
 
 router.all('*', (req, res) => {
   res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });

@@ -29,11 +29,7 @@ export const MODEL_REGISTRY: Record<string, ModelMeta> = {
 export const SUPPORTED_MODELS = Object.keys(MODEL_REGISTRY) as readonly string[];
 
 export const DEFAULT_SETTINGS: AISettings = {
-  activeProvider: 'openai',
-  openai: {
-    baseUrl: 'https://api.openai.com/v1',
-    model: DEFAULT_AI_MODEL,
-  },
+  model: DEFAULT_AI_MODEL,
 };
 
 export const DEFAULT_STATE: AppState = {

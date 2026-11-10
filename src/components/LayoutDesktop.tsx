@@ -6,7 +6,6 @@ import {
   History as HistoryIcon,
   Globe,
   PenTool,
-  Mic,
   X
 } from 'lucide-react';
 import { UserPreferences } from '../types';
@@ -38,7 +37,6 @@ export const LayoutDesktop: React.FC<LayoutDesktopProps> = ({
   // t() returns the key itself on a miss, so the left side is never falsy.
   const tabs = [
     { id: 'translate', icon: Globe, label: t('tabTranslate') },
-    { id: 'talk', icon: Mic, label: t('tabTalk') },
     { id: 'compose', icon: PenTool, label: t('tabCompose') },
     { id: 'vocab', icon: BookOpen, label: t('vocab') },
     { id: 'history', icon: HistoryIcon, label: t('history') }
