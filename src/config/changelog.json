@@ -1,6 +1,14 @@
 {
   "releases": [
     {
+      "version": "v2.18.0",
+      "date": "2026-11-10",
+      "commit": "4b74ddc586536fe1aee4a5215a02ec9e75172d26",
+      "features": [
+        "**Bảng thuật ngữ** giờ phân biệt đúng dấu tiếng Việt, nên chữ \"máy\" không còn bị dịch nhầm thành \"may\" (**縫製**)"
+      ]
+    },
+    {
       "version": "v2.17.0",
       "date": "2026-11-10",
       "commit": "eedfddcc23acf3d9839e2b3d5cc6b8b711e67aa4",
