@@ -10,6 +10,7 @@ import Papa from 'papaparse';
 import { createSupabaseClient } from '../../shared/supabase';
 import { logToSupabase } from '../../shared/appLogs';
 import { resolveLanguage, startTranslation, logTranslation } from '../../shared/translate';
+import { buildComposeSystemPrompt, buildComposeUserMessage } from '../../shared/compose';
 
 // Re-exported for existing callers/tests of the prompt builder.
 export { buildTranslateSystemPrompt } from '../../shared/translate';
@@ -110,95 +111,13 @@ router.post('/compose', async (req, res) => {
 
   const { contextText, requirements, params, glossary } = req.body;
   try {
-    // Same resolveLanguage() /translate uses (shared/translate.ts), rather than a second copy
-    // of this if-chain: this route used to have its own, and it disagreed
-    // with /translate's about which languages got script enforcement at all
-    // (Indonesian, Burmese and Vietnamese got none here).
-    const { mappedLang, scriptRule } = resolveLanguage(params.lang);
-
-    const scriptEnforcement = scriptRule ? `\n  SCRIPT_ENFORCEMENT: ${scriptRule}` : '';
-
-    let structureInstruction = '';
-    const formatStr = (params.format || '').toLowerCase();
-    const goalStr = (params.goal || '').toLowerCase();
-
-    if (formatStr.includes('email')) {
-      structureInstruction = `
-<structure_instruction>
-  You MUST format the output as a Formal Email using Markdown. DO NOT wrap the output in \`\`\`markdown ... \`\`\` code blocks:
-  1. Subject Line: Must start with a clear, bolded subject line (e.g., **Subject:** [Concise, professional title in Target Language]).
-  2. Salutation: Include a formal opening greeting appropriate for the audience (e.g., Supervisor, Partner, Board of Directors).
-  3. Body paragraphs: Separate ideas clearly with line breaks. Use bold text (**...**) for key information (metrics, deadlines, item codes) and bullet points (- ) for specific actions/SOPs.
-  4. Sign-off: Conclude with a professional closing and sign-off (e.g., Best regards, / 祝好, / Trân trọng,).
-</structure_instruction>`;
-    } else if (goalStr.includes('explain') || goalStr.includes('guide') || formatStr.includes('action_list') || goalStr.includes('technical')) {
-      structureInstruction = `
-<structure_instruction>
-  You MUST format the output as a Technical Guide/Explanation using Markdown. DO NOT wrap the output in \`\`\`markdown ... \`\`\` code blocks:
-  1. Divide the layout using small headers (e.g., ### 📌 Vấn đề kỹ thuật, ### 🛠️ Giải pháp thực hiện).
-  2. Use bold (**...**) for core technical specifications and metrics.
-  3. Keep the layout organized and structured for factory floor scanning.
-</structure_instruction>`;
-    } else {
-      structureInstruction = `
-<structure_instruction>
-  You MUST format the output as a concise Internal Message using Markdown. DO NOT wrap the output in \`\`\`markdown ... \`\`\` code blocks:
-  1. Use clear line breaks for readability.
-  2. Use bullet points (- ) for lists or action items.
-  3. Bold (**...**) critical information such as error codes, line numbers, or Person-In-Charge (PIC) names so they can be grasped in 3 seconds.
-</structure_instruction>`;
-    }
-
-    const systemPrompt = `<system_context>
-  ROLE: Industrial_Proxy_Writer
-  DOMAIN: Factory_Operations
-  MODE: Ghostwriting (1st_person_perspective)
-</system_context>
-
-<constraints>
-  STRICT_LANG: ${mappedLang} !!IMPORTANT: 0% source language leakage.
-  NO_REPLY: Never respond to user. Rewrite ONLY.
-  FORMAT: Clean_text_only. No explanations.${scriptEnforcement}
-</constraints>
-
-<transformation_logic>
-  IF {Goal == "Remind"} -> Start: [Urgent_Hook] | End: [Action_Deadline]
-  IF {Goal == "Consult"} -> Style: [Inquiry] | End: [Specific_Question_For_Feedback]
-  IF {Goal == "Announce"} -> Style: [Formal_Directive] | End: [Strict_Implementation_Order]
-</transformation_logic>
-
-<parameters>
-  TARGET: ${mappedLang}
-  AUDIENCE: ${params.audience}
-  TONE: ${params.tone}
-  LENGTH: ${params.length}
-  FORMAT: ${params.format}
-  GOAL: ${params.goal || 'Custom'}
-</parameters>
-
-<glossary_injection>
-  ${glossary || 'No specific glossary provided.'}
-</glossary_injection>
-
-<mandatory_workflow>
-  STEP_1: IDENTIFY [Target_Language] (${mappedLang})
-  STEP_2: TRANSLATE user_intent 100% into [Target_Language]
-  STEP_3: APPLY [Goal] and [Tone] logic using ONLY [Target_Language]
-  !CRITICAL: If [Target_Language] is ${mappedLang}, every single word in Output must be ${mappedLang}.
-</mandatory_workflow>
-
-<execution_flow>
-  1. Detect [Input_Intent] (Context + Requirements)
-  2. Follow <mandatory_workflow>
-  3. Apply [Tone] & [Audience] honorifics
-  4. Return Final_Message (Max 200 words. No filler.)
-</execution_flow>
-${structureInstruction}`;
-    
+    // The prompt (one description per preset, audience, tone, length and
+    // format) lives in shared/compose.ts, next to its tests.
+    const { mappedLang } = resolveLanguage(params?.lang || 'English');
     const response = await createMessage(getAnthropic(), 'compose', {
       model: resolveModel(req.body.model || APP_ENGINE_ID),
-      system: systemPrompt,
-      messages: [{ role: 'user', content: `${contextText}\n${requirements}` }],
+      system: buildComposeSystemPrompt(params ?? {}, glossary),
+      messages: [{ role: 'user', content: buildComposeUserMessage(contextText, requirements) }],
     });
 
     const outputText = extractText(response);
