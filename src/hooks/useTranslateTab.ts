@@ -89,7 +89,9 @@ export function useTranslateTab({
 
     const currentVocab = await storage.getVocab();
     const imageHash = translateImage ? translateImage.substring(0, 50) + translateImage.substring(translateImage.length - 50) : '';
-    const hashKey = generateHash(translateInput + targetLang + imageHash);
+    // Summary mode is part of the key: the full translation and the summary
+    // of the same text are different answers and must not share a cache slot.
+    const hashKey = generateHash(translateInput + targetLang + (isSummaryMode ? '|summary' : '') + imageHash);
     const cache = await storage.getTranslationCache();
 
     if (cache[hashKey]) {

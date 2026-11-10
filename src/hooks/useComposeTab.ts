@@ -73,7 +73,15 @@ export function useComposeTab({
     }
 
     const goal = activePresetId === 'custom' ? 'Custom' : activePresetId.charAt(0).toUpperCase() + activePresetId.slice(1);
-    const cacheKey = `${composeReq}-${composeParams.lang}-${composeParams.tone}-${goal}`;
+    // Every input that changes the reply belongs in the key: all compose
+    // params (format, audience and length used to be missing, so changing them
+    // replayed the old reply) and which context, if any, the reply is built on.
+    const cacheKey = JSON.stringify([
+      composeReq,
+      composeParams,
+      goal,
+      hasContext ? currentContext.lastUpdatedIso : null,
+    ]);
 
     if (composeCacheRef.current.has(cacheKey)) {
       const cachedResult = composeCacheRef.current.get(cacheKey)!;

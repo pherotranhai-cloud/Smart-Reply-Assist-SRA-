@@ -636,7 +636,7 @@ export default function App() {
         {mountedTabs.has('vocab') && (
           <TabPage key="vocab" {...tabPage('vocab')} className="h-full">
             <div className="premium-card h-full flex flex-col">
-              <VocabManager t={t} userPreferences={userPreferences} />
+              <VocabManager t={t} userPreferences={userPreferences} vocab={vocab} />
             </div>
           </TabPage>
         )}

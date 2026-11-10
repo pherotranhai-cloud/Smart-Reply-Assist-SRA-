@@ -161,7 +161,12 @@ export const storage = {
   },
 
   async getHistory(): Promise<HistoryItem[]> {
-    return (await adapter.get<HistoryItem[]>(STORAGE_KEYS.HISTORY)) || [];
+    // adapter.get() hands back the raw string when JSON.parse fails, and a
+    // half-written or legacy value used to reach History's .filter() and
+    // take the whole app down with it. Anything that is not a list is no
+    // history at all.
+    const stored = await adapter.get<HistoryItem[]>(STORAGE_KEYS.HISTORY);
+    return Array.isArray(stored) ? stored : [];
   },
 
   async addHistory(item: Omit<HistoryItem, 'id' | 'timestamp'>): Promise<void> {
@@ -196,7 +201,9 @@ export const storage = {
   },
 
   async getTranslationCache(): Promise<Record<string, { translatedText: string, timestamp: number }>> {
-    return (await adapter.get<Record<string, { translatedText: string, timestamp: number }>>(STORAGE_KEYS.TRANSLATION_CACHE)) || {};
+    // Same guard as getHistory(): only a plain object is a usable cache.
+    const stored = await adapter.get<Record<string, { translatedText: string, timestamp: number }>>(STORAGE_KEYS.TRANSLATION_CACHE);
+    return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
   },
 
   async setTranslationCache(cache: Record<string, { translatedText: string, timestamp: number }>): Promise<void> {
