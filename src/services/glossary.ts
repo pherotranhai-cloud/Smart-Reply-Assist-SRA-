@@ -111,6 +111,8 @@ function isEnabled(item: VocabItem): boolean {
 const SOURCE_KEYS: GlossaryTargetKey[] = ['vi', 'en', 'zh_cn', 'zh_tw', 'id_lang', 'my'];
 
 const COMBINING_MARKS = /[\u0300-\u036f]/g;
+/** Non-global twin of COMBINING_MARKS for test(), which is stateful on a /g regex. */
+const HAS_COMBINING_MARK = /[\u0300-\u036f]/;
 const WORD_CHAR = /[\p{L}\p{N}]/u;
 /**
  * Scripts written without spaces between words. A phrase in one of these has no
@@ -195,6 +197,39 @@ function foldPhrase(phrase: string): string {
   return folded;
 }
 
+/** Lowercase NFC, the form two spellings are compared in when diacritics must agree. */
+function nfcLower(value: string): string {
+  return value.normalize('NFC').toLowerCase();
+}
+
+/**
+ * True when `segment` carries any diacritic the fold would strip: a combining
+ * mark after NFD, or đ/Đ (which NFD leaves alone, so foldChar special-cases it
+ * and this has to as well).
+ */
+function hasDiacritics(segment: string): boolean {
+  const decomposed = segment.normalize('NFD');
+  return HAS_COMBINING_MARK.test(decomposed) || decomposed.includes('đ') || decomposed.includes('Đ');
+}
+
+/**
+ * Whether a fold-level hit should count, given what the user actually typed.
+ *
+ * Folding lets "chuyen 5 thieu cong nhan" (typed without accents) still hit the
+ * "chuyền" row, but it also makes distinct Vietnamese words with the same
+ * letters collide: "máy" (machine) folded to "may" and pinned the "may" →
+ * 縫製 (sewing) row. So the fold is only trusted when the matched segment has
+ * no diacritics — there the user gave no tone/vowel information to contradict
+ * the library phrase. Once the segment does carry diacritics, the user has
+ * told us which word they mean, and it must agree with the library phrase
+ * exactly (case-insensitive, NFC so precomposed and decomposed input compare
+ * equal; đ stays distinct from d because NFC does not touch it).
+ */
+function diacriticsAgree(segment: string, source: string): boolean {
+  if (!hasDiacritics(segment)) return true;
+  return nfcLower(segment) === nfcLower(source);
+}
+
 /**
  * Caps. 40 entries is already several hundred tokens of glossary; past that the
  * model starts treating the block as background noise, and a single chat
@@ -237,6 +272,10 @@ function overlaps(a: GlossaryMatch, b: GlossaryMatch): boolean {
  * `new RegExp('\\b' + term + '\\b')`, so a row like "C+ (A.1)" either threw
  * (silently falling back to a boundary-less `includes`) or matched something
  * else entirely.
+ *
+ * Matching is accent-insensitive only for segments typed without diacritics;
+ * a segment that carries them must agree with the library phrase — see
+ * diacriticsAgree().
  */
 export function matchGlossary(text: string, vocab: VocabItem[], targetLang: string): GlossaryMatch[] {
   const targetKey = glossaryTargetKey(targetLang);
@@ -290,6 +329,7 @@ export function matchGlossary(text: string, vocab: VocabItem[], targetLang: stri
         // expanded it): take the whole character rather than half of it.
         if (after > 0 && after < folded.length && map[after] === map[after - 1]) end = map[after] + 1;
         if (end <= start) continue;
+        if (!diacriticsAgree(text.slice(start, end), source)) continue;
 
         candidates.push({ item, source, target, start, end });
         found++;
