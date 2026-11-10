@@ -1,6 +1,18 @@
 {
   "releases": [
     {
+      "version": "v2.17.0",
+      "date": "2026-11-10",
+      "commit": "eedfddcc23acf3d9839e2b3d5cc6b8b711e67aa4",
+      "features": [
+        "**Dịch chính xác hơn**: hiểu tiếng lóng chat tiếng Việt, cách xưng hô, tên riêng, và dùng từ **Đài Loan** cho tiếng Trung phồn thể",
+        "Văn bản gốc luôn được **dịch** đúng nghĩa, giữ nguyên bố cục và xử lý tốt hơn chữ đọc từ **ảnh (OCR)**",
+        "**Soạn tin nhắn** bám sát đối tượng, giọng văn, độ dài và định dạng bạn chọn, không bịa thêm thông tin",
+        "Soạn theo yêu cầu như \"prompt cho Claude Code\", **không còn giới hạn 200 từ** và dùng dấu câu tiếng Trung đúng chuẩn",
+        "**Tiêu đề email** hiển thị rõ ràng, nhận diện đúng dù bị in đậm hoặc đã được dịch"
+      ]
+    },
+    {
       "version": "v2.16.0",
       "date": "2026-11-10",
       "commit": "21089c5f3026bba95e633306c87f2a983385e0e5",
