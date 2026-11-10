@@ -31,6 +31,7 @@ describe('buildComposeSystemPrompt', () => {
     const p = buildComposeSystemPrompt({ lang: 'Vietnamese' });
     expect(p).toContain('Do not invent facts');
     expect(p).toContain('[ngày]');
+    expect(p).toContain('only for a detail the text cannot be sent without');
   });
 
   it('uses language-specific forms of address and script rules', () => {

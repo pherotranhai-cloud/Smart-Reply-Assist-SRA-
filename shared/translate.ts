@@ -149,7 +149,7 @@ export function buildTranslateSystemPrompt({ targetLang, glossary, summarize }: 
 <glossary>
 ${glossaryText}
 </glossary>
-These are the factory's own approved translations for terms found in this text. Use each \`translation\` exactly, in place of your own wording or a synonym, wherever its \`term\` appears, including inflected, plural, differently capitalised or compound forms. They take precedence over every other wording choice below.`
+These are the factory's own approved translations for terms found in this text. Use each \`translation\` in place of your own wording or a synonym wherever its \`term\` appears, including inflected, plural, differently capitalised or compound forms; change only its capitalisation or grammatical form to fit the sentence. If a term clearly does not apply where it matched (e.g. "may" matched inside "máy", machine), translate that word normally. They take precedence over every other wording choice below.`
     : '';
 
   const outputSection = summarize
