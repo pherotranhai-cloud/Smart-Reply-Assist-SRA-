@@ -1,6 +1,17 @@
 {
   "releases": [
     {
+      "version": "v2.16.0",
+      "date": "2026-11-10",
+      "commit": "21089c5f3026bba95e633306c87f2a983385e0e5",
+      "features": [
+        "Màn hình mở app hiển thị **đúng logo chuẩn Lai Yih** với hiệu ứng dựng biển hiệu mới",
+        "Mở lại app trong vòng 30 phút chỉ hiện logo **0,6 giây** rồi vào thẳng",
+        "Bản dịch **hiện dần ngay khi đang dịch**, câu đã dịch trước đó hiện **tức thì**",
+        "Thông báo cập nhật và nút trợ lý **không còn che** màn hình mở app"
+      ]
+    },
+    {
       "version": "v2.15.0",
       "date": "2026-11-10",
       "commit": "df167d540b792580067c93206193a0be6aa2b49f",

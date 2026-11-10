@@ -617,3 +617,39 @@
     scroll-behavior: auto;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Splash "Dựng biển hiệu" (src/components/SplashScreen.tsx), ~2.1 s.
+   At rest every part is visible: the quick re-open hold and reduced motion
+   show the finished logo with no keyframes at all. Transforms on SVG parts
+   are in the logo's own units (LOGO_VIEWBOX), not screen pixels.
+   --------------------------------------------------------------------------- */
+.ly-splash .ly-frame-draw { opacity: 0; }
+.ly-splash .ly-shine { transform: translateX(1500px) skewX(-18deg); }
+.ly-splash .ly-wordmark { letter-spacing: 0.3em; text-indent: 0.3em; }
+
+.ly-splash--quick { animation: ly-fade-in 0.25s ease-out both; }
+
+.ly-splash--full .ly-frame-draw { animation: ly-draw 0.75s cubic-bezier(.65,0,.35,1) both, ly-hide 0.15s linear 0.85s both; }
+.ly-splash--full .ly-frame { animation: ly-fade-in 0.18s ease-out 0.7s both; }
+.ly-splash--full .ly-plate { transform-box: fill-box; transform-origin: 50% 100%; animation: ly-plate 0.42s cubic-bezier(.2,.8,.2,1) 0.6s both; }
+.ly-splash--full .ly-letter-l { animation: ly-rise 0.42s cubic-bezier(.2,.9,.25,1.15) 0.92s both; }
+.ly-splash--full .ly-letter-y { animation: ly-rise 0.42s cubic-bezier(.2,.9,.25,1.15) 1.02s both; }
+.ly-splash--full .ly-shine { animation: ly-shine 0.62s ease-in-out 1.38s both; }
+.ly-splash--full .ly-wordmark { animation: ly-word 0.6s cubic-bezier(.2,.8,.2,1) 1.3s both; }
+.ly-splash--full .ly-footer { animation: ly-fade-in 0.5s ease-out 1.75s both; }
+
+@keyframes ly-draw { 0% { opacity: 1; stroke-dashoffset: 1; } 100% { opacity: 1; stroke-dashoffset: 0; } }
+@keyframes ly-hide { to { opacity: 0; } }
+@keyframes ly-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ly-plate { from { opacity: 0; transform: scaleY(0.6); } to { opacity: 1; transform: scaleY(1); } }
+@keyframes ly-rise { from { opacity: 0; transform: translateY(320px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ly-shine { from { transform: translateX(-1100px) skewX(-18deg); } to { transform: translateX(1500px) skewX(-18deg); } }
+@keyframes ly-word {
+  from { opacity: 0; letter-spacing: 0.7em; text-indent: 0.7em; }
+  to { opacity: 1; letter-spacing: 0.3em; text-indent: 0.3em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ly-splash, .ly-splash * { animation: none !important; }
+}

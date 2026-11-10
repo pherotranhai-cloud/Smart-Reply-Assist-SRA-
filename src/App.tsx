@@ -190,14 +190,16 @@ export default function App() {
   
   // Keyed to the release-notes version, not APP_VERSION: the latter is bumped
   // by the pre-commit hook on every commit, which would show this modal to
-  // every user on every deploy.
+  // every user on every deploy. Waits for the splash to finish: it used to
+  // open on top of it, so the first launch after every update hid the logo.
   useEffect(() => {
+    if (showSplash) return;
     const lastSeen = safeLocalStorage.getItem('app_last_seen_version');
     if (lastSeen !== UPDATE_CHANGELOG.version) {
       setIsChangelogOpen(true);
       safeLocalStorage.setItem('app_last_seen_version', UPDATE_CHANGELOG.version);
     }
-  }, []);
+  }, [showSplash]);
 
   useEffect(() => {
     fetch('/api/security-rules')
@@ -540,7 +542,8 @@ export default function App() {
         onClose={() => setIsChangelogOpen(false)} 
       />
       
-      <FloatingAssistant settings={state.settings} vocab={vocab} copyFormat={copyFormat} />
+      {/* Mounted after the splash: its button used to float on top of the logo. */}
+      {!showSplash && <FloatingAssistant settings={state.settings} vocab={vocab} copyFormat={copyFormat} />}
       
       <AnimatePresence>
         {showInstallBanner && (
