@@ -25,7 +25,6 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
   settings,
   onSaveSettings,
   t,
-  onOpenAdmin,
   userPreferences,
   onUserPreferencesChange
 }) => {
@@ -41,7 +40,7 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
     uiThemeOptions,
     addWallpaperFiles,
     languageOptions
-  } = useSettingsPanel({ settings, onSaveSettings, globalLanguage, t, onOpenAdmin });
+  } = useSettingsPanel({ settings, onSaveSettings, globalLanguage, t });
 
   // Over a wallpaper the pane uses --surface-solid rather than a fractional
   // alpha: --bg-card is already translucent, so bg-panel/20 composited to ~0.17.
@@ -87,7 +86,7 @@ export const SettingsPanelDesktop: React.FC<SettingsPanelProps> = ({
         />
 
         <ModelSection
-          model={localSettings.openai.model}
+          model={localSettings.model}
           onSelectModel={(model) => updateCurrent({ model })}
           t={t}
         />

@@ -59,7 +59,7 @@ export const HistoryTabDesktop: React.FC<HistoryTabDesktopProps> = ({ t, showToa
         <div className={`flex items-center gap-2 p-1.5 rounded-xl border border-border-main transition-all duration-300 ${
           hasBgImage ? 'bg-panel/10' : 'bg-app'
         }`}>
-          {(['all', 'translate', 'compose', 'talk'] as const).map(f => (
+          {(['all', 'translate', 'compose'] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}

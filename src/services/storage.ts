@@ -1,5 +1,5 @@
 import { VocabItem, AISettings, AppState, HistoryItem, ConversationContext, GlobalLanguage } from '../types';
-import { DEFAULT_STATE } from '../constants';
+import { DEFAULT_AI_MODEL, DEFAULT_STATE, SUPPORTED_MODELS } from '../constants';
 import { STORAGE_KEYS, DATA_KEYS } from '../constants/storageKeys';
 
 import { safeLocalStorage } from '../utils/safeStorage';
@@ -49,12 +49,14 @@ const adapter = {
 export const storage = {
   async getSettings(): Promise<AISettings> {
     const settings = await adapter.get<AISettings>(STORAGE_KEYS.SETTINGS);
-    if (!settings) return DEFAULT_STATE.settings;
-    // Migration: if settings is in old format, convert to new format
-    if (!(settings as any).activeProvider) {
+    // Migration: anything saved before the switch to Claude — the old
+    // {activeProvider, openai: {baseUrl, model}} shape, or a model id that is
+    // no longer offered (gpt-5.6-luna, gpt-4o, ...) — resets to the default,
+    // so the picker shows a selection and the server isn't sent a stale id.
+    if (!settings || typeof settings.model !== 'string' || !SUPPORTED_MODELS.includes(settings.model)) {
       return DEFAULT_STATE.settings;
     }
-    return settings;
+    return { model: settings.model };
   },
 
   async setSettings(settings: AISettings): Promise<void> {
@@ -159,7 +161,12 @@ export const storage = {
   },
 
   async getHistory(): Promise<HistoryItem[]> {
-    return (await adapter.get<HistoryItem[]>(STORAGE_KEYS.HISTORY)) || [];
+    // adapter.get() hands back the raw string when JSON.parse fails, and a
+    // half-written or legacy value used to reach History's .filter() and
+    // take the whole app down with it. Anything that is not a list is no
+    // history at all.
+    const stored = await adapter.get<HistoryItem[]>(STORAGE_KEYS.HISTORY);
+    return Array.isArray(stored) ? stored : [];
   },
 
   async addHistory(item: Omit<HistoryItem, 'id' | 'timestamp'>): Promise<void> {
@@ -194,7 +201,9 @@ export const storage = {
   },
 
   async getTranslationCache(): Promise<Record<string, { translatedText: string, timestamp: number }>> {
-    return (await adapter.get<Record<string, { translatedText: string, timestamp: number }>>(STORAGE_KEYS.TRANSLATION_CACHE)) || {};
+    // Same guard as getHistory(): only a plain object is a usable cache.
+    const stored = await adapter.get<Record<string, { translatedText: string, timestamp: number }>>(STORAGE_KEYS.TRANSLATION_CACHE);
+    return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
   },
 
   async setTranslationCache(cache: Record<string, { translatedText: string, timestamp: number }>): Promise<void> {

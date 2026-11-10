@@ -17,16 +17,12 @@ export interface VocabItem {
   enabled?: boolean | string;
 }
 
-export type ProviderType = 'openai';
-
-export interface ProviderSettings {
-  baseUrl: string;
-  model: string;
-}
-
+/**
+ * The user's AI choice. Only the model id lives on the client: the provider
+ * (Claude), its endpoint and its API key are all server-side.
+ */
 export interface AISettings {
-  activeProvider: ProviderType;
-  openai: ProviderSettings;
+  model: string;
 }
 
 export interface ConversationContext {

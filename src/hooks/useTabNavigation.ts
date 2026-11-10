@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
-export type TabType = 'translate' | 'compose' | 'talk' | 'vocab' | 'history' | 'settings';
+export type TabType = 'translate' | 'compose' | 'vocab' | 'history' | 'settings';
 
 /**
  * Whether the tab a component is rendered inside is the one on screen.
@@ -24,7 +24,6 @@ export const useTabActive = () => useContext(TabActiveContext);
 // list, so it has to stay in sync with the NavItem order in LayoutMobile.
 export const TAB_ORDER: readonly TabType[] = [
   'translate',
-  'talk',
   'compose',
   'vocab',
   'history',

@@ -1,7 +1,7 @@
 {
   "name": "ai-smart-reply-assist",
   "private": true,
-  "version": "2.12.23",
+  "version": "2.15.4",
   "type": "module",
   "scripts": {
     "start": "node dist/server.cjs",
@@ -12,21 +12,21 @@
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "version:bump": "node scripts/bump-version.mjs",
+    "changelog": "tsx scripts/changelog.ts",
     "prepare": "git config core.hooksPath .githooks || true"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.7.0",
     "@supabase/supabase-js": "^2.110.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "axios": "^1.13.6",
     "cors": "^2.8.6",
-    "docx": "^9.5.1",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "katex": "^0.16.45",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
-    "openai": "^6.33.0",
     "papaparse": "^5.5.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

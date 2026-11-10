@@ -10,7 +10,6 @@ Cyberpunk-themed AI assistant for translation and message composition.
 - **Copy Format:** Chooses what the copy buttons put on the clipboard, so `**bold**` never
   lands in a chat box as literal asterisks.
 - **Cyberpunk UI:** High-contrast, neon-themed interface.
-- **Admin Dashboard:** Lightweight operational view of the three metrics below.
 
 ## Copy Format
 
@@ -38,33 +37,26 @@ The conversion also normalises the rest of what the model writes: headings keep 
 bold span) and lose the hashes, bullets become `•`, task boxes become `☐`/`☑`, links become
 `label (url)`, quote markers and code fences are dropped, and `snake_case` names are left alone.
 
-## Admin Dashboard
+## "Mới cập nhật" popup (automated)
 
-The dashboard is opened by typing the admin key into the "Góp ý & Báo lỗi" feedback box in
-Settings. The key is checked by the server, not the browser: the client offers it to
-`GET /api/admin/metrics` as an `x-admin-key` header and opens the dashboard only on a 200.
+The what's-new popup is generated, not hand-edited. Its data lives in
+`src/config/changelog.json` (newest release first); `src/config/version.ts` derives the popup's
+version and title from it.
 
-`/api/admin/*` requires that header and is **fail-closed** — with `ADMIN_API_KEY` unset, every
-request is rejected, so the dashboard will not work until the variable is set on each host that
-serves the API (Render and Netlify). The guard lives in `shared/adminAuth.ts` and both hosts
-mount it.
+- `npm run changelog` reads the commits since the last release's `commit`, asks Claude whether
+  any of them is user-facing and, if so, writes 3-5 plain Vietnamese lines as a new release (next
+  minor version, also applied to `package.json`). Internal-only work writes nothing, so the popup
+  stays shut. `--dry-run` previews; `--from <ref>` overrides the starting commit.
+- `.github/workflows/changelog.yml` runs it on every push to `main` and commits the result, which
+  Netlify then deploys. It needs the repository secret `ANTHROPIC_API_KEY`; without it the job is
+  skipped. If `main` is branch-protected, allow `github-actions[bot]` to push.
+- To correct wording, edit the newest entry in `changelog.json` by hand; the next run starts after
+  that entry's `commit`.
 
-This replaces an earlier arrangement where the key was compared in the browser against
-`VITE_ADMIN_SECRET_KEY`. `VITE_`-prefixed variables are compiled into the bundle, so that secret
-shipped to every visitor while the admin routes themselves accepted anyone who knew the URL.
-Delete `VITE_ADMIN_SECRET_KEY` from your deployment environments and choose a new value for
-`ADMIN_API_KEY` — any value the old variable held should be treated as public.
+## Database cleanup
 
-It tracks exactly three metrics:
-
-- **Online users:** Live count of active sessions. Each open tab posts a heartbeat to
-  `POST /api/presence/ping` every 30 seconds (paused while the tab is hidden); the server keeps
-  those sessions in memory and expires the stale ones.
-- **Total requests:** Cumulative number of logged AI requests (translate, OCR translate, compose).
-- **50 most recent responses:** The latest 50 request/response rows loaded from Supabase.
-
-Visit statistics, the user-feedback list, global device management and the admin ban flow have
-been removed — no device data is read from or written to Supabase.
+`supabase/scripts/drop_rag.sql` removes the tables and functions the old RAG assistant created
+(`app_logs` is kept). Run it once in the Supabase SQL editor; it is idempotent and transactional.
 
 ## Development
 
@@ -87,7 +79,7 @@ The project is built as a full-stack application using Express and Vite:
 - **Backend:** Express server handles API requests and AI provider interaction.
 - **Frontend:** Single Page Application (SPA) served by Vite, built as a single bundle, with
   every tab kept mounted once it has been opened.
-  Vocab, Talk, History, Settings and the admin dashboard used to be `React.lazy()` chunks
+  Vocab, History and Settings used to be `React.lazy()` chunks
   fetched on first visit to their tab; that download landed inside the swipe that asked for
   the tab, so the page animated in over a spinner. Everything loads once now, behind the
   splash screen, and a tab switch is only a render — do not reintroduce `lazy()` here without
@@ -97,42 +89,41 @@ The project is built as a full-stack application using Express and Vite:
   Tabs no longer unmount either. A page is mounted the first time its tab is opened and then
   stays mounted for the session, `display: none` while another tab is showing, so coming back
   is a style flip and a spring rather than a fresh mount that re-runs every effect and re-reads
-  storage — the tab keeps its scroll position, its search box and its results. Two things follow
-  from that and must stay wired: the Talk tab is told when it stops being active and closes its
-  microphone and WebRTC session there (`useTalkTab`), since leaving the tab is no longer an
-  unmount, and the History tab re-reads storage each time it comes back (`useHistoryTab`),
-  since a remount no longer does it. Anything a tab renders through a portal has to read
+  storage — the tab keeps its scroll position, its search box and its results. One thing follows
+  from that and must stay wired: the History tab re-reads storage each time it comes back
+  (`useHistoryTab`), since a remount no longer does it. Anything a tab renders through a portal has to read
   `useTabActive` and render nothing while its tab is away: a portal lands in `<body>`, where the
   tab's `display: none` cannot reach it, and it used to disappear only because the tab unmounted.
   The Settings header bar and Compose's action bar both do this.
-- **AI Integration:** Backend proxies requests to AI providers using secure environment variables.
-- **Usage Logging:** Completed translate/compose requests are forwarded to `POST /api/public/log` and stored in Supabase.
+- **AI Integration:** Every AI task (translate, OCR, compose, expert search, security analysis)
+  calls the Claude API with `claude-sonnet-5-5` (`shared/modelConfig.ts`). There is no other AI
+  provider.
+- **Server-only configuration:** Every environment variable — API keys, Supabase credentials,
+  model ids — is read by the server (`process.env`) and never by the frontend. The client bundle
+  has no `import.meta.env` / `VITE_*` reads and calls only same-origin `/api/*` routes, so no
+  secret or host name is compiled into it. Do not add `VITE_`-prefixed variables: anything with
+  that prefix is shipped to every visitor.
+- **Usage Logging:** `/api/translate`, `/api/compose` and `/api/expert-search` log each completed
+  request to Supabase (`app_logs`) server-side.
 
 ## Environment Variables
 
 Create a `.env` file with your API keys:
 ```env
-OPENAI_API_KEY=your_openai_key
-# Server-only. No VITE_ prefix: anything prefixed VITE_ is compiled into the
-# client bundle and is therefore public. Unset means /api/admin/* rejects
-# everything.
-ADMIN_API_KEY=your_secret
+# All variables are server-only (read via process.env). Never prefix one with
+# VITE_: those are compiled into the client bundle and are therefore public.
+
+# Claude API key: every translate/compose/OCR/expert-search/security call.
+ANTHROPIC_API_KEY=your_anthropic_key
+# Optional: another Claude model id; non-Claude ids fall back to claude-sonnet-5-5.
+# APP_ENGINE_ID=claude-sonnet-5-5
+# Optional: usage logs, feedback and security rules.
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 GOOGLE_SHEET_ID=your_sheet_id
 ```
 
-For production builds, ensure these are set in your deployment environment. `ADMIN_API_KEY` has
-to be set on every host that serves `/api` — both the Render server and the Netlify function.
-
-## AI Log Assistant (RAG admin chatbot)
-
-The Admin Dashboard includes an AI assistant that answers questions about `app_logs` — the
-translate/compose/OCR/talk/expert-search history — and generates three preset reports
-(Performance Impact, Quality Impact, Standards and Issues), each exportable to `.docx`. It never
-sends the whole `app_logs` table to the model: a daily job embeds new/changed logs into a
-`pgvector` column in Supabase, and every question or report only pulls the handful of most
-relevant chunks via semantic search (optionally narrowed by module/severity/issue type/date).
-
-See `docs/rag-admin-assistant.md` for architecture, the migration in `supabase/migrations/`,
-required environment variables (`RAG_*`, reusing the existing `OPENAI_API_KEY` and Supabase
-service-role credentials), how to run the first backfill, and how the daily job is scheduled on
-Render vs. Netlify.
+For production builds, set these on every host that serves `/api` (the Netlify function and/or
+the Render server). Variables from the previous setup are no longer read and can be deleted:
+`OPENAI_API_KEY`, `ADMIN_API_KEY`, `RAG_*`, `GEMINI_API_KEY`, `VITE_RENDER_SERVER_URL`,
+`VITE_API_URL`.

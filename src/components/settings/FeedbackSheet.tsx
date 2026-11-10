@@ -86,9 +86,8 @@ export const FeedbackSheet: React.FC<FeedbackSheetProps> = ({
       window.clearTimeout(focusTimer);
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = previousOverflow;
-      // Reclaim focus unless something outside the sheet has already taken it —
-      // submitting the admin key closes this sheet and opens the dashboard,
-      // which owns focus next. AnimatePresence keeps the sheet mounted through
+      // Reclaim focus unless something outside the sheet has already taken it.
+      // AnimatePresence keeps the sheet mounted through
       // its exit spring, so at this point activeElement is usually still a
       // button inside it; testing only for body would skip the restore and drop
       // focus to the top of the page.

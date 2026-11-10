@@ -9,9 +9,12 @@ import {
 import { VocabSkeleton } from './Skeleton';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
 import { useVocabManager } from '../hooks/useVocabManager';
+import type { VocabItem } from '../types';
 
 interface VocabManagerProps {
   t: (key: any) => string;
+  /** App's vocabulary; a change (e.g. the start-up sync finishing) refreshes the list. */
+  vocab?: VocabItem[];
 }
 
 const VocabCell = ({ label, text, lang, speak }: { label: string, text: string, lang: string, speak: (text: string, lang: string) => void }) => {
@@ -31,7 +34,7 @@ const VocabCell = ({ label, text, lang, speak }: { label: string, text: string, 
   );
 };
 
-export const VocabManagerMobile: React.FC<VocabManagerProps> = ({ t }) => {
+export const VocabManagerMobile: React.FC<VocabManagerProps> = ({ t, vocab: appVocab }) => {
   const { speak } = useTextToSpeech();
   const {
     vocab,
@@ -41,7 +44,7 @@ export const VocabManagerMobile: React.FC<VocabManagerProps> = ({ t }) => {
     lastSynced,
     filteredVocab,
     handleExport,
-  } = useVocabManager();
+  } = useVocabManager(appVocab);
 
   return (
     <div className="flex flex-col h-full gap-4 relative">

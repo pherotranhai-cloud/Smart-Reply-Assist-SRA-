@@ -1,0 +1,6 @@
+# Run artifacts; regenerate with the commands in Test_Results.md
+results*.json
+audit.json
+screenshots/
+spotcheck/
+*.log

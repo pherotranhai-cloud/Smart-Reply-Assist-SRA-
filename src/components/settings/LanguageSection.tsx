@@ -76,7 +76,7 @@ export const LanguageSection: React.FC<LanguageSectionProps> = ({
         onKeyDown={handleKeyDown}
         // bg-surface unconditionally, as every other section does: it is
         // already theme- and wallpaper-correct, so the branch this used to
-        // carry bought nothing. See the same note in TalkTabDesktop.
+        // carry bought nothing.
         className="rounded-xl overflow-hidden shadow-sm border border-border-main transition-all duration-300 bg-surface"
       >
         {languageOptions.map((opt, idx) => {

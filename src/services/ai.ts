@@ -24,7 +24,7 @@ export class AIService {
     try {
       const response = await axios.post('/api/ocr', {
         image: imagePayload,
-        model: this.settings.openai.model
+        model: this.settings.model
       });
       return response.data.extractedText;
     } catch (err: any) {
@@ -48,7 +48,7 @@ export class AIService {
           glossary, // Gửi Prompt Glossary đã dựng sẵn sang Backend
           image,
           summarize,
-          model: this.settings.openai.model
+          model: this.settings.model
         })
       });
       
@@ -69,29 +69,8 @@ export class AIService {
 
       while (true) {
         const { value, done } = await reader.read();
-        if (done) {
-          try {
-            const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || '';
-            fetch(`${SERVER_BASE_URL}/api/public/log`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                task_type: image ? 'ocr_translate' : 'translate',
-                input_text: text,
-                output_text: accumulatedText,
-                from_lang: 'auto',
-                to_lang: targetLang
-              })
-            }).catch(logErr => {
-              console.error('[Log Forwarding Failed]:', logErr);
-            });
-          } catch (logErr) {
-            console.error('SSE logger failed:', logErr);
-          }
-          break;
-        }
+        // Usage is logged server-side by /api/translate itself.
+        if (done) break;
         const chunk = decoder.decode(value, { stream: true });
         accumulatedText += chunk;
         if (onChunk) {
@@ -123,31 +102,11 @@ export class AIService {
         params,
         glossary,
         structuredSummary,
-        model: this.settings.openai.model
+        model: this.settings.model
       });
       
+      // Usage is logged server-side by /api/compose itself.
       const generatedReply = response.data.generatedReply;
-      
-      try {
-        const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || '';
-        fetch(`${SERVER_BASE_URL}/api/public/log`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            task_type: 'compose',
-            input_text: contextText + '\n' + requirements,
-            output_text: generatedReply,
-            from_lang: 'auto',
-            to_lang: params.lang
-          })
-        }).catch(logErr => {
-          console.error('[Log Forwarding Failed]:', logErr);
-        });
-      } catch (logErr) {
-        console.error('Compose logger failed:', logErr);
-      }
 
       if (onChunk) {
         onChunk(generatedReply);
@@ -156,77 +115,6 @@ export class AIService {
     } catch (err: any) {
       console.error('Compose error:', err);
       throw new Error(err.response?.data?.error || 'Compose failed');
-    }
-  }
-
-  async talkStream(text: string, targetLang: string, onSentence: (sentence: string) => void, onComplete: (fullText: string) => void) {
-    try {
-      const response = await fetch('/api/talk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, targetLang, model: this.settings.openai.model }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Talk HTTP error! status: ${response.status}`);
-      }
-
-      if (!response.body) {
-        throw new Error('ReadableStream not yet supported in this browser.');
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let done = false;
-      let fullText = '';
-      let buffer = '';
-
-      const isChineseOrSimilar = (lang: string) => lang.includes('Chinese') || lang.includes('Burmese');
-
-      while (!done) {
-        const { value, done: doneReading } = await reader.read();
-        done = doneReading;
-        const chunkValue = decoder.decode(value, { stream: true });
-        
-        // Parse SSE stream
-        const lines = chunkValue.split('\n');
-        for (const line of lines) {
-          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-            try {
-              const data = JSON.parse(line.substring(6));
-              if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
-                const token = data.choices[0].delta.content;
-                fullText += token;
-                buffer += token;
-
-                // Module 1: Check for complete thought (15 chars or punctuation)
-                const isContinuousLang = isChineseOrSimilar(targetLang);
-                
-                const hasPunctuation = /[.!?。！？,，]\s*$/.test(buffer);
-                const hasEnoughWords = isContinuousLang ? buffer.length > 15 : buffer.trim().split(/\s+/).length >= 5;
-
-                if (hasPunctuation || hasEnoughWords) {
-                  onSentence(buffer.trim());
-                  buffer = ''; 
-                }
-              }
-            } catch (e) {
-              // Ignore parse errors on incomplete JSON chunks
-            }
-          }
-        }
-      }
-      
-      // Flush remaining buffer
-      if (buffer.trim()) {
-        onSentence(buffer.trim());
-      }
-
-      onComplete(fullText);
-      return fullText;
-    } catch (err: any) {
-      console.error('Talk stream error:', err);
-      throw new Error(err.message || 'Talk sequence failed');
     }
   }
 

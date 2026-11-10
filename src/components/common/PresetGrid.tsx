@@ -53,10 +53,21 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
     }
   }, []);
 
+  /**
+   * The Custom preset, carrying the user's own settings. Selecting the bare
+   * CORE_PRESETS entry merged its fixed defaults into the compose params, so
+   * saving the Custom dialog (or tapping Custom) silently reset audience,
+   * tone, length and format right after they had been applied.
+   */
+  const customPreset = (settings: typeof localCustom) => ({
+    ...CORE_PRESETS.find(p => p.id === 'custom')!,
+    settings: { audience: settings.audience, tone: settings.tone, length: settings.length, format: settings.format },
+  });
+
   const handleSaveCustom = () => {
     safeLocalStorage.setItem('sra_custom_preset', JSON.stringify(localCustom));
     onUpdateCustomParams(localCustom);
-    onSelectPreset(CORE_PRESETS.find(p => p.id === 'custom')!);
+    onSelectPreset(customPreset(localCustom));
     setIsModalOpen(false);
   };
 
@@ -66,7 +77,7 @@ export const PresetGrid: React.FC<PresetGridProps> = ({
   const longPressProps = useLongPress(() => {
       setIsModalOpen(true);
   }, () => {
-      onSelectPreset(CORE_PRESETS.find(p => p.id === 'custom')!);
+      onSelectPreset(customPreset(localCustom));
   }, { delay: 400 });
 
   return (

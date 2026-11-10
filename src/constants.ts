@@ -1,7 +1,7 @@
-import { Gauge, Sparkles, Zap, type LucideIcon } from 'lucide-react';
+import { Sparkles, type LucideIcon } from 'lucide-react';
 import { AISettings, AppState, Audience, Tone, Length, Format } from './types';
 
-export const DEFAULT_AI_MODEL = 'gpt-5.6-luna';
+export const DEFAULT_AI_MODEL = 'claude-sonnet-5-5';
 
 /**
  * Every model the picker offers, and everything the picker needs to draw one.
@@ -21,9 +21,7 @@ export interface ModelMeta {
 }
 
 export const MODEL_REGISTRY: Record<string, ModelMeta> = {
-  'gpt-5.6-luna': { displayName: 'GPT-5.6 Luna', icon: Sparkles, captionKey: 'model.capability.luna' },
-  'gpt-4o': { icon: Zap, captionKey: 'model.capability.gpt4o' },
-  'gpt-3.5-turbo': { icon: Gauge, captionKey: 'model.capability.gpt35' },
+  'claude-sonnet-5-5': { displayName: 'Claude Sonnet 5.5', icon: Sparkles, captionKey: 'model.capability.sonnet55' },
 };
 
 // Derived, so the list and the registry cannot drift apart. Object key order is
@@ -31,11 +29,7 @@ export const MODEL_REGISTRY: Record<string, ModelMeta> = {
 export const SUPPORTED_MODELS = Object.keys(MODEL_REGISTRY) as readonly string[];
 
 export const DEFAULT_SETTINGS: AISettings = {
-  activeProvider: 'openai',
-  openai: {
-    baseUrl: 'https://api.openai.com/v1',
-    model: DEFAULT_AI_MODEL,
-  },
+  model: DEFAULT_AI_MODEL,
 };
 
 export const DEFAULT_STATE: AppState = {

@@ -32,21 +32,18 @@ import { FloatingAssistant } from './components/FloatingAssistant';
 import { UPDATE_CHANGELOG } from './config/version';
 import { TranslateTab } from './components/TranslateTab';
 import { ComposeTab } from './components/ComposeTab';
-// Vocab, Talk, History, Settings and the admin dashboard used to be React.lazy()
+// Vocab, History and Settings used to be React.lazy()
 // chunks, fetched the first time their tab was opened. That download landed in
 // the middle of the swipe that asked for the tab, so the page animated in over a
 // spinner and settled late. Every screen is part of the one bundle now: the app
 // is paid for once, at startup, behind the splash screen, and a tab switch is
 // only a render.
 import { VocabManager } from './components/VocabManager';
-import { TalkTab } from './components/TalkTab';
 import { HistoryTab } from './components/HistoryTab';
 import { SettingsPanel } from './components/SettingsPanel';
-import { AdminDashboard } from './components/AdminDashboard';
 import { useTabNavigation, TAB_ORDER, TabActiveProvider, type TabType } from './hooks/useTabNavigation';
 import { useTranslateTab } from './hooks/useTranslateTab';
 import { useComposeTab } from './hooks/useComposeTab';
-import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat';
 
 // Where a page waits while another one is showing: on the side it sits on in
 // TAB_ORDER - the same array the swipe gesture walks, imported rather than
@@ -128,9 +125,6 @@ function TabPage({ active, offset, enterOnMount, reducedMotion, className, child
 // --- Main App ---
 
 export default function App() {
-  // Nhịp heartbeat cho chỉ số "số người online" của Admin Dashboard
-  usePresenceHeartbeat();
-
   const { activeTab, setActiveTab } = useTabNavigation();
   const [state, setState] = useState<AppState>(DEFAULT_STATE);
   const [vocab, setVocab] = useState<VocabItem[]>([]);
@@ -139,10 +133,6 @@ export default function App() {
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'info' | 'error' | 'success' } | null>(null);
-  // The key the server accepted at unlock, kept for the dashboard's requests.
-  // Session-scoped React state on purpose: it is never persisted, so closing
-  // the tab ends the admin session and nothing is left on disk to be found.
-  const [adminKey, setAdminKey] = useState<string | null>(null);
 
   const [context, setContext] = useState<ConversationContext | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -208,14 +198,6 @@ export default function App() {
       safeLocalStorage.setItem('app_last_seen_version', UPDATE_CHANGELOG.version);
     }
   }, []);
-
-  useEffect(() => {
-    if (activeTab === 'talk') {
-      const SERVER_BASE_URL = import.meta.env.VITE_RENDER_SERVER_URL || import.meta.env.VITE_API_URL || '';
-      fetch(`${SERVER_BASE_URL}/api/realtime/session`, { method: 'OPTIONS' })
-        .catch(() => { /* Ignore pre-warming error */ });
-    }
-  }, [activeTab]);
 
   useEffect(() => {
     fetch('/api/security-rules')
@@ -490,8 +472,8 @@ export default function App() {
   }, [showToast, t]);
 
   // Sends a history entry back to the tab that produced it, restoring the input,
-  // its parameters and the previous result. 'talk' entries are transcripts of a
-  // translation session, so they reopen in Translate alongside 'translate' ones.
+  // its parameters and the previous result. Legacy 'talk' entries (from the
+  // removed Talk tab) are translation transcripts, so they reopen in Translate.
   const handleReuse = useCallback((item: HistoryItem) => {
     if (item.type === 'compose') {
       composeTab.setComposeReq(item.input);
@@ -654,14 +636,8 @@ export default function App() {
         {mountedTabs.has('vocab') && (
           <TabPage key="vocab" {...tabPage('vocab')} className="h-full">
             <div className="premium-card h-full flex flex-col">
-              <VocabManager t={t} userPreferences={userPreferences} />
+              <VocabManager t={t} userPreferences={userPreferences} vocab={vocab} />
             </div>
-          </TabPage>
-        )}
-
-        {mountedTabs.has('talk') && (
-          <TabPage key="talk" {...tabPage('talk')} className="h-full">
-            <TalkTab settings={state.settings} vocab={vocab} t={t} showToast={showToast} userPreferences={userPreferences} isActive={activeTab === 'talk'} />
           </TabPage>
         )}
 
@@ -688,7 +664,6 @@ export default function App() {
                 setState(prev => ({ ...prev, settings: s }));
               }}
               t={t}
-              onOpenAdmin={(key) => setAdminKey(key)}
               userPreferences={userPreferences}
               onUserPreferencesChange={(prefs) => {
                 setUserPreferences(prefs);
@@ -703,12 +678,6 @@ export default function App() {
         textListening={t('listeningActive')} 
         onClick={handleToggleListening}
       />
-
-      <AnimatePresence>
-        {adminKey && (
-          <AdminDashboard adminKey={adminKey} onClose={() => setAdminKey(null)} />
-        )}
-      </AnimatePresence>
     </Layout>
     </>
     </MotionConfig>

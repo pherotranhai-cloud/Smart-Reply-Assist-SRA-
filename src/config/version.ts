@@ -16,29 +16,34 @@ export const APP_VERSION = `v${__APP_VERSION__}`;
  * ---------------------------------------------------------------------------
  * UPDATE_CHANGELOG — the "what's new" popup.
  * ---------------------------------------------------------------------------
- * Shown once per release: App compares `version` below against the
+ * Data lives in changelog.json (newest release first) and is GENERATED, not
+ * hand-edited: `npm run changelog` reads the commits since the last release,
+ * has Claude write 3-5 plain Vietnamese lines about what a user will notice,
+ * bumps the minor version and prepends the release. The "Update changelog"
+ * GitHub Action runs it on every push to main. Internal-only work produces no
+ * release, so the popup correctly stays shut. See scripts/changelog.ts.
+ *
+ * Shown once per release: App compares `version` against the
  * `app_last_seen_version` entry in localStorage and opens ChangelogModal when
- * they differ.
- *
- * This is deliberately NOT keyed to APP_VERSION. APP_VERSION changes on every
- * single commit, so keying the popup to it would put a modal in front of every
- * user on every deploy — including for a typo fix.
- *
- * RELEASE CHECKLIST — when preparing a merge:
- *   1. Bump `version` below (minor for a user-facing release, e.g. 2.13.0).
- *   2. Rewrite `features` to say, in plain language, what a user will notice.
- *      Three to five short lines. Describe the change, not the implementation:
- *      "chữ rõ hơn trên mọi hình nền", not "raised --text-muted to 4.5:1".
- *   3. Leave the wording in Vietnamese — this is the factory-floor audience.
- * Skip both steps for internal-only work; the popup then correctly stays shut.
+ * they differ. Deliberately NOT keyed to APP_VERSION, which changes on every
+ * commit and would put the popup in front of every user on every deploy.
  */
+import changelog from './changelog.json';
+
+export interface ChangelogRelease {
+  version: string;
+  date: string;
+  /** Last commit the release notes cover; the generator starts after it. */
+  commit: string;
+  features: string[];
+}
+
+export const RELEASES: ChangelogRelease[] = changelog.releases;
+
+const latest = RELEASES[0];
+
 export const UPDATE_CHANGELOG = {
-  version: 'v2.14.0',
-  title: 'Có gì mới trong phiên bản v2.14.0?',
-  features: [
-    "**Cài đặt gọn hơn**: chỉ còn **một** mục chọn giao diện, có thêm tuỳ chọn **Theo hệ thống**",
-    "Giao diện **Cyberpunk** đổi sang tông **tím điện**, chữ dịu mắt hơn khi nhìn lâu",
-    "Chữ trên các nút bấm và viền ô nhập liệu đã rõ ràng ở mọi chủ đề",
-    "Hình nền **hiển thị đúng tên mẫu giày**, và bạn có thể **tải nhiều ảnh từ máy** rồi tự đặt tên",
-  ]
+  version: latest.version,
+  title: `Có gì mới trong phiên bản ${latest.version}?`,
+  features: latest.features,
 };

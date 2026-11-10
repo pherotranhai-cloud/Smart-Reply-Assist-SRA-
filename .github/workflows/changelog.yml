@@ -1,0 +1,73 @@
+# Keeps the in-app "Mới cập nhật" popup current without hand-editing code.
+#
+# On every push to main, scripts/changelog.ts reads the commits since the last
+# release in src/config/changelog.json and asks Claude whether any of them is
+# user-facing. If so it writes 3-5 Vietnamese lines as a new release and this
+# job commits that back to main, which Netlify then deploys. Internal-only
+# pushes change nothing, so the popup stays shut.
+#
+# Setup: add the repository secret ANTHROPIC_API_KEY (Settings → Secrets and
+# variables → Actions). Without it the job is skipped. If main is protected,
+# allow github-actions[bot] to push, or this job's final push will be rejected.
+name: Update changelog popup
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: changelog
+  cancel-in-progress: false
+
+jobs:
+  changelog:
+    # Belt and braces: the job's own commit must not trigger another run.
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(changelog)') }}
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - name: Skip when the API key secret is missing
+        if: ${{ env.ANTHROPIC_API_KEY == '' }}
+        run: echo "::notice::ANTHROPIC_API_KEY secret is not set; changelog popup not updated."
+
+      - uses: actions/checkout@v4
+        if: ${{ env.ANTHROPIC_API_KEY != '' }}
+        with:
+          fetch-depth: 0 # the script walks history back to the last release
+
+      - uses: actions/setup-node@v4
+        if: ${{ env.ANTHROPIC_API_KEY != '' }}
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: ${{ env.ANTHROPIC_API_KEY != '' }}
+        # --ignore-scripts: skip "prepare", which would install the version-bump git hook.
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Generate release notes
+        if: ${{ env.ANTHROPIC_API_KEY != '' }}
+        run: npm run changelog
+
+      - name: Commit the new release
+        if: ${{ env.ANTHROPIC_API_KEY != '' }}
+        run: |
+          if git diff --quiet -- src/config/changelog.json package.json; then
+            echo "No user-facing changes; nothing to commit."
+            exit 0
+          fi
+          version=$(node -p "require('./src/config/changelog.json').releases[0].version")
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/config/changelog.json package.json
+          # No "[skip ci]": Netlify honours it too, and this commit must deploy.
+          # Pushes made with GITHUB_TOKEN never start another workflow run.
+          git commit --no-verify -m "chore(changelog): release notes for ${version}"
+          git pull --rebase origin main
+          git push

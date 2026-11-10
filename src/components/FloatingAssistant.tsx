@@ -127,6 +127,8 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0, opacity: 0 }}
               onClick={() => setIsOpen(true)}
+              aria-label={t('assistant.title', 'Technical Expert')}
+              title={t('assistant.title', 'Technical Expert')}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="pointer-events-auto w-12 h-12 rounded-full ios-glass bg-card/90 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border-main flex items-center justify-center text-accent backdrop-blur-xl"
@@ -154,6 +156,7 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
                 </div>
                 <button 
                   onClick={() => setIsOpen(false)}
+                  aria-label={t('assistant.close', 'Close')}
                   className="p-1.5 rounded-full hover:bg-border-main/50 text-text-muted transition-colors"
                 >
                   <X size={18} />
@@ -177,6 +180,7 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
                 <div className="flex items-center justify-end gap-2">
                   <button
                     onClick={handleSearch}
+                    aria-label={t('assistant.send', 'Send')}
                     disabled={!input.trim() || loading}
                     className="shrink-0 p-2.5 rounded-full bg-accent text-accent-on hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
                   >
@@ -193,6 +197,7 @@ export const FloatingAssistant: React.FC<FloatingAssistantProps> = ({ settings, 
                     >
                       <button
                         onClick={handleCopy}
+                        aria-label={t('copy', 'Copy')}
                         className="absolute top-2 right-0 p-1.5 text-text-muted hover:text-text-main bg-panel rounded-lg shadow-sm border border-border-main transition-colors z-10"
                       >
                         {isCopied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}

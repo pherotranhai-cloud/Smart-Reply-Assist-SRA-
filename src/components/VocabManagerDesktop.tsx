@@ -1,17 +1,20 @@
 import React from 'react';
 import { Search, Download, BookOpen, Clock, Volume2 } from 'lucide-react';
 import { useVocabManager } from '../hooks/useVocabManager';
+import type { VocabItem } from '../types';
 
 interface VocabManagerDesktopProps {
   t: (key: string) => string;
   userPreferences?: any;
+  /** App's vocabulary; a change (e.g. the start-up sync finishing) refreshes the list. */
+  vocab?: VocabItem[];
 }
 
-export const VocabManagerDesktop: React.FC<VocabManagerDesktopProps> = ({ t, userPreferences }) => {
+export const VocabManagerDesktop: React.FC<VocabManagerDesktopProps> = ({ t, userPreferences, vocab: appVocab }) => {
   const {
     search, setSearch, loading, lastSynced,
     filteredVocab, handleExport, speakText,
-  } = useVocabManager();
+  } = useVocabManager(appVocab);
 
   const hasBgImage = !!userPreferences?.backgroundImage || (userPreferences?.backgroundEffect && userPreferences.backgroundEffect !== 'none');
 

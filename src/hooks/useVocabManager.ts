@@ -4,7 +4,14 @@ import { VocabItem } from '../types';
 import Papa from 'papaparse';
 import { useTextToSpeech } from './useTextToSpeech';
 
-export function useVocabManager() {
+/**
+ * `appVocab` is App's copy of the vocabulary, which the start-up cloud sync
+ * replaces once it finishes. The Vocab tab stays mounted after its first
+ * visit, so reading storage only on mount left it showing "0 terms" for good
+ * whenever it was opened before that sync completed; re-reading whenever
+ * App's copy changes keeps the list and the "last synced" time current.
+ */
+export function useVocabManager(appVocab?: VocabItem[]) {
   const [vocab, setVocab] = useState<VocabItem[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -35,7 +42,7 @@ export function useVocabManager() {
       }
     };
     loadVocab();
-  }, []);
+  }, [appVocab]);
 
   const filteredVocab = useMemo(() => {
     return vocab.filter(v => {
