@@ -42,7 +42,7 @@ http
   .createServer((req, res) => {
     let raw = '';
     req.on('data', (c) => (raw += c));
-    req.on('end', () => {
+    req.on('end', async () => {
       const body = JSON.parse(raw || '{}');
       const r = reply(body);
       const content = [{ type: 'text', text: r.text, citations: r.citation ? [{ type: 'web_search_result_location', url: r.citation.url, title: r.citation.title, cited_text: 'x', encrypted_index: 'e' }] : null }];
@@ -53,7 +53,11 @@ http
         ev('content_block_start', { index: 0, content_block: { type: 'text', text: '' } });
         // Split into a few chunks so the client really streams.
         const parts = r.text.match(/.{1,12}/gsu) || ['']; // u: never split a surrogate pair
-        for (const p of parts) ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text: p } });
+        const delay = Number(process.env.MOCK_CHUNK_DELAY_MS || 0);
+        for (const p of parts) {
+          ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text: p } });
+          if (delay) await new Promise((r) => setTimeout(r, delay));
+        }
         ev('content_block_stop', { index: 0 });
         ev('message_delta', { delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 2 } });
         ev('message_stop', {});

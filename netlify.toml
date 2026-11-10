@@ -6,6 +6,15 @@
   node_bundler = "esbuild"
   external_node_modules = ["serverless-http", "express", "cors", "@anthropic-ai/sdk"]
 
+# /api/translate goes to its own modern function so the answer streams to the
+# browser (the Lambda-style api function buffers whole responses). Must stay
+# above the /api/* rule: the first matching rule wins.
+[[redirects]]
+  from = "/api/translate"
+  to = "/.netlify/functions/translate"
+  status = 200
+  force = true
+
 # Map /api/* to Netlify functions
 [[redirects]]
   from = "/api/*"

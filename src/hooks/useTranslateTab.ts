@@ -95,14 +95,14 @@ export function useTranslateTab({
     const cache = await storage.getTranslationCache();
 
     if (cache[hashKey]) {
+      // Shown at once. It used to be replayed one character per 10ms timer,
+      // which made a 500-character cached answer take 5+ seconds to appear —
+      // slower than asking the model again.
       const cachedResult = cache[hashKey].translatedText;
-      for (let i = 0; i <= cachedResult.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 10));
-        setState(prev => ({
-          ...prev,
-          lastOutputs: { ...prev.lastOutputs, translatedText: cachedResult.substring(0, i) }
-        }));
-      }
+      setState(prev => ({
+        ...prev,
+        lastOutputs: { ...prev.lastOutputs, translatedText: cachedResult }
+      }));
       setIsCached(true);
       showToast(t('instantTranslation'), 'success');
       setLoading(false);
