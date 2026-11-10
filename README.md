@@ -37,6 +37,27 @@ The conversion also normalises the rest of what the model writes: headings keep 
 bold span) and lose the hashes, bullets become `•`, task boxes become `☐`/`☑`, links become
 `label (url)`, quote markers and code fences are dropped, and `snake_case` names are left alone.
 
+## "Mới cập nhật" popup (automated)
+
+The what's-new popup is generated, not hand-edited. Its data lives in
+`src/config/changelog.json` (newest release first); `src/config/version.ts` derives the popup's
+version and title from it.
+
+- `npm run changelog` reads the commits since the last release's `commit`, asks Claude whether
+  any of them is user-facing and, if so, writes 3-5 plain Vietnamese lines as a new release (next
+  minor version, also applied to `package.json`). Internal-only work writes nothing, so the popup
+  stays shut. `--dry-run` previews; `--from <ref>` overrides the starting commit.
+- `.github/workflows/changelog.yml` runs it on every push to `main` and commits the result, which
+  Netlify then deploys. It needs the repository secret `ANTHROPIC_API_KEY`; without it the job is
+  skipped. If `main` is branch-protected, allow `github-actions[bot]` to push.
+- To correct wording, edit the newest entry in `changelog.json` by hand; the next run starts after
+  that entry's `commit`.
+
+## Database cleanup
+
+`supabase/scripts/drop_rag.sql` removes the tables and functions the old RAG assistant created
+(`app_logs` is kept). Run it once in the Supabase SQL editor; it is idempotent and transactional.
+
 ## Development
 
 ### Run Development Server

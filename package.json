@@ -1,7 +1,7 @@
 {
   "name": "ai-smart-reply-assist",
   "private": true,
-  "version": "2.12.25",
+  "version": "2.15.1",
   "type": "module",
   "scripts": {
     "start": "node dist/server.cjs",
@@ -12,6 +12,7 @@
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "version:bump": "node scripts/bump-version.mjs",
+    "changelog": "tsx scripts/changelog.ts",
     "prepare": "git config core.hooksPath .githooks || true"
   },
   "dependencies": {

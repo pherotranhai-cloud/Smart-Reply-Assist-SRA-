@@ -32,7 +32,8 @@ export type ChatTask =
   | 'ocr'
   | 'compose'
   | 'expert-search'
-  | 'security-analyze';
+  | 'security-analyze'
+  | 'changelog';
 
 type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
@@ -59,6 +60,9 @@ export const TASK_CONFIG: Record<ChatTask, TaskConfig> = {
   compose: { max_tokens: 4000, thinking: { type: 'between_tools' }, effort: 'medium' },
   'expert-search': { max_tokens: 16000, thinking: { type: 'adaptive' }, effort: 'medium' },
   'security-analyze': { max_tokens: 1024, thinking: { type: 'between_tools' }, effort: 'low' },
+  // Release notes for the "what's new" popup (scripts/changelog.ts): offline,
+  // so it can afford to think about which commits a user would notice.
+  changelog: { max_tokens: 8000, thinking: { type: 'adaptive' }, effort: 'medium' },
 };
 
 export function taskConfig(task: ChatTask): TaskConfig {

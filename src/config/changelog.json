@@ -1,0 +1,25 @@
+{
+  "releases": [
+    {
+      "version": "v2.15.0",
+      "date": "2026-11-10",
+      "commit": "ced829eb97c2ff2e13d847d774d6f62263d65663",
+      "features": [
+        "Trợ lý AI nay chạy trên **Claude Sonnet 5.5** cho dịch, soạn tin, đọc chữ trong ảnh và tra cứu chuyên gia",
+        "Cài đặt cũ được **tự chuyển sang mô hình mới**, bạn không cần chọn lại",
+        "Tab **Talk** (phiên dịch giọng nói trực tiếp) đã được gỡ bỏ — bạn vẫn có thể **nói bằng micro** trong tab Dịch và Soạn tin"
+      ]
+    },
+    {
+      "version": "v2.14.0",
+      "date": "2026-08-20",
+      "commit": "b657e2ef69fa128f6666abe913aba465accd7ef7",
+      "features": [
+        "**Cài đặt gọn hơn**: chỉ còn **một** mục chọn giao diện, có thêm tuỳ chọn **Theo hệ thống**",
+        "Giao diện **Cyberpunk** đổi sang tông **tím điện**, chữ dịu mắt hơn khi nhìn lâu",
+        "Chữ trên các nút bấm và viền ô nhập liệu đã rõ ràng ở mọi chủ đề",
+        "Hình nền **hiển thị đúng tên mẫu giày**, và bạn có thể **tải nhiều ảnh từ máy** rồi tự đặt tên"
+      ]
+    }
+  ]
+}
